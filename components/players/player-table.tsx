@@ -145,6 +145,33 @@ export default function PlayerTable({ players }: PlayerTableProps) {
         keyField="uid"
         emptyMessage="No players found for this month"
         onRowClick={(row) => router.push(`/players/${row.uid}`)}
+        renderMobileCard={(row) => {
+          const player = row as unknown as Player;
+          return (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono font-medium" style={{ color: "var(--text-secondary)" }}>
+                    #{player.rank}
+                  </span>
+                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    {player.name}
+                  </span>
+                  <SubscriberBadge player={player} />
+                </div>
+                <span className="tabular-nums font-medium" style={{ color: "var(--accent)" }}>
+                  {player.points.toFixed(0)}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-xs">
+                <span style={{ color: "var(--text-secondary)" }}>{player.games} games</span>
+                <span style={{ color: "var(--success)" }}>{player.wins}W</span>
+                <span style={{ color: "var(--error)" }}>{player.losses}L</span>
+                <span style={{ color: "var(--text-secondary)" }}>{parseFloat(player.win_pct.toFixed(2))}%</span>
+              </div>
+            </div>
+          );
+        }}
       />
     </div>
   );

@@ -20,6 +20,7 @@ interface DataTableProps<T> {
   rowHover?: boolean;
   defaultSortKey?: string | null;
   defaultSortDir?: "asc" | "desc";
+  renderMobileCard?: (row: T) => React.ReactNode;
 }
 
 export default function DataTable<T extends Record<string, unknown>>({
@@ -31,6 +32,7 @@ export default function DataTable<T extends Record<string, unknown>>({
   rowHover,
   defaultSortKey = null,
   defaultSortDir = "asc",
+  renderMobileCard,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(defaultSortKey);
   const [sortDir, setSortDir] = useState<"asc" | "desc">(defaultSortDir);
@@ -69,64 +71,82 @@ export default function DataTable<T extends Record<string, unknown>>({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-[var(--border)]">
-            {columns.map((col) => (
-              <th
-                key={col.key}
-                className={`px-4 py-3 text-left font-medium text-xs uppercase tracking-wider ${
-                  col.sortable ? "cursor-pointer select-none" : ""
-                } ${col.className || ""}`}
-                style={{ color: "var(--text-muted)" }}
-                onClick={col.sortable ? () => handleSort(col.key) : undefined}
-              >
-                <div className={`flex items-center gap-1 ${
-                  col.className?.includes("text-center") ? "justify-center" :
-                  col.className?.includes("text-right") ? "justify-end" : ""
-                }`}>
-                  {col.label}
-                  {col.sortable && sortKey === col.key && (
-                    sortDir === "asc" ? (
-                      <ChevronUp className="w-3 h-3" />
-                    ) : (
-                      <ChevronDown className="w-3 h-3" />
-                    )
-                  )}
-                </div>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
+    <>
+      {/* Mobile card view */}
+      {renderMobileCard && (
+        <div className="sm:hidden">
           {sorted.map((row) => (
-            <tr
+            <div
               key={String(row[keyField])}
-              className={`border-b border-[var(--border-subtle)] transition-colors ${
-                onRowClick
-                  ? "cursor-pointer hover:bg-[var(--bg-hover)]"
-                  : rowHover
-                    ? "hover:bg-[var(--bg-hover)]"
-                    : ""
-              }`}
+              className={`mobile-card ${onRowClick ? "cursor-pointer active:bg-[var(--bg-hover)]" : ""}`}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
             >
+              {renderMobileCard(row)}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Desktop table view */}
+      <div className={`overflow-x-auto ${renderMobileCard ? "hidden sm:block" : ""}`}>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-[var(--border)]">
               {columns.map((col) => (
-                <td
+                <th
                   key={col.key}
-                  className={`px-4 py-3 ${col.className || ""}`}
-                  style={{ color: "var(--text-primary)" }}
+                  className={`px-4 py-3 text-left font-medium text-xs uppercase tracking-wider ${
+                    col.sortable ? "cursor-pointer select-none" : ""
+                  } ${col.className || ""}`}
+                  style={{ color: "var(--text-muted)" }}
+                  onClick={col.sortable ? () => handleSort(col.key) : undefined}
                 >
-                  {col.render
-                    ? col.render(row)
-                    : String(row[col.key] ?? "")}
-                </td>
+                  <div className={`flex items-center gap-1 ${
+                    col.className?.includes("text-center") ? "justify-center" :
+                    col.className?.includes("text-right") ? "justify-end" : ""
+                  }`}>
+                    {col.label}
+                    {col.sortable && sortKey === col.key && (
+                      sortDir === "asc" ? (
+                        <ChevronUp className="w-3 h-3" />
+                      ) : (
+                        <ChevronDown className="w-3 h-3" />
+                      )
+                    )}
+                  </div>
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {sorted.map((row) => (
+              <tr
+                key={String(row[keyField])}
+                className={`border-b border-[var(--border-subtle)] transition-colors ${
+                  onRowClick
+                    ? "cursor-pointer hover:bg-[var(--bg-hover)]"
+                    : rowHover
+                      ? "hover:bg-[var(--bg-hover)]"
+                      : ""
+                }`}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+              >
+                {columns.map((col) => (
+                  <td
+                    key={col.key}
+                    className={`px-4 py-3 ${col.className || ""}`}
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    {col.render
+                      ? col.render(row)
+                      : String(row[col.key] ?? "")}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }

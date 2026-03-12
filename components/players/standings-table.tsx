@@ -102,7 +102,59 @@ export default function StandingsTable({ standings, defaultSort }: StandingsTabl
         borderColor: "var(--border)",
       }}
     >
-      <div className="overflow-x-auto">
+      {/* Mobile card view */}
+      <div className="sm:hidden">
+        {sorted.map((s) => {
+          const isPodium = s.rank <= 3;
+          const rankStyle = getRankStyle(s.rank);
+          return (
+            <div
+              key={s.uid}
+              className="mobile-card"
+              style={{ background: isPodium ? rankStyle.bg : undefined }}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2.5">
+                  <RankBadge rank={s.rank} />
+                  {s.avatar_url ? (
+                    <img src={s.avatar_url} alt="" className="w-7 h-7 rounded-full" />
+                  ) : (
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium"
+                      style={{ background: "var(--accent-light)", color: "var(--accent)" }}
+                    >
+                      {s.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span
+                    className={`font-medium ${isPodium ? "text-base" : "text-sm"}`}
+                    style={{ color: isPodium ? rankStyle.color : "var(--text-primary)" }}
+                  >
+                    {s.name}
+                  </span>
+                </div>
+                <span className="tabular-nums font-semibold" style={{ color: "var(--accent)" }}>
+                  {s.points.toFixed(0)}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-xs ml-[42px]">
+                <span className="tabular-nums">
+                  <span style={{ color: "var(--success)" }}>{s.wins}W</span>
+                  <span style={{ color: "var(--text-muted)" }}> / </span>
+                  <span style={{ color: "var(--error)" }}>{s.losses}L</span>
+                  <span style={{ color: "var(--text-muted)" }}> / </span>
+                  <span style={{ color: "var(--text-secondary)" }}>{s.draws}D</span>
+                </span>
+                <span style={{ color: "var(--text-muted)" }}>{s.games} games</span>
+                <span style={{ color: "var(--text-secondary)" }}>{parseFloat(s.win_pct.toFixed(2))}%</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="overflow-x-auto hidden sm:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--border)]">

@@ -135,7 +135,7 @@ export default function FixedCostManager({
             borderColor: "var(--border)",
           }}
         >
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input
               type="text"
               value={form.name}
@@ -155,7 +155,7 @@ export default function FixedCostManager({
               style={inputStyle}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select
               value={form.category}
               onChange={(val) =>
@@ -221,7 +221,7 @@ export default function FixedCostManager({
               className="flex items-center justify-between py-2.5 px-3 rounded-lg transition-colors hover:bg-[var(--bg-hover)]"
             >
               {isEditing ? (
-                <div className="flex items-center gap-2 flex-1">
+                <div className="flex items-center gap-2 flex-1 flex-wrap">
                   <input
                     type="text"
                     value={editForm.name}

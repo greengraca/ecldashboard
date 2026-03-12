@@ -205,7 +205,7 @@ export default function HomePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div
-          className="p-6 rounded-xl border"
+          className="p-4 sm:p-6 rounded-xl border"
           style={{
             background: "var(--bg-card)",
             borderColor: "var(--border)",
@@ -275,7 +275,7 @@ export default function HomePage() {
         </div>
 
         <div
-          className="p-6 rounded-xl border"
+          className="p-4 sm:p-6 rounded-xl border"
           style={{
             background: "var(--bg-card)",
             borderColor: "var(--border)",

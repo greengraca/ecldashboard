@@ -18,7 +18,7 @@ export default function DashboardLayout({
           collapsed ? "md:ml-16" : "md:ml-60"
         }`}
       >
-        <div className="p-6 md:p-8 max-w-7xl mx-auto">{children}</div>
+        <div className="p-4 pt-14 md:pt-8 md:p-8 max-w-7xl mx-auto">{children}</div>
       </main>
     </div>
   );

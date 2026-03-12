@@ -191,7 +191,36 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
             borderColor: "var(--border)",
           }}
         >
-          <div className="overflow-x-auto">
+          {/* Mobile card view */}
+          <div className="sm:hidden">
+            {[...history].reverse().map((h) => (
+              <div key={h.month} className="mobile-card space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    {h.month}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {h.rank && (
+                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>#{h.rank}</span>
+                    )}
+                    <span className="tabular-nums font-medium" style={{ color: "var(--accent)" }}>
+                      {h.points.toFixed(0)} pts
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-xs">
+                  <span style={{ color: "var(--text-secondary)" }}>{h.games} games</span>
+                  <span style={{ color: "var(--success)" }}>{h.wins}W</span>
+                  <span style={{ color: "var(--error)" }}>{h.losses}L</span>
+                  <span style={{ color: "var(--text-secondary)" }}>{h.draws}D</span>
+                  <span style={{ color: "var(--text-secondary)" }}>{parseFloat(h.win_pct.toFixed(2))}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table view */}
+          <div className="overflow-x-auto hidden sm:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)]">

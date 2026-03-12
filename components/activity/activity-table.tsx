@@ -139,6 +139,34 @@ export default function ActivityTable({ data, loading }: ActivityTableProps) {
       data={data as Row[]}
       keyField="_id"
       emptyMessage="No activity entries found"
+      renderMobileCard={(row) => (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ActionBadge action={row.action as ActivityAction} />
+              <span
+                className="text-xs capitalize px-2 py-0.5 rounded"
+                style={{ background: "var(--bg-hover)", color: "var(--text-tertiary)" }}
+              >
+                {(row.entity_type as string).replace(/_/g, " ")}
+              </span>
+            </div>
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              {timeAgo(row.timestamp as string)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+              {(row.user_name as string) || "System"}
+            </span>
+          </div>
+          {row.details && Object.keys(row.details as Record<string, unknown>).length > 0 && (
+            <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
+              {truncate(detailsToString(row.details as Record<string, unknown>), 80)}
+            </p>
+          )}
+        </div>
+      )}
     />
   );
 }

@@ -133,7 +133,7 @@ export default function FinanceOverview() {
 
   return (
     <div
-      className="rounded-xl border p-6 mb-8"
+      className="rounded-xl border p-4 sm:p-6 mb-8"
       style={{
         background: "var(--bg-card)",
         borderColor: "var(--border)",
@@ -168,7 +168,7 @@ export default function FinanceOverview() {
               Treasury Balance
             </p>
             <p
-              className="text-3xl font-bold"
+              className="text-2xl sm:text-3xl font-bold"
               style={{
                 color: isLoading
                   ? "var(--text-muted)"

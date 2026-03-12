@@ -218,7 +218,7 @@ export default function PlayersPage() {
           )}
 
           {/* Filters */}
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex flex-wrap items-center gap-3 mb-6">
             <button
               onClick={() => setFilter(filter === "eligible" ? "none" : "eligible")}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
@@ -363,7 +363,7 @@ export default function PlayersPage() {
       {!isCurrentMonth && (
         <>
           {/* Filters */}
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex flex-wrap items-center gap-3 mb-6">
             <button
               onClick={() => setFilter(filter === "top16" ? "none" : "top16")}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"

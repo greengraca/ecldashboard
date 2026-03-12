@@ -60,7 +60,7 @@ export default function BalanceCard({ summary, isLoading }: BalanceCardProps) {
               <span style={{ color: item.color }}>{item.icon}</span>
             </div>
           </div>
-          <p className="text-2xl font-bold" style={{ color: item.color }}>
+          <p className="text-xl sm:text-2xl font-bold" style={{ color: item.color }}>
             {isLoading
               ? "--"
               : `${item.prefix}\u20AC${item.value.toFixed(2)}`}
@@ -98,7 +98,7 @@ export default function BalanceCard({ summary, isLoading }: BalanceCardProps) {
           </div>
         </div>
         <p
-          className="text-2xl font-bold"
+          className="text-xl sm:text-2xl font-bold"
           style={{
             color: net >= 0 ? "var(--success)" : "var(--error)",
           }}

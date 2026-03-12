@@ -79,13 +79,13 @@ export default function MonthlyBreakdownChart({
 
   return (
     <div
-      className="rounded-xl border p-6 mb-8"
+      className="rounded-xl border p-4 sm:p-6 mb-8"
       style={{
         background: "var(--bg-card)",
         borderColor: "var(--border)",
       }}
     >
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
         <h2
           className="text-sm font-medium uppercase tracking-wider"
           style={{ color: "var(--text-muted)" }}

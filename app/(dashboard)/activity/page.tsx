@@ -100,7 +100,7 @@ export default function ActivityPage() {
         {/* Pagination */}
         {data && data.totalPages > 1 && (
           <div
-            className="flex items-center justify-between px-4 py-3 border-t"
+            className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-3 border-t"
             style={{ borderColor: "var(--border)" }}
           >
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>

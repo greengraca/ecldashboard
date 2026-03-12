@@ -131,6 +131,57 @@ export default function TransactionTable({
         data={transactions as unknown as Record<string, unknown>[]}
         keyField="_id"
         emptyMessage="No transactions for this month"
+        renderMobileCard={(row) => {
+          const tx = row as unknown as Transaction;
+          return (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="px-2 py-0.5 rounded-full text-xs font-medium capitalize"
+                    style={{
+                      background: tx.type === "income" ? "var(--success-light)" : "var(--error-light)",
+                      color: tx.type === "income" ? "var(--success)" : "var(--error)",
+                    }}
+                  >
+                    {tx.type}
+                  </span>
+                  <span className="capitalize text-xs" style={{ color: "var(--text-muted)" }}>
+                    {tx.category}
+                  </span>
+                </div>
+                <span
+                  className="font-medium text-sm"
+                  style={{ color: tx.type === "income" ? "var(--success)" : "var(--error)" }}
+                >
+                  {tx.type === "income" ? "+" : "-"}&euro;{tx.amount.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                  {tx.description}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onEdit(tx); }}
+                    className="p-1.5 rounded-lg transition-colors hover:bg-[var(--bg-hover)]"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(tx); }}
+                    className="p-1.5 rounded-lg transition-colors hover:bg-[var(--error-light)]"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{tx.date}</p>
+            </div>
+          );
+        }}
       />
     </div>
   );

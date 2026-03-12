@@ -177,6 +177,38 @@ export default function SubscriberTable({
         rowHover
         defaultSortKey="is_playing"
         defaultSortDir="desc"
+        renderMobileCard={(row) => (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                {row.avatar_url ? (
+                  <img src={row.avatar_url as string} alt="" className="w-8 h-8 rounded-full" />
+                ) : (
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium"
+                    style={{ background: "var(--accent-light)", color: "var(--accent)" }}
+                  >
+                    {(row.display_name as string).charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    {row.display_name as string}
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    {row.username as string}
+                  </p>
+                </div>
+              </div>
+              <SourceBadge source={row.source as SubscriptionSource} />
+            </div>
+            <div className="flex items-center gap-4 text-xs" style={{ color: "var(--text-secondary)" }}>
+              <PlayingStatus isPlaying={row.is_playing as boolean} />
+              {row.tier && <span>Tier: {row.tier as string}</span>}
+              <span className="tabular-nums">{row.games_played as number} games</span>
+            </div>
+          </div>
+        )}
       />
     </div>
   );

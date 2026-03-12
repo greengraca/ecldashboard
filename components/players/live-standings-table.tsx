@@ -124,7 +124,87 @@ export default function LiveStandingsTable({
         borderColor: "var(--border)",
       }}
     >
-      <div className="overflow-x-auto">
+      {/* Mobile card view */}
+      <div className="sm:hidden">
+        {sorted.map((s) => {
+          const isPodium = s.rank <= 3;
+          const rankStyle = getRankStyle(s.rank);
+          return (
+            <div
+              key={s.uid}
+              className="mobile-card"
+              style={{
+                background: isPodium && !s.dropped ? rankStyle.bg : undefined,
+                opacity: s.dropped ? 0.4 : 1,
+              }}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2">
+                  <RankBadge rank={s.rank} />
+                  {s.avatar_url ? (
+                    <img src={s.avatar_url} alt="" className="w-7 h-7 rounded-full" />
+                  ) : (
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium"
+                      style={{ background: "var(--accent-light)", color: "var(--accent)" }}
+                    >
+                      {s.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <span
+                      className={`font-medium ${isPodium ? "text-base" : "text-sm"}`}
+                      style={{
+                        color: s.dropped ? "var(--text-muted)" : isPodium ? rankStyle.color : "var(--text-primary)",
+                      }}
+                    >
+                      {s.name}
+                    </span>
+                    {s.dropped && (
+                      <span
+                        className="ml-2 text-xs px-1.5 py-0.5 rounded"
+                        style={{ background: "var(--error-light)", color: "var(--error)" }}
+                      >
+                        dropped
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="tabular-nums font-semibold" style={{ color: "var(--accent)" }}>
+                    {s.points.toFixed(0)}
+                  </span>
+                  <span
+                    className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold"
+                    style={{
+                      background: s.eligible ? "var(--success-light)" : "var(--error-light)",
+                      color: s.eligible ? "var(--success)" : "var(--error)",
+                    }}
+                  >
+                    {s.eligible ? "\u2713" : "\u2717"}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-xs ml-[42px] flex-wrap">
+                <span className="tabular-nums">
+                  <span style={{ color: "var(--success)" }}>{s.wins}W</span>
+                  <span style={{ color: "var(--text-muted)" }}>/</span>
+                  <span style={{ color: "var(--error)" }}>{s.losses}L</span>
+                  <span style={{ color: "var(--text-muted)" }}>/</span>
+                  <span style={{ color: "var(--text-secondary)" }}>{s.draws}D</span>
+                </span>
+                <span style={{ color: "var(--text-muted)" }}>{s.games}g</span>
+                <span style={{ color: "var(--text-secondary)" }}>{parseFloat(s.win_pct.toFixed(2))}%</span>
+                <span style={{ color: "var(--text-secondary)" }}>OW {parseFloat(s.ow_pct.toFixed(2))}%</span>
+                <span style={{ color: "var(--text-muted)" }}>{s.online_games} online</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="overflow-x-auto hidden sm:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--border)]">
