@@ -28,3 +28,6 @@ export const ALL_SUB_ROLE_IDS = new Set([
   ...KOFI_ROLE_IDS,
   ...FREE_ENTRY_ROLE_IDS,
 ]);
+
+export const FIRESTORE_DOC_URL_TEMPLATE = process.env.FIRESTORE_DOC_URL_TEMPLATE || "";
+export const WAGER_RATE = parseFloat(process.env.WAGER_RATE || "0.07");

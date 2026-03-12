@@ -1,4 +1,5 @@
 import { getDb } from "./mongodb";
+import { WAGER_RATE } from "./constants";
 
 // ─── Types ───
 
@@ -36,7 +37,7 @@ export interface EntrantStats {
 // ─── Constants ───
 
 const START_POINTS = 1000;
-const WAGER_RATE = 0.1;
+// WAGER_RATE imported from constants (default 0.07)
 
 // ─── In-memory cache with TTL ───
 
@@ -173,7 +174,7 @@ export async function reassembleMonthDump(monthInfo: MonthInfo): Promise<MonthDu
 
 /**
  * Compute standings from matches using the staking model.
- * START_POINTS=1000, WAGER_RATE=0.1
+ * START_POINTS=1000, WAGER_RATE from env (default 0.07)
  */
 export function computeStandings(
   matches: DumpMatch[],

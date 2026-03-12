@@ -141,6 +141,23 @@ export interface Standing {
   win_pct: number;
 }
 
+export interface LiveStanding {
+  rank: number;
+  uid: string;
+  name: string;
+  discord: string;
+  points: number;
+  games: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  win_pct: number;
+  ow_pct: number;
+  online_games: number;
+  dropped: boolean;
+  eligible: boolean;
+}
+
 // ─── Activity Types ───
 
 export type ActivityAction = "create" | "update" | "delete" | "sync";

@@ -55,7 +55,7 @@ export default function HomePage() {
   );
 
   const { data: playerData, isLoading: playerLoading } = useSWR(
-    `/api/players/standings?month=${month}`,
+    "/api/players/standings/live",
     fetcher
   );
 
@@ -66,7 +66,7 @@ export default function HomePage() {
 
   const summary = subData?.data?.summary;
   const finance = financeData?.data;
-  const standings = playerData?.data?.standings;
+  const liveStandings = playerData?.data?.standings;
   const recentActivity: ActivityEntry[] = activityData?.data || [];
 
   const subscriberCount = summary?.total ?? null;
@@ -74,10 +74,11 @@ export default function HomePage() {
     summary != null ? (summary.patreon || 0) + (summary.kofi || 0) : null;
   const revenue = finance?.income ?? null;
   const net = finance?.net ?? null;
-  const playerCount = standings?.length ?? null;
+  const activeStandings = liveStandings?.filter((s: { dropped: boolean }) => !s.dropped);
+  const playerCount = activeStandings?.length ?? null;
   const totalGames =
-    standings != null
-      ? standings.reduce(
+    activeStandings != null
+      ? activeStandings.reduce(
           (sum: number, s: { games: number }) => sum + s.games,
           0
         )
