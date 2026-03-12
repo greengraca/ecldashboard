@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { Search } from "lucide-react";
 import DataTable, { type Column } from "@/components/dashboard/data-table";
 import type { Subscriber, SubscriptionSource } from "@/lib/types";
 
@@ -114,7 +116,7 @@ const columns: Column<Subscriber & Record<string, unknown>>[] = [
     key: "games_played",
     label: "Games",
     sortable: true,
-    className: "text-right",
+    className: "text-center",
     render: (row) => (
       <span className="tabular-nums">{row.games_played as number}</span>
     ),
@@ -125,9 +127,16 @@ export default function SubscriberTable({
   subscribers,
   filterSource,
 }: SubscriberTableProps) {
-  const filtered = filterSource
-    ? subscribers.filter((s) => s.source === filterSource)
-    : subscribers;
+  const [search, setSearch] = useState("");
+
+  const filtered = subscribers.filter((s) => {
+    const matchesSource = !filterSource || s.source === filterSource;
+    const matchesSearch =
+      !search ||
+      s.display_name.toLowerCase().includes(search.toLowerCase()) ||
+      s.username.toLowerCase().includes(search.toLowerCase());
+    return matchesSource && matchesSearch;
+  });
 
   // Cast for DataTable compatibility
   const data = filtered as unknown as (Subscriber & Record<string, unknown>)[];
@@ -140,11 +149,32 @@ export default function SubscriberTable({
         borderColor: "var(--border)",
       }}
     >
+      <div className="px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
+        <div className="relative max-w-xs">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+            style={{ color: "var(--text-muted)" }}
+          />
+          <input
+            type="text"
+            placeholder="Search subscribers..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 rounded-lg text-sm outline-none transition-colors hover:border-[var(--text-muted)] focus:border-[var(--accent)]"
+            style={{
+              background: "var(--bg-page)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border)",
+            }}
+          />
+        </div>
+      </div>
       <DataTable
         columns={columns}
         data={data}
         keyField="discord_id"
         emptyMessage="No subscribers found for this month"
+        rowHover
       />
     </div>
   );

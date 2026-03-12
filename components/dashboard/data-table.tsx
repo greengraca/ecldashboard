@@ -17,6 +17,7 @@ interface DataTableProps<T> {
   keyField: string;
   emptyMessage?: string;
   onRowClick?: (row: T) => void;
+  rowHover?: boolean;
 }
 
 export default function DataTable<T extends Record<string, unknown>>({
@@ -25,6 +26,7 @@ export default function DataTable<T extends Record<string, unknown>>({
   keyField,
   emptyMessage = "No data",
   onRowClick,
+  rowHover,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -76,7 +78,10 @@ export default function DataTable<T extends Record<string, unknown>>({
                 style={{ color: "var(--text-muted)" }}
                 onClick={col.sortable ? () => handleSort(col.key) : undefined}
               >
-                <div className="flex items-center gap-1">
+                <div className={`flex items-center gap-1 ${
+                  col.className?.includes("text-center") ? "justify-center" :
+                  col.className?.includes("text-right") ? "justify-end" : ""
+                }`}>
                   {col.label}
                   {col.sortable && sortKey === col.key && (
                     sortDir === "asc" ? (
@@ -97,7 +102,9 @@ export default function DataTable<T extends Record<string, unknown>>({
               className={`border-b border-[var(--border-subtle)] transition-colors ${
                 onRowClick
                   ? "cursor-pointer hover:bg-[var(--bg-hover)]"
-                  : ""
+                  : rowHover
+                    ? "hover:bg-[var(--bg-hover)]"
+                    : ""
               }`}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
             >

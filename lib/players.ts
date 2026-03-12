@@ -308,11 +308,24 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
 
 /**
  * Get Top 16 standings for a given month.
+ * Returns the resolved month so callers know which month data came from.
  */
-export async function getStandings(month?: string): Promise<Standing[]> {
-  const players = await getPlayers(month);
+export async function getStandings(month?: string): Promise<{ standings: Standing[]; resolvedMonth: string | null }> {
+  const months = await getHistoricalMonths();
+  if (months.length === 0) return { standings: [], resolvedMonth: null };
 
-  return players.slice(0, 16).map((p) => ({
+  // Resolve target month: use requested month if it has data, otherwise latest
+  let resolvedMonth: string;
+  if (month) {
+    const hasData = months.some((m) => m.month === month);
+    resolvedMonth = hasData ? month : months[months.length - 1].month;
+  } else {
+    resolvedMonth = months[months.length - 1].month;
+  }
+
+  const players = await getPlayers(resolvedMonth);
+
+  const standings = players.slice(0, 16).map((p) => ({
     rank: p.rank!,
     uid: p.uid,
     name: p.name,
@@ -323,4 +336,6 @@ export async function getStandings(month?: string): Promise<Standing[]> {
     draws: p.draws,
     win_pct: p.win_pct,
   }));
+
+  return { standings, resolvedMonth };
 }

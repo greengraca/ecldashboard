@@ -42,9 +42,9 @@ select option {
   --border: rgba(255, 255, 255, 0.06);
   --border-hover: rgba(255, 255, 255, 0.12);
   --border-subtle: rgba(255, 255, 255, 0.04);
-  --accent: #6366f1;
-  --accent-hover: #5558e6;
-  --accent-light: rgba(99, 102, 241, 0.08);
+  --accent: #D4A017;
+  --accent-hover: #C4920F;
+  --accent-light: rgba(212, 160, 23, 0.08);
   --nav-text: #94a3b8;
   --nav-text-hover: #f1f5f9;
   --nav-hover-bg: rgba(255, 255, 255, 0.06);
@@ -55,7 +55,7 @@ select option {
   --error: #fca5a5;
   --error-light: rgba(252, 165, 165, 0.06);
   --error-border: rgba(252, 165, 165, 0.3);
-  --accent-text: #ffffff;
+  --accent-text: #0a0f14;
   --status-active: #3b82f6;
   --status-active-light: rgba(59, 130, 246, 0.08);
   --status-patreon: #f96854;
@@ -65,9 +65,9 @@ select option {
   --status-free: #a855f7;
   --status-free-light: rgba(168, 85, 247, 0.1);
   --overlay-bg: rgba(0, 0, 0, 0.75);
-  --accent-border: rgba(99, 102, 241, 0.2);
-  --accent-border-strong: rgba(99, 102, 241, 0.4);
-  --accent-dim: #4338ca;
+  --accent-border: rgba(212, 160, 23, 0.2);
+  --accent-border-strong: rgba(212, 160, 23, 0.4);
+  --accent-dim: #A07B0A;
   --scrollbar-thumb: #1e293b;
   --scrollbar-thumb-hover: #334155;
   --radius: 10px;
