@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPlayers } from "@/lib/players";
 import { fetchGuildMembers } from "@/lib/discord";
+import { fetchPublicPData } from "@/lib/topdeck-cache";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,8 +17,7 @@ export async function GET(request: NextRequest) {
     let publicPData: Record<string, { name?: string; discord?: string }> = {};
     if (bracket_id) {
       try {
-        const res = await fetch(`https://topdeck.gg/PublicPData/${bracket_id}`);
-        if (res.ok) publicPData = await res.json();
+        publicPData = await fetchPublicPData(bracket_id);
       } catch { /* ignore */ }
     }
 

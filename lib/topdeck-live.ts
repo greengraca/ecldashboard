@@ -5,6 +5,7 @@
 // Port of eclBot/topdeck_fetch.py.
 
 import { TOPDECK_BRACKET_ID, FIRESTORE_DOC_URL_TEMPLATE, WAGER_RATE } from "./constants";
+import { fetchPublicPData } from "./topdeck-cache";
 
 // ─── Types ───
 
@@ -305,23 +306,18 @@ export async function fetchLiveStandings(bracketId?: string): Promise<LiveStandi
     throw new Error("FIRESTORE_DOC_URL_TEMPLATE not configured");
   }
 
-  const playersUrl = `https://topdeck.gg/PublicPData/${bid}`;
   const docUrl = FIRESTORE_DOC_URL_TEMPLATE.replace("{bracket_id}", bid);
 
   // Fetch both endpoints in parallel
-  const [playersRes, docRes] = await Promise.all([
-    fetch(playersUrl),
+  const [players, docRes] = await Promise.all([
+    fetchPublicPData(bid),
     fetch(docUrl),
   ]);
 
-  if (!playersRes.ok) {
-    throw new Error(`TopDeck PublicPData returned ${playersRes.status}`);
-  }
   if (!docRes.ok) {
     throw new Error(`TopDeck Firestore doc returned ${docRes.status}`);
   }
 
-  const players = await playersRes.json();
   const doc = await docRes.json();
 
   const fields = parseTournamentFields(doc);

@@ -9,6 +9,7 @@ import {
   DISCORD_GUILD_ID,
   TOPDECK_BRACKET_ID,
 } from "./constants";
+import { fetchPublicPData } from "./topdeck-cache";
 import type { Subscriber, SubscriberSummary, SubscriptionSource } from "./types";
 
 function roleSetHasAny(memberRoles: string[], roleSet: Set<number>): boolean {
@@ -64,9 +65,9 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
       { $group: { _id: "$topdeck_uids", count: { $sum: 1 } } },
     ]).toArray(),
     // Fetch PublicPData to map topdeck_uid → discord username
-    fetch(`https://topdeck.gg/PublicPData/${TOPDECK_BRACKET_ID}`)
-      .then((r) => (r.ok ? r.json() : {}))
-      .catch(() => ({})) as Promise<Record<string, { name?: string; discord?: string }>>,
+    (TOPDECK_BRACKET_ID
+      ? fetchPublicPData(TOPDECK_BRACKET_ID).catch(() => ({}))
+      : Promise.resolve({})) as Promise<Record<string, { name?: string; discord?: string }>>,
   ]);
 
   // Build lookup maps

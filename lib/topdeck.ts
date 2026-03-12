@@ -63,6 +63,11 @@ function setCache<T>(cache: Map<string, CacheEntry<T>>, key: string, data: T): v
   cache.set(key, { data, expires: Date.now() + CACHE_TTL_MS });
 }
 
+/** Clear the in-memory dump cache (e.g. after a manual refresh). */
+export function clearDumpCache(): void {
+  dumpCache.clear();
+}
+
 // ─── Functions ───
 
 /**

@@ -6,6 +6,7 @@ import {
   getPlayerStatsFromDump,
 } from "./topdeck";
 import type { MonthDumpPayload, EntrantStats } from "./topdeck";
+import { fetchPublicPData } from "./topdeck-cache";
 import type {
   Player,
   PlayerDetail,
@@ -55,14 +56,10 @@ async function getUidNameLookup(bracketId?: string): Promise<Map<string, string>
   // Fetch names from TopDeck PublicPData (keyed by TopDeck uid)
   if (bracketId) {
     try {
-      const res = await fetch(`https://topdeck.gg/PublicPData/${bracketId}`);
-      if (res.ok) {
-        const data = await res.json();
-        for (const [uid, info] of Object.entries(data)) {
-          const playerInfo = info as { name?: string; discord?: string };
-          if (playerInfo?.name) {
-            lookup.set(uid, playerInfo.name);
-          }
+      const data = await fetchPublicPData(bracketId);
+      for (const [uid, info] of Object.entries(data)) {
+        if (info?.name) {
+          lookup.set(uid, info.name);
         }
       }
     } catch {

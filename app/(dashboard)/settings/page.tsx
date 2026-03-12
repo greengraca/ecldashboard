@@ -1,7 +1,8 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { Settings, User, Database, Shield } from "lucide-react";
+import { Settings, User, Database, Shield, Globe } from "lucide-react";
+import TopDeckRefreshButton from "@/components/settings/topdeck-refresh-button";
 
 function mask(value: string, showChars = 4): string {
   if (!value) return "Not set";
@@ -218,6 +219,16 @@ export default function SettingsPage() {
               </span>
             }
           />
+        </Section>
+
+        {/* TopDeck Data */}
+        <Section
+          icon={
+            <Globe className="w-4 h-4" style={{ color: "var(--accent)" }} />
+          }
+          title="TopDeck Data"
+        >
+          <TopDeckRefreshButton />
         </Section>
       </div>
     </div>
