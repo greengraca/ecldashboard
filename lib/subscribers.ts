@@ -206,6 +206,7 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
       tier: determineTier(source, member.roles),
       is_playing: gamesPlayed > 0,
       games_played: gamesPlayed,
+      free_entry_reason: null,
       joined_at: member.joined_at,
       expires_at: accessRec?.expires_at
         ? String(accessRec.expires_at)
@@ -239,6 +240,7 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
       tier: member ? determineTier("free", member.roles) : "Manual",
       is_playing: gamesPlayed > 0,
       games_played: gamesPlayed,
+      free_entry_reason: null,
       joined_at: member?.joined_at || null,
       expires_at: null,
     });
@@ -271,6 +273,7 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
       tier: "Ko-fi One-Time",
       is_playing: gamesPlayed > 0,
       games_played: gamesPlayed,
+      free_entry_reason: null,
       joined_at: member?.joined_at || null,
       expires_at: expiresAt ? expiresAt.toISOString() : null,
     });

@@ -13,6 +13,7 @@ export interface Subscriber {
   tier: string;
   is_playing: boolean;
   games_played: number;
+  free_entry_reason: string | null;
   joined_at: string | null;
   expires_at: string | null;
 }
