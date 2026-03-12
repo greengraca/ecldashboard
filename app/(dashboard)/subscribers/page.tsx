@@ -22,8 +22,11 @@ function getCurrentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+type SourceFilter = "all" | "patreon" | "kofi" | "free" | "paying_not_playing";
+
 export default function SubscribersPage() {
   const [month, setMonth] = useState(getCurrentMonth);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
 
   const { data, error, isLoading, mutate } = useSWR<{ data: SubscriberData }>(
     `/api/subscribers?month=${month}`,
@@ -32,6 +35,14 @@ export default function SubscribersPage() {
 
   const subscribers = data?.data?.subscribers || [];
   const summary = data?.data?.summary;
+
+  const filteredSubscribers = subscribers.filter((s) => {
+    if (sourceFilter === "all") return true;
+    if (sourceFilter === "paying_not_playing") return (s.source === "patreon" || s.source === "kofi") && !s.is_playing;
+    return s.source === sourceFilter;
+  });
+
+  const toggleFilter = (f: SourceFilter) => setSourceFilter((prev) => (prev === f ? "all" : f));
 
   return (
     <div>
@@ -52,7 +63,7 @@ export default function SubscribersPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <MonthPicker value={month} onChange={setMonth} maxMonth={getCurrentMonth()} />
+          <MonthPicker value={month} onChange={setMonth} minMonth="2025-12" maxMonth={getCurrentMonth()} />
           <SyncButton onSynced={() => mutate()} />
         </div>
       </div>
@@ -73,57 +84,72 @@ export default function SubscribersPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-        <StatCard
-          title="Total Subscribers"
-          value={isLoading ? "--" : (summary?.total ?? 0)}
-          icon={
-            <Users
-              className="w-4 h-4"
-              style={{ color: "var(--accent)" }}
-            />
-          }
-        />
-        <StatCard
-          title="Patreon"
-          value={isLoading ? "--" : (summary?.patreon ?? 0)}
-          icon={
-            <Crown
-              className="w-4 h-4"
-              style={{ color: "var(--status-patreon)" }}
-            />
-          }
-        />
-        <StatCard
-          title="Ko-fi"
-          value={isLoading ? "--" : (summary?.kofi ?? 0)}
-          icon={
-            <Coffee
-              className="w-4 h-4"
-              style={{ color: "var(--status-kofi)" }}
-            />
-          }
-        />
-        <StatCard
-          title="Free Entry"
-          value={isLoading ? "--" : (summary?.free ?? 0)}
-          icon={
-            <Gift
-              className="w-4 h-4"
-              style={{ color: "var(--status-free)" }}
-            />
-          }
-        />
-        <StatCard
-          title="Paying Not Playing"
-          value={isLoading ? "--" : (summary?.paying_not_playing ?? 0)}
-          subtitle="Patreon + Ko-fi without games"
-          icon={
-            <AlertTriangle
-              className="w-4 h-4"
-              style={{ color: "var(--warning)" }}
-            />
-          }
-        />
+        <div className="cursor-pointer" onClick={() => toggleFilter("all")}>
+          <StatCard
+            title="Total Subscribers"
+            value={isLoading ? "--" : (summary?.total ?? 0)}
+            active={sourceFilter === "all"}
+            icon={
+              <Users
+                className="w-4 h-4"
+                style={{ color: "var(--accent)" }}
+              />
+            }
+          />
+        </div>
+        <div className="cursor-pointer" onClick={() => toggleFilter("patreon")}>
+          <StatCard
+            title="Patreon"
+            value={isLoading ? "--" : (summary?.patreon ?? 0)}
+            active={sourceFilter === "patreon"}
+            icon={
+              <Crown
+                className="w-4 h-4"
+                style={{ color: "var(--status-patreon)" }}
+              />
+            }
+          />
+        </div>
+        <div className="cursor-pointer" onClick={() => toggleFilter("kofi")}>
+          <StatCard
+            title="Ko-fi"
+            value={isLoading ? "--" : (summary?.kofi ?? 0)}
+            active={sourceFilter === "kofi"}
+            icon={
+              <Coffee
+                className="w-4 h-4"
+                style={{ color: "var(--status-kofi)" }}
+              />
+            }
+          />
+        </div>
+        <div className="cursor-pointer" onClick={() => toggleFilter("free")}>
+          <StatCard
+            title="Free Entry"
+            value={isLoading ? "--" : (summary?.free ?? 0)}
+            active={sourceFilter === "free"}
+            icon={
+              <Gift
+                className="w-4 h-4"
+                style={{ color: "var(--status-free)" }}
+              />
+            }
+          />
+        </div>
+        <div className="cursor-pointer" onClick={() => toggleFilter("paying_not_playing")}>
+          <StatCard
+            title="Paying Not Playing"
+            value={isLoading ? "--" : (summary?.paying_not_playing ?? 0)}
+
+            active={sourceFilter === "paying_not_playing"}
+            icon={
+              <AlertTriangle
+                className="w-4 h-4"
+                style={{ color: "var(--warning)" }}
+              />
+            }
+          />
+        </div>
       </div>
 
       {/* Subscriber Table */}
@@ -150,7 +176,7 @@ export default function SubscribersPage() {
           </p>
         </div>
       ) : (
-        <SubscriberTable subscribers={subscribers} />
+        <SubscriberTable subscribers={filteredSubscribers} />
       )}
     </div>
   );

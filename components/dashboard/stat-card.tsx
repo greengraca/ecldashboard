@@ -5,6 +5,7 @@ interface StatCardProps {
   value: string | number;
   subtitle?: string;
   icon?: React.ReactNode;
+  active?: boolean;
   trend?: {
     value: number;
     label: string;
@@ -16,14 +17,16 @@ export default function StatCard({
   value,
   subtitle,
   icon,
+  active,
   trend,
 }: StatCardProps) {
   return (
     <div
-      className="p-5 rounded-xl border transition-colors"
+      className="h-full p-5 rounded-xl border transition-colors"
       style={{
         background: "var(--bg-card)",
-        borderColor: "var(--border)",
+        borderColor: active ? "var(--accent)" : "var(--border)",
+        boxShadow: active ? "0 0 0 1px var(--accent)" : "none",
       }}
     >
       <div className="flex items-start justify-between mb-3">

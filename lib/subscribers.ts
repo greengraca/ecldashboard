@@ -34,6 +34,9 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
   const db = await getDb();
   const guildId = DISCORD_GUILD_ID;
 
+  // Parse "YYYY-MM" into numeric year/month for online_games query
+  const [yearNum, monthNum] = month.split("-").map(Number);
+
   // Fetch Discord members and DB records in parallel
   const [members, accessRecords, freeEntries, games] = await Promise.all([
     fetchGuildMembers(),
@@ -47,7 +50,7 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
       .toArray(),
     db
       .collection("online_games")
-      .find({ month })
+      .find({ year: yearNum, month: monthNum })
       .toArray(),
   ]);
 

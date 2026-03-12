@@ -6,9 +6,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const month = searchParams.get("month") || undefined;
 
-    const players = await getPlayers(month);
+    const { players, bracket_id } = await getPlayers(month);
 
-    return NextResponse.json({ data: { players, month: month || null } });
+    return NextResponse.json({ data: { players, month: month || null, bracket_id } });
   } catch (err) {
     console.error("GET /api/players error:", err);
     return NextResponse.json(

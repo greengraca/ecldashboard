@@ -12,6 +12,7 @@ import type { Player, LiveStanding } from "@/lib/types";
 interface PlayersData {
   players: Player[];
   month: string | null;
+  bracket_id?: string;
 }
 
 interface LiveStandingsData {
@@ -19,6 +20,7 @@ interface LiveStandingsData {
   total_matches: number;
   in_progress: number;
   voided: number;
+  bracket_id?: string;
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -62,6 +64,7 @@ export default function PlayersPage() {
   const liveTotalMatches: number = liveData?.data?.total_matches ?? 0;
   const liveInProgress: number = liveData?.data?.in_progress ?? 0;
   const liveVoided: number = liveData?.data?.voided ?? 0;
+  const bracketId = liveData?.data?.bracket_id || playersData?.data?.bracket_id || "";
 
   // Summary stats — derived from live data or dump data depending on month
   const dataLoading = isCurrentMonth ? liveLoading : playersLoading;
@@ -122,7 +125,22 @@ export default function PlayersPage() {
             Player rankings and game statistics
           </p>
         </div>
-        <MonthPicker value={month} onChange={handleMonthChange} maxMonth={getCurrentMonth()} />
+        <div className="flex flex-col items-center gap-1">
+          <MonthPicker value={month} onChange={handleMonthChange} minMonth="2025-12" maxMonth={getCurrentMonth()} />
+          {bracketId && (
+            <a
+              href={`https://topdeck.gg/bracket/${bracketId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] transition-colors hover:underline"
+              style={{ color: "var(--text-muted)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+            >
+              ({bracketId})
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Summary Cards */}

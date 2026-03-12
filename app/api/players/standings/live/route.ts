@@ -76,6 +76,7 @@ export async function GET() {
         total_matches: liveResult.totalMatches,
         in_progress: liveResult.inProgress,
         voided: liveResult.voided,
+        bracket_id: TOPDECK_BRACKET_ID,
       },
     });
   } catch (err) {

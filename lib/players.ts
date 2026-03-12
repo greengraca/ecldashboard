@@ -164,9 +164,9 @@ function buildRankedPlayers(
  * Get player list with game counts, points, rank.
  * If month provided, use that month's dump. Otherwise use latest available month.
  */
-export async function getPlayers(month?: string): Promise<Player[]> {
+export async function getPlayers(month?: string): Promise<{ players: Player[]; bracket_id: string }> {
   const months = await getHistoricalMonths();
-  if (months.length === 0) return [];
+  if (months.length === 0) return { players: [], bracket_id: "" };
 
   // Find the target month info
   let targetMonth: string;
@@ -179,7 +179,7 @@ export async function getPlayers(month?: string): Promise<Player[]> {
 
   // Find all bracket_ids for the target month
   const monthInfos = months.filter((m) => m.month === targetMonth);
-  if (monthInfos.length === 0) return [];
+  if (monthInfos.length === 0) return { players: [], bracket_id: "" };
 
   // Use the first bracket_id for name lookups via PublicPData
   const bracketId = monthInfos[0].bracket_id;
@@ -228,7 +228,7 @@ export async function getPlayers(month?: string): Promise<Player[]> {
     result[i].rank = i + 1;
   }
 
-  return result;
+  return { players: result, bracket_id: bracketId };
 }
 
 /**
@@ -285,7 +285,7 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
       // Compute rank for this month
       let rank: number | null = null;
       try {
-        const playersThisMonth = await getPlayers(monthStr);
+        const { players: playersThisMonth } = await getPlayers(monthStr);
         const playerInList = playersThisMonth.find((p) => p.uid === uid);
         if (playerInList) rank = playerInList.rank;
       } catch {
@@ -347,7 +347,7 @@ export async function getStandings(month?: string): Promise<{ standings: Standin
     resolvedMonth = months[months.length - 1].month;
   }
 
-  const players = await getPlayers(resolvedMonth);
+  const { players } = await getPlayers(resolvedMonth);
 
   const standings = players.slice(0, 16).map((p) => ({
     rank: p.rank!,
