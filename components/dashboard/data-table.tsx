@@ -49,7 +49,7 @@ export default function DataTable<T extends Record<string, unknown>>({
       setSortDir(sortDir === "asc" ? "desc" : "asc");
     } else {
       setSortKey(key);
-      setSortDir("asc");
+      setSortDir("desc");
     }
   }
 

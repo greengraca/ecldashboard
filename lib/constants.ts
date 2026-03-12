@@ -16,6 +16,8 @@ export const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || "";
 export const PATREON_ROLE_IDS = parseIntSet(process.env.PATREON_ROLE_IDS);
 export const KOFI_ROLE_IDS = parseIntSet(process.env.KOFI_ROLE_IDS);
 export const FREE_ENTRY_ROLE_IDS = parseIntSet(process.env.FREE_ENTRY_ROLE_IDS);
+export const JUDGE_ROLE_IDS = parseIntSet(process.env.JUDGE_ROLE_IDS);
+export const ECL_MOD_ROLE_IDS = parseIntSet(process.env.ECL_MOD_ROLE_IDS);
 
 export const TOPDECK_BRACKET_ID = process.env.TOPDECK_BRACKET_ID || "";
 
@@ -27,6 +29,8 @@ export const ALL_SUB_ROLE_IDS = new Set([
   ...PATREON_ROLE_IDS,
   ...KOFI_ROLE_IDS,
   ...FREE_ENTRY_ROLE_IDS,
+  ...JUDGE_ROLE_IDS,
+  ...ECL_MOD_ROLE_IDS,
 ]);
 
 export const FIRESTORE_DOC_URL_TEMPLATE = process.env.FIRESTORE_DOC_URL_TEMPLATE || "";

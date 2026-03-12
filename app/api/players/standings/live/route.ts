@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchLiveStandings } from "@/lib/topdeck-live";
+import { fetchGuildMembers } from "@/lib/discord";
 import { getDb } from "@/lib/mongodb";
 import { TOPDECK_BRACKET_ID } from "@/lib/constants";
 import type { LiveStanding } from "@/lib/types";
@@ -37,10 +38,20 @@ async function getOnlineGameCounts(): Promise<Map<string, number>> {
 
 export async function GET() {
   try {
-    const [liveResult, onlineCounts] = await Promise.all([
+    const [liveResult, onlineCounts, guildMembers] = await Promise.all([
       fetchLiveStandings(),
       getOnlineGameCounts(),
+      fetchGuildMembers(),
     ]);
+
+    // Build discord username → avatar_url lookup
+    const avatarByUsername = new Map<string, string>();
+    for (const m of guildMembers) {
+      if (m.avatar_url) {
+        avatarByUsername.set(m.username.toLowerCase(), m.avatar_url);
+        avatarByUsername.set(m.display_name.toLowerCase(), m.avatar_url);
+      }
+    }
 
     // Build standings with eligibility
     let rank = 0;
@@ -52,11 +63,16 @@ export async function GET() {
         r.games >= MIN_TOTAL_GAMES &&
         onlineGames >= MIN_ONLINE_GAMES;
 
+      // Match discord handle to guild member avatar
+      const discordLower = r.discord?.toLowerCase().trim() || "";
+      const avatar = avatarByUsername.get(discordLower) || null;
+
       return {
         rank,
         uid: r.uid || r.entrant_id.toString(),
         name: r.name,
         discord: r.discord,
+        avatar_url: avatar,
         points: r.points,
         games: r.games,
         wins: r.wins,

@@ -4,7 +4,10 @@ import {
   PATREON_ROLE_IDS,
   KOFI_ROLE_IDS,
   FREE_ENTRY_ROLE_IDS,
+  JUDGE_ROLE_IDS,
+  ECL_MOD_ROLE_IDS,
   DISCORD_GUILD_ID,
+  TOPDECK_BRACKET_ID,
 } from "./constants";
 import type { Subscriber, SubscriberSummary, SubscriptionSource } from "./types";
 
@@ -16,16 +19,22 @@ function determineSource(roles: string[]): SubscriptionSource | null {
   if (roleSetHasAny(roles, PATREON_ROLE_IDS)) return "patreon";
   if (roleSetHasAny(roles, KOFI_ROLE_IDS)) return "kofi";
   if (roleSetHasAny(roles, FREE_ENTRY_ROLE_IDS)) return "free";
+  if (roleSetHasAny(roles, JUDGE_ROLE_IDS)) return "free";
+  if (roleSetHasAny(roles, ECL_MOD_ROLE_IDS)) return "free";
   return null;
 }
 
-function determineTier(source: SubscriptionSource): string {
+function determineTier(source: SubscriptionSource, roles?: string[]): string {
   switch (source) {
     case "patreon":
       return "Patreon Member";
     case "kofi":
       return "Ko-fi Supporter";
     case "free":
+      if (roles) {
+        if (roleSetHasAny(roles, JUDGE_ROLE_IDS)) return "Free Entry - Judge";
+        if (roleSetHasAny(roles, ECL_MOD_ROLE_IDS)) return "Free Entry - ECL Mod";
+      }
       return "Free Entry";
   }
 }
@@ -37,8 +46,8 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
   // Parse "YYYY-MM" into numeric year/month for online_games query
   const [yearNum, monthNum] = month.split("-").map(Number);
 
-  // Fetch Discord members and DB records in parallel
-  const [members, accessRecords, freeEntries, games] = await Promise.all([
+  // Fetch Discord members, DB records, and game counts in parallel
+  const [members, accessRecords, freeEntries, gameCountRows, publicPData] = await Promise.all([
     fetchGuildMembers(),
     db
       .collection("subs_access")
@@ -48,10 +57,16 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
       .collection("subs_free_entries")
       .find({ guild_id: guildId, month })
       .toArray(),
-    db
-      .collection("online_games")
-      .find({ year: yearNum, month: monthNum })
-      .toArray(),
+    // Count games per topdeck_uid (same approach as live standings)
+    db.collection("online_games").aggregate<{ _id: string; count: number }>([
+      { $match: { bracket_id: TOPDECK_BRACKET_ID, year: yearNum, month: monthNum } },
+      { $unwind: "$topdeck_uids" },
+      { $group: { _id: "$topdeck_uids", count: { $sum: 1 } } },
+    ]).toArray(),
+    // Fetch PublicPData to map topdeck_uid → discord username
+    fetch(`https://topdeck.gg/PublicPData/${TOPDECK_BRACKET_ID}`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .catch(() => ({})) as Promise<Record<string, { name?: string; discord?: string }>>,
   ]);
 
   // Build lookup maps
@@ -65,13 +80,31 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
     freeEntryUserIds.add(entry.user_id);
   }
 
-  // Count games per entrant. entrant_ids contains Discord user IDs.
-  const gamesPerUser = new Map<string, number>();
-  for (const game of games) {
-    const entrants: string[] = game.entrant_ids || [];
-    for (const uid of entrants) {
-      gamesPerUser.set(uid, (gamesPerUser.get(uid) || 0) + 1);
+  // Build topdeck_uid → game count
+  const gamesByTopdeckUid = new Map<string, number>();
+  for (const row of gameCountRows) {
+    const uid = String(row._id).trim();
+    if (uid) gamesByTopdeckUid.set(uid, row.count);
+  }
+
+  // Build discord_username (lowercased) → game count via PublicPData
+  const gamesPerDiscordUsername = new Map<string, number>();
+  for (const [topdeckUid, info] of Object.entries(publicPData)) {
+    const discordHandle = info?.discord?.toLowerCase().trim();
+    if (!discordHandle) continue;
+    const games = gamesByTopdeckUid.get(topdeckUid) ?? 0;
+    if (games > 0) {
+      // Sum in case multiple topdeck UIDs map to same discord handle
+      gamesPerDiscordUsername.set(
+        discordHandle,
+        (gamesPerDiscordUsername.get(discordHandle) || 0) + games
+      );
     }
+  }
+
+  // Helper to look up games for a Discord member by username
+  function getGamesForMember(username: string): number {
+    return gamesPerDiscordUsername.get(username.toLowerCase().trim()) || 0;
   }
 
   const subscribers: Subscriber[] = [];
@@ -85,7 +118,7 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
     processedIds.add(member.id);
 
     const accessRec = accessByUser.get(member.id);
-    const gamesPlayed = gamesPerUser.get(member.id) || 0;
+    const gamesPlayed = getGamesForMember(member.username);
 
     subscribers.push({
       discord_id: member.id,
@@ -93,7 +126,7 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
       display_name: member.display_name,
       avatar_url: member.avatar_url,
       source,
-      tier: determineTier(source),
+      tier: determineTier(source, member.roles),
       is_playing: gamesPlayed > 0,
       games_played: gamesPlayed,
       joined_at: member.joined_at,
@@ -112,7 +145,7 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
     processedIds.add(userId);
 
     const member = memberById.get(userId);
-    const gamesPlayed = gamesPerUser.get(userId) || 0;
+    const gamesPlayed = member ? getGamesForMember(member.username) : 0;
 
     subscribers.push({
       discord_id: userId,
@@ -144,7 +177,7 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
     processedIds.add(userId);
 
     const member = memberById.get(userId);
-    const gamesPlayed = gamesPerUser.get(userId) || 0;
+    const gamesPlayed = member ? getGamesForMember(member.username) : 0;
 
     subscribers.push({
       discord_id: userId,

@@ -165,7 +165,26 @@ export default function LiveStandingsTable({
                     <RankBadge rank={s.rank} />
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-col">
+                    <div className="flex items-center gap-2.5">
+                      {s.avatar_url ? (
+                        <img
+                          src={s.avatar_url}
+                          alt=""
+                          className="w-7 h-7 rounded-full"
+                          style={{ opacity: s.dropped ? 0.4 : 1 }}
+                        />
+                      ) : (
+                        <div
+                          className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium"
+                          style={{
+                            background: "var(--accent-light)",
+                            color: "var(--accent)",
+                            opacity: s.dropped ? 0.4 : 1,
+                          }}
+                        >
+                          {s.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                       <span
                         className={`font-medium ${isPodium ? "text-base" : "text-sm"}`}
                         style={{

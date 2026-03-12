@@ -139,6 +139,7 @@ export interface Standing {
   losses: number;
   draws: number;
   win_pct: number;
+  avatar_url?: string | null;
 }
 
 export interface LiveStanding {
@@ -146,6 +147,7 @@ export interface LiveStanding {
   uid: string;
   name: string;
   discord: string;
+  avatar_url?: string | null;
   points: number;
   games: number;
   wins: number;
