@@ -27,7 +27,7 @@ const mainNav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/subscribers", label: "Subscribers", icon: Users },
   { href: "/finance", label: "Finance", icon: Wallet },
-  { href: "/players", label: "Players", icon: Swords },
+  { href: "/players", label: "Standings", icon: Swords },
   { href: "/activity", label: "Activity", icon: Activity },
 ];
 

@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { Users, Gamepad2, Trophy, TrendingUp } from "lucide-react";
 import StatCard from "@/components/dashboard/stat-card";
 import MonthPicker from "@/components/dashboard/month-picker";
-import PlayerTable from "@/components/players/player-table";
 import StandingsTable from "@/components/players/standings-table";
 import LiveStandingsTable from "@/components/players/live-standings-table";
 import type { Player, Standing, LiveStanding } from "@/lib/types";
@@ -34,58 +33,76 @@ function getCurrentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-type Tab = "standings" | "players";
-
 export default function PlayersPage() {
-  const [tab, setTab] = useState<Tab>("standings");
   const [month, setMonth] = useState(getCurrentMonth);
   const [eligibleOnly, setEligibleOnly] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
 
-  // Players tab data (only fetch when tab is active)
-  const { data: playersData, error: playersError, isLoading: playersLoading } =
+  const isCurrentMonth = month === getCurrentMonth();
+
+  // Dump data — only fetch for past months
+  const { data: playersData, isLoading: playersLoading } =
     useSWR<{ data: PlayersData }>(
-      tab === "players" ? `/api/players?month=${month}` : null,
+      !isCurrentMonth ? `/api/players?month=${month}` : null,
       fetcher
     );
 
   const {
     data: standingsData,
-    error: standingsError,
     isLoading: standingsLoading,
   } = useSWR<{ data: StandingsData }>(
-    tab === "players" ? `/api/players/standings?month=${month}` : null,
+    !isCurrentMonth ? `/api/players/standings?month=${month}` : null,
     fetcher
   );
 
-  // Standings tab data (only fetch when tab is active)
+  // Live standings — only fetch for current month
   const {
     data: liveData,
     error: liveError,
     isLoading: liveLoading,
   } = useSWR<{ data: LiveStandingsData }>(
-    tab === "standings" ? "/api/players/standings/live" : null,
+    isCurrentMonth ? "/api/players/standings/live" : null,
     fetcher,
-    { refreshInterval: 5 * 60 * 1000 } // refresh every 5 min
+    { refreshInterval: 5 * 60 * 1000 }
   );
 
   const players = playersData?.data?.players || [];
-  const standings = standingsData?.data?.standings || [];
+  const dumpStandings = standingsData?.data?.standings || [];
   const liveStandings = liveData?.data?.standings || [];
   const liveTotalMatches: number = liveData?.data?.total_matches ?? 0;
   const liveInProgress: number = liveData?.data?.in_progress ?? 0;
   const liveVoided: number = liveData?.data?.voided ?? 0;
 
-  // Summary stats for Players tab
-  const totalPlayers = players.length;
-  const activePlayers = players.filter((p) => p.games > 0).length;
-  const avgGames =
-    activePlayers > 0
-      ? Math.round(
-          players.reduce((sum, p) => sum + p.games, 0) / activePlayers
-        )
-      : 0;
-  const topPoints =
-    standings.length > 0 ? standings[0].points.toFixed(0) : "--";
+  // Summary stats — derived from live data or dump data depending on month
+  const dataLoading = isCurrentMonth ? liveLoading : (playersLoading || standingsLoading);
+
+  const stats = useMemo(() => {
+    if (isCurrentMonth) {
+      const total = liveStandings.length;
+      const active = liveStandings.filter((s) => s.games > 0).length;
+      const avg =
+        active > 0
+          ? Math.round(
+              liveStandings.reduce((sum, s) => sum + s.games, 0) / active
+            )
+          : 0;
+      const top = liveStandings.length > 0 ? liveStandings[0].points.toFixed(0) : "--";
+      const topName = liveStandings.length > 0 ? liveStandings[0].name : "";
+      return { total, active, avg, top, topName };
+    } else {
+      const total = players.length;
+      const active = players.filter((p) => p.games > 0).length;
+      const avg =
+        active > 0
+          ? Math.round(
+              players.reduce((sum, p) => sum + p.games, 0) / active
+            )
+          : 0;
+      const top = dumpStandings.length > 0 ? dumpStandings[0].points.toFixed(0) : "--";
+      const topName = dumpStandings.length > 0 ? dumpStandings[0].name : "";
+      return { total, active, avg, top, topName };
+    }
+  }, [isCurrentMonth, liveStandings, players, dumpStandings]);
 
   return (
     <div>
@@ -96,7 +113,7 @@ export default function PlayersPage() {
             className="text-2xl font-bold"
             style={{ color: "var(--text-primary)" }}
           >
-            Players
+            Standings
           </h1>
           <p
             className="text-sm mt-1"
@@ -105,34 +122,59 @@ export default function PlayersPage() {
             Player rankings and game statistics
           </p>
         </div>
-        {tab === "players" && (
-          <MonthPicker value={month} onChange={setMonth} />
-        )}
+        <MonthPicker value={month} onChange={setMonth} />
       </div>
 
-      {/* Tab Switcher */}
-      <div
-        className="flex gap-1 p-1 rounded-lg mb-6 w-fit"
-        style={{ background: "var(--bg-card)" }}
-      >
-        {(["standings", "players"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className="px-4 py-2 rounded-md text-sm font-medium transition-colors"
-            style={{
-              background: tab === t ? "var(--accent)" : "transparent",
-              color: tab === t ? "var(--accent-text)" : "var(--text-secondary)",
-            }}
-          >
-            {t === "standings" ? "Standings" : "Players"}
-          </button>
-        ))}
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <StatCard
+          title="Total Players"
+          value={dataLoading ? "--" : stats.total}
+          icon={
+            <Users
+              className="w-4 h-4"
+              style={{ color: "var(--accent)" }}
+            />
+          }
+        />
+        <StatCard
+          title="Active This Month"
+          value={dataLoading ? "--" : stats.active}
+          subtitle="Players with games"
+          icon={
+            <Gamepad2
+              className="w-4 h-4"
+              style={{ color: "var(--success)" }}
+            />
+          }
+        />
+        <StatCard
+          title="Avg Games"
+          value={dataLoading ? "--" : stats.avg}
+          subtitle="Per active player"
+          icon={
+            <TrendingUp
+              className="w-4 h-4"
+              style={{ color: "var(--warning)" }}
+            />
+          }
+        />
+        <StatCard
+          title="Top Points"
+          value={dataLoading ? "--" : stats.top}
+          subtitle={stats.topName}
+          icon={
+            <Trophy
+              className="w-4 h-4"
+              style={{ color: "#fbbf24" }}
+            />
+          }
+        />
       </div>
 
-      {/* ═══ Standings Tab ═══ */}
-      {tab === "standings" && (
-        <div>
+      {/* ═══ Current Month — Live Standings ═══ */}
+      {isCurrentMonth && (
+        <>
           {liveError && (
             <div
               className="mb-6 p-4 rounded-xl border text-sm"
@@ -146,7 +188,7 @@ export default function PlayersPage() {
             </div>
           )}
 
-          {/* Eligible toggle */}
+          {/* Filters */}
           <div className="flex items-center gap-3 mb-6">
             <button
               onClick={() => setEligibleOnly(!eligibleOnly)}
@@ -175,12 +217,33 @@ export default function PlayersPage() {
               </span>
               Top 16 Eligible
             </button>
-            <span
-              className="text-xs"
-              style={{ color: "var(--text-muted)" }}
+            <button
+              onClick={() => setShowInactive(!showInactive)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              style={{
+                background: showInactive
+                  ? "var(--warning-light)"
+                  : "var(--bg-card)",
+                color: showInactive
+                  ? "var(--warning)"
+                  : "var(--text-secondary)",
+                border: `1px solid ${showInactive ? "var(--warning)" : "var(--border)"}`,
+              }}
             >
-              Active + 10 total games + 10 online games
-            </span>
+              <span
+                className="w-3 h-3 rounded-sm border flex items-center justify-center text-[10px]"
+                style={{
+                  borderColor: showInactive
+                    ? "var(--warning)"
+                    : "var(--text-muted)",
+                  background: showInactive ? "var(--warning)" : "transparent",
+                  color: showInactive ? "var(--bg-page)" : "transparent",
+                }}
+              >
+                {showInactive ? "\u2713" : ""}
+              </span>
+              Inactive
+            </button>
           </div>
 
           {/* Match summary */}
@@ -233,146 +296,73 @@ export default function PlayersPage() {
             </div>
           ) : (
             <LiveStandingsTable
-              standings={liveStandings}
+              standings={showInactive ? liveStandings.filter((s) => s.games === 0) : liveStandings}
               showEligibleOnly={eligibleOnly}
             />
           )}
-        </div>
+        </>
       )}
 
-      {/* ═══ Players Tab ═══ */}
-      {tab === "players" && (
-        <div>
-          {(playersError || standingsError) && (
-            <div
-              className="mb-6 p-4 rounded-xl border text-sm"
+      {/* ═══ Past Months — Dump Standings ═══ */}
+      {!isCurrentMonth && (
+        <>
+          {/* Filters */}
+          <div className="flex items-center gap-3 mb-6">
+            <button
+              onClick={() => setShowInactive(!showInactive)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
               style={{
-                background: "var(--error-light)",
-                borderColor: "var(--error-border)",
-                color: "var(--error)",
+                background: showInactive
+                  ? "var(--warning-light)"
+                  : "var(--bg-card)",
+                color: showInactive
+                  ? "var(--warning)"
+                  : "var(--text-secondary)",
+                border: `1px solid ${showInactive ? "var(--warning)" : "var(--border)"}`,
               }}
             >
-              Failed to load player data. Please try again.
+              <span
+                className="w-3 h-3 rounded-sm border flex items-center justify-center text-[10px]"
+                style={{
+                  borderColor: showInactive
+                    ? "var(--warning)"
+                    : "var(--text-muted)",
+                  background: showInactive ? "var(--warning)" : "transparent",
+                  color: showInactive ? "var(--bg-page)" : "transparent",
+                }}
+              >
+                {showInactive ? "\u2713" : ""}
+              </span>
+              Inactive
+            </button>
+          </div>
+
+          {standingsLoading ? (
+            <div
+              className="rounded-xl border p-12 text-center"
+              style={{
+                background: "var(--bg-card)",
+                borderColor: "var(--border)",
+              }}
+            >
+              <div
+                className="inline-block w-6 h-6 border-2 rounded-full animate-spin"
+                style={{
+                  borderColor: "var(--border)",
+                  borderTopColor: "var(--accent)",
+                }}
+              />
+              <p
+                className="text-sm mt-3"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Loading standings...
+              </p>
             </div>
+          ) : (
+            <StandingsTable standings={showInactive ? dumpStandings.filter((s) => s.games === 0) : dumpStandings} />
           )}
-
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard
-              title="Total Players"
-              value={playersLoading ? "--" : totalPlayers}
-              icon={
-                <Users
-                  className="w-4 h-4"
-                  style={{ color: "var(--accent)" }}
-                />
-              }
-            />
-            <StatCard
-              title="Active This Month"
-              value={playersLoading ? "--" : activePlayers}
-              subtitle="Players with games"
-              icon={
-                <Gamepad2
-                  className="w-4 h-4"
-                  style={{ color: "var(--success)" }}
-                />
-              }
-            />
-            <StatCard
-              title="Avg Games"
-              value={playersLoading ? "--" : avgGames}
-              subtitle="Per active player"
-              icon={
-                <TrendingUp
-                  className="w-4 h-4"
-                  style={{ color: "var(--warning)" }}
-                />
-              }
-            />
-            <StatCard
-              title="Top Points"
-              value={playersLoading ? "--" : topPoints}
-              subtitle={standings.length > 0 ? standings[0].name : ""}
-              icon={
-                <Trophy
-                  className="w-4 h-4"
-                  style={{ color: "#fbbf24" }}
-                />
-              }
-            />
-          </div>
-
-          {/* Top 16 Standings */}
-          <div className="mb-8">
-            <h2
-              className="text-lg font-semibold mb-4"
-              style={{ color: "var(--text-primary)" }}
-            >
-              Top 16 Standings
-            </h2>
-            {standingsLoading ? (
-              <div
-                className="rounded-xl border p-12 text-center"
-                style={{
-                  background: "var(--bg-card)",
-                  borderColor: "var(--border)",
-                }}
-              >
-                <div
-                  className="inline-block w-6 h-6 border-2 rounded-full animate-spin"
-                  style={{
-                    borderColor: "var(--border)",
-                    borderTopColor: "var(--accent)",
-                  }}
-                />
-                <p
-                  className="text-sm mt-3"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  Loading standings...
-                </p>
-              </div>
-            ) : (
-              <StandingsTable standings={standings} />
-            )}
-          </div>
-
-          {/* Full Player Table */}
-          <div>
-            <h2
-              className="text-lg font-semibold mb-4"
-              style={{ color: "var(--text-primary)" }}
-            >
-              All Players
-            </h2>
-            {playersLoading ? (
-              <div
-                className="rounded-xl border p-12 text-center"
-                style={{
-                  background: "var(--bg-card)",
-                  borderColor: "var(--border)",
-                }}
-              >
-                <div
-                  className="inline-block w-6 h-6 border-2 rounded-full animate-spin"
-                  style={{
-                    borderColor: "var(--border)",
-                    borderTopColor: "var(--accent)",
-                  }}
-                />
-                <p
-                  className="text-sm mt-3"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  Loading players...
-                </p>
-              </div>
-            ) : (
-              <PlayerTable players={players} />
-            )}
-          </div>
-        </div>
+        </>
       )}
     </div>
   );
