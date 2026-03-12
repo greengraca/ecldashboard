@@ -127,7 +127,7 @@ export default function MonthlyBreakdownChart({
       ) : (
         <div style={{ height: 220 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} layout="vertical" barSize={20}>
+            <BarChart data={data} layout="vertical" barSize={20} margin={{ left: -10, right: 5, top: 5, bottom: 0 }}>
               <CartesianGrid
                 strokeDasharray="3 3"
                 stroke="rgba(255,255,255,0.04)"
