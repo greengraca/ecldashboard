@@ -1,5 +1,6 @@
 import { fetchGuildMembers } from "./discord";
 import { getDb } from "./mongodb";
+import { Long } from "mongodb";
 import {
   PATREON_ROLE_IDS,
   KOFI_ROLE_IDS,
@@ -33,16 +34,20 @@ function determineTier(source: SubscriptionSource, roles?: string[]): string {
       return "Ko-fi Supporter";
     case "free":
       if (roles) {
-        if (roleSetHasAny(roles, JUDGE_ROLE_IDS)) return "Free Entry - Judge";
-        if (roleSetHasAny(roles, ECL_MOD_ROLE_IDS)) return "Free Entry - ECL Mod";
+        if (roleSetHasAny(roles, JUDGE_ROLE_IDS)) return "Judge";
+        if (roleSetHasAny(roles, ECL_MOD_ROLE_IDS)) return "ECL Mod";
       }
-      return "Free Entry";
+      return "Manual";
   }
 }
 
 export async function getSubscribers(month: string): Promise<Subscriber[]> {
   const db = await getDb();
   const guildId = DISCORD_GUILD_ID;
+  // guild_id may be stored as string or NumberLong — query for both
+  const guildIdFilter = guildId
+    ? { $in: [guildId, Long.fromString(guildId)] }
+    : guildId;
 
   // Parse "YYYY-MM" into numeric year/month for online_games query
   const [yearNum, monthNum] = month.split("-").map(Number);
@@ -52,11 +57,11 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
     fetchGuildMembers(),
     db
       .collection("subs_access")
-      .find({ guild_id: guildId, month })
+      .find({ guild_id: guildIdFilter, month })
       .toArray(),
     db
       .collection("subs_free_entries")
-      .find({ guild_id: guildId, month })
+      .find({ guild_id: guildIdFilter, month })
       .toArray(),
     // Count games per topdeck_uid (same approach as live standings)
     db.collection("online_games").aggregate<{ _id: string; count: number }>([
@@ -73,12 +78,12 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
   // Build lookup maps
   const accessByUser = new Map<string, Record<string, unknown>>();
   for (const rec of accessRecords) {
-    accessByUser.set(rec.user_id, rec);
+    accessByUser.set(String(rec.user_id), rec);
   }
 
-  const freeEntryUserIds = new Set<string>();
+  const freeEntryByUser = new Map<string, Record<string, unknown>>();
   for (const entry of freeEntries) {
-    freeEntryUserIds.add(entry.user_id);
+    freeEntryByUser.set(String(entry.user_id), entry);
   }
 
   // Build topdeck_uid → game count
@@ -141,20 +146,26 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
   const memberById = new Map(members.map((m) => [m.id, m]));
 
   // 2) Check DB free entries for members without roles
-  for (const userId of freeEntryUserIds) {
+  for (const [userId, freeEntry] of freeEntryByUser.entries()) {
     if (processedIds.has(userId)) continue;
     processedIds.add(userId);
 
     const member = memberById.get(userId);
-    const gamesPlayed = member ? getGamesForMember(member.username) : 0;
+    const dbUsername = freeEntry.discord_username as string | undefined;
+    const dbDisplayName = freeEntry.discord_name as string | undefined;
+    const gamesPlayed = member
+      ? getGamesForMember(member.username)
+      : dbUsername
+        ? getGamesForMember(dbUsername)
+        : 0;
 
     subscribers.push({
       discord_id: userId,
-      username: member?.username || userId,
-      display_name: member?.display_name || userId,
+      username: member?.username || dbUsername || userId,
+      display_name: member?.display_name || dbDisplayName || dbUsername || userId,
       avatar_url: member?.avatar_url || null,
       source: "free",
-      tier: "Free Entry",
+      tier: member ? determineTier("free", member.roles) : "Manual",
       is_playing: gamesPlayed > 0,
       games_played: gamesPlayed,
       joined_at: member?.joined_at || null,
