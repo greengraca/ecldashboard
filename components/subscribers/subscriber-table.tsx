@@ -110,30 +110,27 @@ export default function SubscriberTable({
       render: (row) => {
         const isPaid = manualPaidIds?.has(row.discord_id as string);
         return (
-          <div className="flex items-center gap-1">
-            {row.source === "free" && isPaid ? (
-              <span
-                className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-                style={{ background: "rgba(34, 197, 94, 0.15)", color: "var(--success)" }}
-              >
-                Paid
-              </span>
-            ) : (
-              <SourceBadge source={row.source as SubscriptionSource} />
-            )}
+          <div className="flex items-center gap-2.5">
+            <SourceBadge source={row.source as SubscriptionSource} />
             {row.source === "free" && onToggleManualPaid && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleManualPaid(row.discord_id as string, !isPaid);
                 }}
-                className="ml-1 rounded px-2 py-0.5 text-xs transition-colors"
+                className="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors"
                 style={{
-                  background: isPaid ? "rgba(239, 68, 68, 0.15)" : "rgba(34, 197, 94, 0.15)",
-                  color: isPaid ? "var(--error)" : "var(--success)",
+                  background: isPaid ? "var(--accent)" : "var(--border)",
                 }}
+                title={isPaid ? "Unmark manual payment" : "Mark as manually paid"}
               >
-                {isPaid ? "Unmark" : "Mark Paid"}
+                <span
+                  className="absolute top-1/2 h-2.5 w-2.5 rounded-full transition-all duration-200"
+                  style={{
+                    background: isPaid ? "var(--accent-text)" : "var(--text-muted)",
+                    transform: isPaid ? "translate(13px, -50%)" : "translate(5px, -50%)",
+                  }}
+                />
               </button>
             )}
           </div>
@@ -144,6 +141,12 @@ export default function SubscriberTable({
       key: "tier",
       label: "Tier",
       sortable: true,
+      render: (row) => {
+        const isPaid = row.source === "free" && manualPaidIds?.has(row.discord_id as string);
+        return (
+          <span>{isPaid ? "Manually Paid" : (row.tier as string)}</span>
+        );
+      },
     },
     {
       key: "is_playing",

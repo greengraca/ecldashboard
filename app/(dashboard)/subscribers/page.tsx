@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { Users, Crown, Coffee, Gift, AlertTriangle } from "lucide-react";
+import { Users, Crown, Coffee, Gift, AlertTriangle, HandCoins } from "lucide-react";
 import StatCard from "@/components/dashboard/stat-card";
 import MonthPicker from "@/components/dashboard/month-picker";
 import SubscriberTable from "@/components/subscribers/subscriber-table";
@@ -21,7 +21,7 @@ function getCurrentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-type SourceFilter = "all" | "patreon" | "kofi" | "free" | "paying_not_playing";
+type SourceFilter = "all" | "patreon" | "kofi" | "free" | "manual" | "paying_not_playing";
 
 export default function SubscribersPage() {
   const [month, setMonth] = useState(getCurrentMonth);
@@ -43,9 +43,17 @@ export default function SubscribersPage() {
   const subscribers = data?.data?.subscribers || [];
   const summary = data?.data?.summary;
 
+  const isPaying = (s: Subscriber) =>
+    s.source === "patreon" || s.source === "kofi" || (s.source === "free" && manualPaidIds.has(s.discord_id));
+
+  const manualPaidCount = subscribers.filter((s) => s.source === "free" && manualPaidIds.has(s.discord_id)).length;
+  const freeCount = (summary?.free ?? 0) - manualPaidCount;
+
   const filteredSubscribers = subscribers.filter((s) => {
     if (sourceFilter === "all") return true;
-    if (sourceFilter === "paying_not_playing") return (s.source === "patreon" || s.source === "kofi") && !s.is_playing;
+    if (sourceFilter === "paying_not_playing") return isPaying(s) && !s.is_playing;
+    if (sourceFilter === "manual") return s.source === "free" && manualPaidIds.has(s.discord_id);
+    if (sourceFilter === "free") return s.source === "free" && !manualPaidIds.has(s.discord_id);
     return s.source === sourceFilter;
   });
 
@@ -98,7 +106,7 @@ export default function SubscribersPage() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-8">
+      <div className={`grid grid-cols-2 sm:grid-cols-3 ${manualPaidCount > 0 ? "lg:grid-cols-6" : "lg:grid-cols-5"} gap-3 sm:gap-4 mb-8`}>
         <div className="cursor-pointer" onClick={() => toggleFilter("all")}>
           <StatCard
             title="Total Subscribers"
@@ -138,10 +146,25 @@ export default function SubscribersPage() {
             }
           />
         </div>
+        {manualPaidCount > 0 && (
+          <div className="cursor-pointer" onClick={() => toggleFilter("manual")}>
+            <StatCard
+              title="Manually Paid"
+              value={isLoading ? "--" : manualPaidCount}
+              active={sourceFilter === "manual"}
+              icon={
+                <HandCoins
+                  className="w-4 h-4"
+                  style={{ color: "var(--success)" }}
+                />
+              }
+            />
+          </div>
+        )}
         <div className="cursor-pointer" onClick={() => toggleFilter("free")}>
           <StatCard
             title="Free Entry"
-            value={isLoading ? "--" : (summary?.free ?? 0)}
+            value={isLoading ? "--" : freeCount}
             active={sourceFilter === "free"}
             icon={
               <Gift
@@ -154,8 +177,7 @@ export default function SubscribersPage() {
         <div className="cursor-pointer" onClick={() => toggleFilter("paying_not_playing")}>
           <StatCard
             title="Paying Not Playing"
-            value={isLoading ? "--" : (summary?.paying_not_playing ?? 0)}
-
+            value={isLoading ? "--" : subscribers.filter((s) => isPaying(s) && !s.is_playing).length}
             active={sourceFilter === "paying_not_playing"}
             icon={
               <AlertTriangle
