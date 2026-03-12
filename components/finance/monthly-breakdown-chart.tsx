@@ -19,13 +19,9 @@ interface MonthlyBreakdownChartProps {
   isLoading: boolean;
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  subscription: "#34d399",
-  sponsorship: "#60a5fa",
-  prize: "#fca5a5",
-  operational: "#fbbf24",
-  other: "#94a3b8",
-};
+// Shades of green for income, shades of red for expenses
+const INCOME_SHADES = ["#34d399", "#4ade80", "#86efac", "#a7f3d0"];
+const EXPENSE_SHADES = ["#f87171", "#fca5a5", "#fb923c", "#fda4af"];
 
 const CATEGORY_LABELS: Record<string, string> = {
   subscription: "Subscription",
@@ -66,15 +62,25 @@ export default function MonthlyBreakdownChart({
   const breakdown = summary?.breakdown;
 
   const data = breakdown
-    ? Object.entries(breakdown)
-        .map(([key, value]) => ({
-          category: CATEGORY_LABELS[key] || key,
-          amount: Math.abs(value),
-          value: value,
-          color: CATEGORY_COLORS[key] || "#94a3b8",
-        }))
-        .filter((d) => d.amount > 0)
-        .sort((a, b) => b.amount - a.amount)
+    ? (() => {
+        let incomeIdx = 0;
+        let expenseIdx = 0;
+        return Object.entries(breakdown)
+          .map(([key, value]) => ({
+            category: CATEGORY_LABELS[key] || key,
+            amount: Math.abs(value),
+            value: value,
+            isIncome: value > 0,
+          }))
+          .filter((d) => d.amount > 0)
+          .sort((a, b) => b.amount - a.amount)
+          .map((d) => ({
+            ...d,
+            color: d.isIncome
+              ? INCOME_SHADES[incomeIdx++ % INCOME_SHADES.length]
+              : EXPENSE_SHADES[expenseIdx++ % EXPENSE_SHADES.length],
+          }));
+      })()
     : [];
 
   return (

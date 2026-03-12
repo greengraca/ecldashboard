@@ -268,6 +268,7 @@ export default function FinancePage() {
         ) : (
           <FixedCostManager
             fixedCosts={fixedCosts}
+            month={month}
             onAdd={handleAddFixedCost}
             onUpdate={handleUpdateFixedCost}
             onDelete={handleDeleteFixedCost}

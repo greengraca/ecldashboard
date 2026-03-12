@@ -5,8 +5,15 @@ import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import type { FixedCost } from "@/lib/types";
 import Select from "@/components/dashboard/select";
 
+function appliesToMonth(fc: FixedCost, month: string): boolean {
+  if (fc.start_month > month) return false;
+  if (fc.end_month && fc.end_month < month) return false;
+  return true;
+}
+
 interface FixedCostManagerProps {
   fixedCosts: FixedCost[];
+  month: string;
   onAdd: (data: {
     name: string;
     amount: number;
@@ -22,6 +29,7 @@ interface FixedCostManagerProps {
       amount: number;
       category: "prize" | "operational";
       active: boolean;
+      start_month: string;
       end_month: string | null;
     }>
   ) => Promise<void>;
@@ -30,6 +38,7 @@ interface FixedCostManagerProps {
 
 export default function FixedCostManager({
   fixedCosts,
+  month,
   onAdd,
   onUpdate,
   onDelete,
@@ -46,10 +55,11 @@ export default function FixedCostManager({
     name: "",
     amount: "",
     category: "operational" as "prize" | "operational",
+    start_month: "",
   });
 
   const monthlyTotal = fixedCosts
-    .filter((fc) => fc.active)
+    .filter((fc) => fc.active && appliesToMonth(fc, month))
     .reduce((sum, fc) => sum + fc.amount, 0);
 
   async function handleAdd() {
@@ -72,6 +82,7 @@ export default function FixedCostManager({
       name: fc.name,
       amount: fc.amount.toString(),
       category: fc.category,
+      start_month: fc.start_month,
     });
   }
 
@@ -80,6 +91,7 @@ export default function FixedCostManager({
       name: editForm.name,
       amount: parseFloat(editForm.amount),
       category: editForm.category,
+      start_month: editForm.start_month,
     });
     setEditingId(null);
   }
@@ -169,15 +181,20 @@ export default function FixedCostManager({
                 { value: "prize", label: "Prize" },
               ]}
             />
-            <input
-              type="month"
-              value={form.start_month}
-              onChange={(e) =>
-                setForm({ ...form, start_month: e.target.value })
-              }
-              className="px-3 py-2 rounded-lg border text-sm outline-none"
-              style={inputStyle}
-            />
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                Starts from
+              </label>
+              <input
+                type="month"
+                value={form.start_month}
+                onChange={(e) =>
+                  setForm({ ...form, start_month: e.target.value })
+                }
+                className="px-3 py-2 rounded-lg border text-sm outline-none"
+                style={inputStyle}
+              />
+            </div>
           </div>
           <div className="flex gap-2 justify-end">
             <button
@@ -214,11 +231,13 @@ export default function FixedCostManager({
         {fixedCosts.map((fc) => {
           const id = String(fc._id);
           const isEditing = editingId === id;
+          const applies = appliesToMonth(fc, month);
 
           return (
             <div
               key={id}
               className="flex items-center justify-between py-2.5 px-3 rounded-lg transition-colors hover:bg-[var(--bg-hover)]"
+              style={{ opacity: applies ? 1 : 0.45 }}
             >
               {isEditing ? (
                 <div className="flex items-center gap-2 flex-1 flex-wrap">
@@ -254,6 +273,16 @@ export default function FixedCostManager({
                       { value: "prize", label: "Prize" },
                     ]}
                     size="sm"
+                  />
+                  <input
+                    type="month"
+                    value={editForm.start_month}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, start_month: e.target.value })
+                    }
+                    className="px-2 py-1 rounded border text-sm outline-none w-36"
+                    style={inputStyle}
+                    title="Starts from"
                   />
                   <button
                     onClick={() => handleUpdate(id)}
@@ -313,6 +342,18 @@ export default function FixedCostManager({
                       >
                         {fc.category}
                       </span>
+                      {!applies && (
+                        <span
+                          className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                          style={{
+                            background: "var(--warning-light, rgba(251,191,36,0.15))",
+                            color: "var(--warning, #fbbf24)",
+                          }}
+                          title={fc.start_month > month ? `Starts ${fc.start_month}` : `Ended ${fc.end_month}`}
+                        >
+                          {fc.start_month > month ? `Starts ${fc.start_month}` : `Ended ${fc.end_month}`}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
