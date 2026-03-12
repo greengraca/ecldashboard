@@ -11,7 +11,69 @@ import {
   TOPDECK_BRACKET_ID,
 } from "./constants";
 import { fetchPublicPData } from "./topdeck-cache";
+import { getHistoricalMonths, reassembleMonthDump, computeStandings } from "./topdeck";
 import type { Subscriber, SubscriberSummary, SubscriptionSource } from "./types";
+
+/**
+ * Get game counts per discord username from dump data for a given month.
+ * Loads the dump (same source as standings), computes game counts per TopDeck UID,
+ * then maps UIDs to discord usernames via PublicPData for each dump's bracket_id.
+ */
+async function getGamesFromDump(month: string): Promise<Map<string, number>> {
+  const gamesPerDiscord = new Map<string, number>();
+
+  try {
+    // Don't filter by bracket — historical months may use different bracket IDs
+    const historicalMonths = await getHistoricalMonths();
+    const monthInfos = historicalMonths.filter((m) => m.month === month);
+    if (monthInfos.length === 0) return gamesPerDiscord;
+
+    // Collect unique bracket IDs for this month's dumps
+    const bracketIds = [...new Set(monthInfos.map((m) => m.bracket_id))];
+
+    // Fetch PublicPData for each bracket to map TopDeck UID → discord username
+    const allPublicPData: Record<string, { name?: string; discord?: string }> = {};
+    for (const bid of bracketIds) {
+      try {
+        const pdata = await fetchPublicPData(bid);
+        Object.assign(allPublicPData, pdata);
+      } catch {
+        // bracket may no longer exist
+      }
+    }
+
+    // Build TopDeck UID → game count from dump matches
+    const gamesByUid = new Map<string, number>();
+    for (const mi of monthInfos) {
+      const dump = await reassembleMonthDump(mi);
+      const allEntrantIds = Object.keys(dump.entrant_to_uid).map(Number);
+      const standings = computeStandings(dump.matches, allEntrantIds);
+
+      for (const [eidStr, uid] of Object.entries(dump.entrant_to_uid)) {
+        const stats = standings.get(Number(eidStr));
+        if (stats && stats.games > 0) {
+          gamesByUid.set(uid, (gamesByUid.get(uid) || 0) + stats.games);
+        }
+      }
+    }
+
+    // Map TopDeck UID → discord username (lowercased)
+    for (const [topdeckUid, games] of gamesByUid.entries()) {
+      const info = allPublicPData[topdeckUid];
+      const discordHandle = info?.discord?.toLowerCase().trim();
+      if (discordHandle && games > 0) {
+        gamesPerDiscord.set(
+          discordHandle,
+          (gamesPerDiscord.get(discordHandle) || 0) + games
+        );
+      }
+    }
+  } catch (err) {
+    console.error("Failed to get game counts from dump:", err);
+  }
+
+  return gamesPerDiscord;
+}
 
 function roleSetHasAny(memberRoles: string[], roleSet: Set<number>): boolean {
   return memberRoles.some((r) => roleSet.has(Number(r)));
@@ -86,7 +148,7 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
     freeEntryByUser.set(String(entry.user_id), entry);
   }
 
-  // Build topdeck_uid → game count
+  // Build topdeck_uid → game count from online_games
   const gamesByTopdeckUid = new Map<string, number>();
   for (const row of gameCountRows) {
     const uid = String(row._id).trim();
@@ -105,6 +167,15 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
         discordHandle,
         (gamesPerDiscordUsername.get(discordHandle) || 0) + games
       );
+    }
+  }
+
+  // If online_games produced no matches, fall back to dump-based game counts
+  // (fetches PublicPData for each historical bracket_id for accurate discord mapping)
+  if (gamesPerDiscordUsername.size === 0) {
+    const dumpGames = await getGamesFromDump(month);
+    for (const [discord, games] of dumpGames.entries()) {
+      gamesPerDiscordUsername.set(discord, games);
     }
   }
 
