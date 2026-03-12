@@ -5,6 +5,7 @@ import type { Transaction, TransactionType, TransactionCategory } from "@/lib/ty
 
 interface TransactionFormProps {
   transaction?: Transaction;
+  defaultMonth?: string; // "YYYY-MM" — used when creating new transactions
   onSubmit: (data: {
     date: string;
     type: TransactionType;
@@ -24,12 +25,34 @@ const CATEGORIES: { value: TransactionCategory; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
+function getDefaultDate(defaultMonth?: string): string {
+  if (defaultMonth) return `${defaultMonth}-01`;
+  return new Date().toISOString().substring(0, 10);
+}
+
+function isoToDisplay(iso: string): string {
+  // "YYYY-MM-DD" → "DD/MM/YYYY"
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function displayToIso(display: string): string | null {
+  // "DD/MM/YYYY" → "YYYY-MM-DD"
+  const match = display.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return null;
+  const [, d, m, y] = match;
+  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+}
+
 export default function TransactionForm({
   transaction,
+  defaultMonth,
   onSubmit,
   onCancel,
 }: TransactionFormProps) {
-  const [date, setDate] = useState(transaction?.date || new Date().toISOString().substring(0, 10));
+  const initialIso = transaction?.date || getDefaultDate(defaultMonth);
+  const [dateDisplay, setDateDisplay] = useState(isoToDisplay(initialIso));
+  const [dateIso, setDateIso] = useState(initialIso);
   const [type, setType] = useState<TransactionType>(transaction?.type || "income");
   const [category, setCategory] = useState<TransactionCategory>(transaction?.category || "subscription");
   const [description, setDescription] = useState(transaction?.description || "");
@@ -39,12 +62,12 @@ export default function TransactionForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!date || !description || !amount) return;
+    if (!dateIso || !description || !amount) return;
 
     setLoading(true);
     try {
       await onSubmit({
-        date,
+        date: dateIso,
         type,
         category,
         description,
@@ -76,9 +99,15 @@ export default function TransactionForm({
           Date
         </label>
         <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
+          type="text"
+          value={dateDisplay}
+          onChange={(e) => {
+            const val = e.target.value;
+            setDateDisplay(val);
+            const iso = displayToIso(val);
+            if (iso) setDateIso(iso);
+          }}
+          placeholder="DD/MM/YYYY"
           required
           className="w-full px-3 py-2 rounded-lg border text-sm outline-none focus:border-[var(--accent)]"
           style={inputStyle}

@@ -35,8 +35,7 @@ function getCurrentMonth(): string {
 
 export default function PlayersPage() {
   const [month, setMonth] = useState(getCurrentMonth);
-  const [eligibleOnly, setEligibleOnly] = useState(false);
-  const [showInactive, setShowInactive] = useState(false);
+  const [filter, setFilter] = useState<"none" | "eligible" | "inactive">("none");
 
   const isCurrentMonth = month === getCurrentMonth();
 
@@ -144,7 +143,7 @@ export default function PlayersPage() {
           icon={
             <Gamepad2
               className="w-4 h-4"
-              style={{ color: "var(--success)" }}
+              style={{ color: "var(--accent)" }}
             />
           }
         />
@@ -191,56 +190,56 @@ export default function PlayersPage() {
           {/* Filters */}
           <div className="flex items-center gap-3 mb-6">
             <button
-              onClick={() => setEligibleOnly(!eligibleOnly)}
+              onClick={() => setFilter(filter === "eligible" ? "none" : "eligible")}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
               style={{
-                background: eligibleOnly
+                background: filter === "eligible"
                   ? "var(--success-light)"
                   : "var(--bg-card)",
-                color: eligibleOnly
+                color: filter === "eligible"
                   ? "var(--success)"
                   : "var(--text-secondary)",
-                border: `1px solid ${eligibleOnly ? "var(--success)" : "var(--border)"}`,
+                border: `1px solid ${filter === "eligible" ? "var(--success)" : "var(--border)"}`,
               }}
             >
               <span
                 className="w-3 h-3 rounded-sm border flex items-center justify-center text-[10px]"
                 style={{
-                  borderColor: eligibleOnly
+                  borderColor: filter === "eligible"
                     ? "var(--success)"
                     : "var(--text-muted)",
-                  background: eligibleOnly ? "var(--success)" : "transparent",
-                  color: eligibleOnly ? "var(--bg-page)" : "transparent",
+                  background: filter === "eligible" ? "var(--success)" : "transparent",
+                  color: filter === "eligible" ? "var(--bg-page)" : "transparent",
                 }}
               >
-                {eligibleOnly ? "\u2713" : ""}
+                {filter === "eligible" ? "\u2713" : ""}
               </span>
               Top 16 Eligible
             </button>
             <button
-              onClick={() => setShowInactive(!showInactive)}
+              onClick={() => setFilter(filter === "inactive" ? "none" : "inactive")}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
               style={{
-                background: showInactive
-                  ? "var(--warning-light)"
+                background: filter === "inactive"
+                  ? "var(--error-light)"
                   : "var(--bg-card)",
-                color: showInactive
-                  ? "var(--warning)"
+                color: filter === "inactive"
+                  ? "var(--error)"
                   : "var(--text-secondary)",
-                border: `1px solid ${showInactive ? "var(--warning)" : "var(--border)"}`,
+                border: `1px solid ${filter === "inactive" ? "var(--error)" : "var(--border)"}`,
               }}
             >
               <span
                 className="w-3 h-3 rounded-sm border flex items-center justify-center text-[10px]"
                 style={{
-                  borderColor: showInactive
-                    ? "var(--warning)"
+                  borderColor: filter === "inactive"
+                    ? "var(--error)"
                     : "var(--text-muted)",
-                  background: showInactive ? "var(--warning)" : "transparent",
-                  color: showInactive ? "var(--bg-page)" : "transparent",
+                  background: filter === "inactive" ? "var(--error)" : "transparent",
+                  color: filter === "inactive" ? "var(--bg-page)" : "transparent",
                 }}
               >
-                {showInactive ? "\u2713" : ""}
+                {filter === "inactive" ? "\u2713" : ""}
               </span>
               Inactive
             </button>
@@ -296,8 +295,8 @@ export default function PlayersPage() {
             </div>
           ) : (
             <LiveStandingsTable
-              standings={showInactive ? liveStandings.filter((s) => s.games === 0) : liveStandings}
-              showEligibleOnly={eligibleOnly}
+              standings={filter === "inactive" ? liveStandings.filter((s) => s.games === 0) : liveStandings}
+              showEligibleOnly={filter === "eligible"}
             />
           )}
         </>
@@ -309,29 +308,29 @@ export default function PlayersPage() {
           {/* Filters */}
           <div className="flex items-center gap-3 mb-6">
             <button
-              onClick={() => setShowInactive(!showInactive)}
+              onClick={() => setFilter(filter === "inactive" ? "none" : "inactive")}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
               style={{
-                background: showInactive
-                  ? "var(--warning-light)"
+                background: filter === "inactive"
+                  ? "var(--error-light)"
                   : "var(--bg-card)",
-                color: showInactive
-                  ? "var(--warning)"
+                color: filter === "inactive"
+                  ? "var(--error)"
                   : "var(--text-secondary)",
-                border: `1px solid ${showInactive ? "var(--warning)" : "var(--border)"}`,
+                border: `1px solid ${filter === "inactive" ? "var(--error)" : "var(--border)"}`,
               }}
             >
               <span
                 className="w-3 h-3 rounded-sm border flex items-center justify-center text-[10px]"
                 style={{
-                  borderColor: showInactive
-                    ? "var(--warning)"
+                  borderColor: filter === "inactive"
+                    ? "var(--error)"
                     : "var(--text-muted)",
-                  background: showInactive ? "var(--warning)" : "transparent",
-                  color: showInactive ? "var(--bg-page)" : "transparent",
+                  background: filter === "inactive" ? "var(--error)" : "transparent",
+                  color: filter === "inactive" ? "var(--bg-page)" : "transparent",
                 }}
               >
-                {showInactive ? "\u2713" : ""}
+                {filter === "inactive" ? "\u2713" : ""}
               </span>
               Inactive
             </button>
@@ -360,7 +359,7 @@ export default function PlayersPage() {
               </p>
             </div>
           ) : (
-            <StandingsTable standings={showInactive ? dumpStandings.filter((s) => s.games === 0) : dumpStandings} />
+            <StandingsTable standings={filter === "inactive" ? dumpStandings.filter((s) => s.games === 0) : dumpStandings} />
           )}
         </>
       )}

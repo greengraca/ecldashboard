@@ -276,6 +276,7 @@ export default function FinancePage() {
       >
         <TransactionForm
           transaction={editingTx}
+          defaultMonth={month}
           onSubmit={handleSubmitTransaction}
           onCancel={() => {
             setModalOpen(false);
