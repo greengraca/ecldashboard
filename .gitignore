@@ -41,7 +41,8 @@ yarn-error.log*
 next-env.d.ts
 
 # claude code
-.claude/settings.local.json
+.claude/
+CLAUDE.md
 
 # local planning docs (not part of the app)
 /docs/
