@@ -49,25 +49,45 @@ async function getSubscriberLookup(): Promise<Map<string, { source: Subscription
   return lookup;
 }
 
-async function getUidNameLookup(): Promise<Map<string, string>> {
-  const db = await getDb();
+async function getUidNameLookup(bracketId?: string): Promise<Map<string, string>> {
   const lookup = new Map<string, string>();
 
-  // Try discord_members or similar collection for display names
-  try {
-    const members = await db
-      .collection("discord_members")
-      .find({})
-      .project({ user_id: 1, display_name: 1, username: 1 })
-      .toArray();
-
-    for (const m of members) {
-      const uid = (m.user_id || m._id) as string;
-      const name = (m.display_name || m.username || uid) as string;
-      lookup.set(uid, name);
+  // Fetch names from TopDeck PublicPData (keyed by TopDeck uid)
+  if (bracketId) {
+    try {
+      const res = await fetch(`https://topdeck.gg/PublicPData/${bracketId}`);
+      if (res.ok) {
+        const data = await res.json();
+        for (const [uid, info] of Object.entries(data)) {
+          const playerInfo = info as { name?: string; discord?: string };
+          if (playerInfo?.name) {
+            lookup.set(uid, playerInfo.name);
+          }
+        }
+      }
+    } catch {
+      // fall through to discord_members
     }
-  } catch {
-    // collection may not exist
+  }
+
+  // Fall back to discord_members for any UIDs not found
+  if (lookup.size === 0) {
+    const db = await getDb();
+    try {
+      const members = await db
+        .collection("discord_members")
+        .find({})
+        .project({ user_id: 1, display_name: 1, username: 1 })
+        .toArray();
+
+      for (const m of members) {
+        const uid = (m.user_id || m._id) as string;
+        const name = (m.display_name || m.username || uid) as string;
+        lookup.set(uid, name);
+      }
+    } catch {
+      // collection may not exist
+    }
   }
 
   return lookup;
@@ -161,9 +181,11 @@ export async function getPlayers(month?: string): Promise<Player[]> {
   const monthInfos = months.filter((m) => m.month === targetMonth);
   if (monthInfos.length === 0) return [];
 
+  // Use the first bracket_id for name lookups via PublicPData
+  const bracketId = monthInfos[0].bracket_id;
   const [subscriberLookup, nameLookup] = await Promise.all([
     getSubscriberLookup(),
-    getUidNameLookup(),
+    getUidNameLookup(bracketId),
   ]);
 
   // Load and merge dumps for all brackets in the month
@@ -216,9 +238,11 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
   const months = await getHistoricalMonths();
   if (months.length === 0) return null;
 
+  // Use latest bracket for name lookups
+  const latestBracketId = months[months.length - 1].bracket_id;
   const [subscriberLookup, nameLookup] = await Promise.all([
     getSubscriberLookup(),
-    getUidNameLookup(),
+    getUidNameLookup(latestBracketId),
   ]);
 
   const monthlyHistory: PlayerMonthStats[] = [];

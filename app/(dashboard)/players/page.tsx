@@ -310,7 +310,7 @@ export default function PlayersPage() {
               )}
               {liveVoided > 0 && (
                 <span
-                  className="px-1.5 py-0.5 rounded"
+                  className="px-1.5 py-0.5 rounded text-[10px]"
                   style={{ background: "var(--error-light)", color: "var(--error)" }}
                 >
                   {liveVoided} voided
@@ -407,11 +407,11 @@ export default function PlayersPage() {
               >
                 {filter === "inactive" ? "\u2713" : ""}
               </span>
-              Inactive{filter === "inactive" && ` (${dumpStandings.filter((s) => s.games === 0).length})`}
+              Inactive{filter === "inactive" && ` (${players.filter((p) => p.games === 0).length})`}
             </button>
           </div>
 
-          {standingsLoading ? (
+          {(standingsLoading || playersLoading) ? (
             <div
               className="rounded-xl border p-12 text-center"
               style={{
@@ -434,7 +434,13 @@ export default function PlayersPage() {
               </p>
             </div>
           ) : (
-            <StandingsTable standings={filter === "inactive" ? dumpStandings.filter((s) => s.games === 0) : filter === "most_games" ? [...dumpStandings].sort((a, b) => b.games - a.games).slice(0, 5) : dumpStandings} />
+            <StandingsTable standings={
+              filter === "inactive"
+                ? players.filter((p) => p.games === 0).map((p, i) => ({ rank: i + 1, uid: p.uid, name: p.name, points: p.points, games: p.games, wins: p.wins, losses: p.losses, draws: p.draws, win_pct: p.win_pct }))
+                : filter === "most_games"
+                  ? [...dumpStandings].sort((a, b) => b.games - a.games).slice(0, 5)
+                  : dumpStandings
+            } />
           )}
         </>
       )}
