@@ -1,10 +1,28 @@
 import { getDb } from "./mongodb";
 import { getRatesForMonth } from "./subscription-rates";
+import { PATREON_TIER_NET } from "./constants";
 import type { SubscriptionIncome } from "./types";
+
+// Bronze/Silver only count for income in January 2026
+const BRONZE_SILVER_TIERS = new Set(["Bronze", "Silver"]);
+const BRONZE_SILVER_ELIGIBLE_MONTH = "2026-01";
+
+// December 2025 was a free month — zero subscription income
+const FREE_MONTH = "2025-12";
 
 export async function getSubscriptionIncome(
   month: string
 ): Promise<SubscriptionIncome> {
+  // Free month: no subscription income for any source
+  if (month === FREE_MONTH) {
+    return {
+      patreon: { count: 0, amount: 0 },
+      kofi: { count: 0, amount: 0 },
+      manual: { count: 0, amount: 0 },
+      total: 0,
+    };
+  }
+
   const db = await getDb();
   const rates = await getRatesForMonth(month);
 
@@ -34,35 +52,46 @@ export async function getSubscriptionIncome(
     totalKofi = kofiBackfillCount;
   }
 
-  // 2. Patreon: count from dashboard_patreon_snapshots
-  const patreonCount = await db
+  // 2. Patreon: aggregate by tier from snapshots, apply per-tier net rates
+  const tierCounts = await db
     .collection("dashboard_patreon_snapshots")
-    .countDocuments({ month });
+    .aggregate<{ _id: string; count: number }>([
+      { $match: { month } },
+      {
+        $group: {
+          _id: { $trim: { input: "$tier" } },
+          count: { $sum: 1 },
+        },
+      },
+    ])
+    .toArray();
+
+  let patreonCount = 0;
+  let patreonAmount = 0;
+  for (const { _id: tier, count } of tierCounts) {
+    // Skip Bronze/Silver unless it's their eligible month
+    if (BRONZE_SILVER_TIERS.has(tier) && month !== BRONZE_SILVER_ELIGIBLE_MONTH) {
+      continue;
+    }
+    const netRate = PATREON_TIER_NET[tier];
+    if (netRate === undefined) continue; // unknown tier, skip
+    patreonCount += count;
+    patreonAmount += count * netRate;
+  }
+  patreonAmount = Math.round(patreonAmount * 100) / 100;
 
   // 3. Manual: count from dashboard_manual_payments
   const manualCount = await db
     .collection("dashboard_manual_payments")
     .countDocuments({ month });
 
+  const kofiAmount = Math.round(totalKofi * rates.kofi_net * 100) / 100;
+  const manualAmount = Math.round(manualCount * rates.manual_net * 100) / 100;
+
   return {
-    patreon: {
-      count: patreonCount,
-      amount: Math.round(patreonCount * rates.patreon_net * 100) / 100,
-    },
-    kofi: {
-      count: totalKofi,
-      amount: Math.round(totalKofi * rates.kofi_net * 100) / 100,
-    },
-    manual: {
-      count: manualCount,
-      amount: Math.round(manualCount * rates.manual_net * 100) / 100,
-    },
-    total:
-      Math.round(
-        (patreonCount * rates.patreon_net +
-          totalKofi * rates.kofi_net +
-          manualCount * rates.manual_net) *
-          100
-      ) / 100,
+    patreon: { count: patreonCount, amount: patreonAmount },
+    kofi: { count: totalKofi, amount: kofiAmount },
+    manual: { count: manualCount, amount: manualAmount },
+    total: Math.round((patreonAmount + kofiAmount + manualAmount) * 100) / 100,
   };
 }
