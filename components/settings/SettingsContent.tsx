@@ -1,9 +1,10 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { Settings, User, Database, Shield, Globe } from "lucide-react";
+import { Settings, User, Database, Shield, Globe, DollarSign } from "lucide-react";
 import TopDeckRefreshButton from "@/components/settings/topdeck-refresh-button";
 import SyncDiscordButton from "@/components/settings/sync-discord-button";
+import SubscriptionRatesManager from "./SubscriptionRatesManager";
 
 function mask(value: string, showChars = 4): string {
   if (!value) return "Not set";
@@ -223,6 +224,16 @@ export default function SettingsContent({
               </span>
             }
           />
+        </Section>
+
+        {/* Subscription Rates */}
+        <Section
+          icon={
+            <DollarSign className="w-4 h-4" style={{ color: "var(--accent)" }} />
+          }
+          title="Subscription Rates"
+        >
+          <SubscriptionRatesManager />
         </Section>
 
         {/* Data & Caches */}

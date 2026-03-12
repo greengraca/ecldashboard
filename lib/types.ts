@@ -96,6 +96,45 @@ export interface MonthlySummary {
     sponsorship: number;
     other: number;
   };
+  subscription_income: SubscriptionIncome;
+}
+
+// ─── Subscription Income Types ───
+
+export interface SubscriptionIncome {
+  patreon: { count: number; amount: number };
+  kofi: { count: number; amount: number };
+  manual: { count: number; amount: number };
+  total: number;
+}
+
+export interface SubscriptionRate {
+  _id?: ObjectId | string;
+  effective_from: string; // "YYYY-MM"
+  patreon_net: number;
+  kofi_net: number;
+  manual_net: number;
+  created_by: string;
+  created_at: string;
+}
+
+export interface PatreonSnapshot {
+  _id?: ObjectId | string;
+  month: string;
+  discord_id: string | null;
+  patreon_name: string;
+  tier: string;
+  pledge_amount: number;
+  patreon_user_id: string;
+  synced_at: string;
+}
+
+export interface ManualPayment {
+  _id?: ObjectId | string;
+  month: string;
+  discord_id: string;
+  marked_by: string;
+  created_at: string;
 }
 
 // ─── Player Types ───

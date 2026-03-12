@@ -32,6 +32,14 @@ export default function SubscribersPage() {
     fetcher
   );
 
+  const { data: manualData, mutate: mutateManual } = useSWR<{
+    data: { discord_id: string }[];
+  }>(`/api/subscribers/manual-payments?month=${month}`, fetcher);
+
+  const manualPaidIds = new Set(
+    (manualData?.data || []).map((m) => m.discord_id)
+  );
+
   const subscribers = data?.data?.subscribers || [];
   const summary = data?.data?.summary;
 
@@ -42,6 +50,17 @@ export default function SubscribersPage() {
   });
 
   const toggleFilter = (f: SourceFilter) => setSourceFilter((prev) => (prev === f ? "all" : f));
+
+  const handleToggleManualPaid = async (
+    discordId: string,
+    markAsPaid: boolean
+  ) => {
+    const method = markAsPaid ? "POST" : "DELETE";
+    await fetch(`/api/subscribers/${discordId}/manual-payment?month=${month}`, {
+      method,
+    });
+    mutateManual();
+  };
 
   return (
     <div>
@@ -172,7 +191,11 @@ export default function SubscribersPage() {
           </p>
         </div>
       ) : (
-        <SubscriberTable subscribers={filteredSubscribers} />
+        <SubscriberTable
+          subscribers={filteredSubscribers}
+          manualPaidIds={manualPaidIds}
+          onToggleManualPaid={handleToggleManualPaid}
+        />
       )}
     </div>
   );

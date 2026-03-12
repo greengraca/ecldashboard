@@ -35,3 +35,13 @@ export const ALL_SUB_ROLE_IDS = new Set([
 
 export const FIRESTORE_DOC_URL_TEMPLATE = process.env.FIRESTORE_DOC_URL_TEMPLATE || "";
 export const WAGER_RATE = parseFloat(process.env.WAGER_RATE || "0.07");
+
+// ─── Subscription Income ───
+
+export const ECL_ELIGIBLE_PATREON_TIERS = ["ECL Grinder", "Gold", "Diamond"];
+
+export const DEFAULT_PATREON_NET = 5.79;
+export const DEFAULT_KOFI_NET = 5.63;
+export const DEFAULT_MANUAL_NET = 6.50;
+
+export const PATREON_CREATOR_TOKEN = process.env.PATREON_CREATOR_TOKEN || "";

@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { getDb } from "./mongodb";
 import { logActivity } from "./activity";
+import { getSubscriptionIncome } from "./subscription-income";
 import type {
   Transaction,
   FixedCost,
@@ -207,7 +208,7 @@ export async function getMonthlySummary(
 ): Promise<MonthlySummary> {
   const db = await getDb();
 
-  const [transactions, fixedCosts] = await Promise.all([
+  const [transactions, fixedCosts, subscriptionIncome] = await Promise.all([
     db
       .collection<Transaction>("dashboard_transactions")
       .find({ month })
@@ -223,6 +224,7 @@ export async function getMonthlySummary(
         ],
       })
       .toArray(),
+    getSubscriptionIncome(month),
   ]);
 
   const breakdown = {
@@ -242,7 +244,9 @@ export async function getMonthlySummary(
     } else {
       expenses += tx.amount;
     }
-    breakdown[tx.category] += tx.amount * (tx.type === "income" ? 1 : -1);
+    // Reclassify legacy subscription transactions to other
+    const breakdownCategory = tx.category === "subscription" ? "other" : tx.category;
+    breakdown[breakdownCategory] += tx.amount * (tx.type === "income" ? 1 : -1);
   }
 
   let fixedCostTotal = 0;
@@ -255,13 +259,17 @@ export async function getMonthlySummary(
     }
   }
 
+  const subTotal = subscriptionIncome.total;
+  breakdown.subscription = subTotal;
+
   return {
     month,
-    income,
+    income: income + subTotal,
     expenses,
     fixed_costs: fixedCostTotal,
-    net: income - expenses - fixedCostTotal,
+    net: income + subTotal - expenses - fixedCostTotal,
     breakdown,
+    subscription_income: subscriptionIncome,
   };
 }
 

@@ -8,6 +8,8 @@ import type { Subscriber, SubscriptionSource } from "@/lib/types";
 interface SubscriberTableProps {
   subscribers: Subscriber[];
   filterSource?: SubscriptionSource | null;
+  manualPaidIds?: Set<string>;
+  onToggleManualPaid?: (discordId: string, isPaid: boolean) => void;
 }
 
 const SOURCE_BADGES: Record<
@@ -60,73 +62,105 @@ function PlayingStatus({ isPlaying }: { isPlaying: boolean }) {
   );
 }
 
-const columns: Column<Subscriber & Record<string, unknown>>[] = [
-  {
-    key: "display_name",
-    label: "Name",
-    sortable: true,
-    render: (row) => (
-      <div className="flex items-center gap-2.5">
-        {row.avatar_url ? (
-          <img
-            src={row.avatar_url as string}
-            alt=""
-            className="w-7 h-7 rounded-full"
-          />
-        ) : (
-          <div
-            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium"
-            style={{
-              background: "var(--accent-light)",
-              color: "var(--accent)",
-            }}
-          >
-            {(row.display_name as string).charAt(0).toUpperCase()}
-          </div>
-        )}
-        <div>
-          <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-            {row.display_name as string}
-          </p>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {row.username as string}
-          </p>
-        </div>
-      </div>
-    ),
-  },
-  {
-    key: "source",
-    label: "Source",
-    sortable: true,
-    render: (row) => <SourceBadge source={row.source as SubscriptionSource} />,
-  },
-  {
-    key: "tier",
-    label: "Tier",
-    sortable: true,
-  },
-  {
-    key: "is_playing",
-    label: "Status",
-    sortable: true,
-    render: (row) => <PlayingStatus isPlaying={row.is_playing as boolean} />,
-  },
-  {
-    key: "games_played",
-    label: "Games",
-    sortable: true,
-    className: "text-center",
-    render: (row) => (
-      <span className="tabular-nums">{row.games_played as number}</span>
-    ),
-  },
-];
-
 export default function SubscriberTable({
   subscribers,
   filterSource,
+  manualPaidIds,
+  onToggleManualPaid,
 }: SubscriberTableProps) {
+  const columns: Column<Subscriber & Record<string, unknown>>[] = [
+    {
+      key: "display_name",
+      label: "Name",
+      sortable: true,
+      render: (row) => (
+        <div className="flex items-center gap-2.5">
+          {row.avatar_url ? (
+            <img
+              src={row.avatar_url as string}
+              alt=""
+              className="w-7 h-7 rounded-full"
+            />
+          ) : (
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium"
+              style={{
+                background: "var(--accent-light)",
+                color: "var(--accent)",
+              }}
+            >
+              {(row.display_name as string).charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div>
+            <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+              {row.display_name as string}
+            </p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              {row.username as string}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "source",
+      label: "Source",
+      sortable: true,
+      render: (row) => {
+        const isPaid = manualPaidIds?.has(row.discord_id as string);
+        return (
+          <div className="flex items-center gap-1">
+            {row.source === "free" && isPaid ? (
+              <span
+                className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                style={{ background: "rgba(34, 197, 94, 0.15)", color: "var(--success)" }}
+              >
+                Paid
+              </span>
+            ) : (
+              <SourceBadge source={row.source as SubscriptionSource} />
+            )}
+            {row.source === "free" && onToggleManualPaid && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleManualPaid(row.discord_id as string, !isPaid);
+                }}
+                className="ml-1 rounded px-2 py-0.5 text-xs transition-colors"
+                style={{
+                  background: isPaid ? "rgba(239, 68, 68, 0.15)" : "rgba(34, 197, 94, 0.15)",
+                  color: isPaid ? "var(--error)" : "var(--success)",
+                }}
+              >
+                {isPaid ? "Unmark" : "Mark Paid"}
+              </button>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: "tier",
+      label: "Tier",
+      sortable: true,
+    },
+    {
+      key: "is_playing",
+      label: "Status",
+      sortable: true,
+      render: (row) => <PlayingStatus isPlaying={row.is_playing as boolean} />,
+    },
+    {
+      key: "games_played",
+      label: "Games",
+      sortable: true,
+      className: "text-center",
+      render: (row) => (
+        <span className="tabular-nums">{row.games_played as number}</span>
+      ),
+    },
+  ];
   const [search, setSearch] = useState("");
 
   const filtered = subscribers.filter((s) => {
