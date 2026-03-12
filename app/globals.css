@@ -148,7 +148,10 @@ body {
   /* Mobile card list for tables */
   .mobile-card {
     padding: 12px 14px;
-    border-bottom: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border);
+  }
+  .mobile-card:nth-child(odd) {
+    background: rgba(255, 255, 255, 0.02);
   }
   .mobile-card:last-child {
     border-bottom: none;
