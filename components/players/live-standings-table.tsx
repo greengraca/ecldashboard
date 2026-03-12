@@ -166,13 +166,13 @@ export default function LiveStandingsTable({
                     className="px-4 py-3 text-right tabular-nums"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    {s.win_pct.toFixed(1)}%
+                    {parseFloat(s.win_pct.toFixed(2))}%
                   </td>
                   <td
                     className="px-4 py-3 text-right tabular-nums"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    {s.ow_pct.toFixed(1)}%
+                    {parseFloat(s.ow_pct.toFixed(2))}%
                   </td>
                   <td
                     className="px-4 py-3 text-right tabular-nums"

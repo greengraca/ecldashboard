@@ -115,7 +115,7 @@ const columns: Column<Player & Record<string, unknown>>[] = [
     className: "text-right",
     render: (row) => (
       <span className="tabular-nums" style={{ color: "var(--text-secondary)" }}>
-        {(row.win_pct as number).toFixed(1)}%
+        {parseFloat((row.win_pct as number).toFixed(2))}%
       </span>
     ),
   },

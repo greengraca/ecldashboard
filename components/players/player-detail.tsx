@@ -119,7 +119,7 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
           <StatBox label="Wins" value={player.wins} color="var(--success)" />
           <StatBox label="Losses" value={player.losses} color="var(--error)" />
           <StatBox label="Draws" value={player.draws} />
-          <StatBox label="Win %" value={`${player.win_pct.toFixed(1)}%`} />
+          <StatBox label="Win %" value={`${parseFloat(player.win_pct.toFixed(2))}%`} />
         </div>
       </div>
 
@@ -262,7 +262,7 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
                       className="px-4 py-3 text-right tabular-nums"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      {h.win_pct.toFixed(1)}%
+                      {parseFloat(h.win_pct.toFixed(2))}%
                     </td>
                   </tr>
                 ))}

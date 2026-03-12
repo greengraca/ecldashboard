@@ -66,7 +66,7 @@ export default function TransactionForm({
     if (parseInt(day) > maxDay) setDay(String(maxDay).padStart(2, "0"));
   }, [day, maxDay]);
 
-  const [type, setType] = useState<TransactionType>(transaction?.type || "income");
+  const [type, setType] = useState<TransactionType>(transaction?.type || "expense");
   const [category, setCategory] = useState<TransactionCategory>(transaction?.category || "subscription");
   const [description, setDescription] = useState(transaction?.description || "");
   const [amount, setAmount] = useState(transaction?.amount?.toString() || "");
@@ -233,9 +233,15 @@ export default function TransactionForm({
         <input
           type="number"
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(e) => {
+            const val = e.target.value.replace(/-/g, "");
+            setAmount(val);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "-" || e.key === "e" || e.key === "E") e.preventDefault();
+          }}
           required
-          min="0"
+          min="0.01"
           step="0.01"
           placeholder="0.00"
           className="w-full px-3 py-2 rounded-lg border text-sm outline-none focus:border-[var(--accent)]"

@@ -152,7 +152,7 @@ export default function StandingsTable({ standings }: StandingsTableProps) {
                     className="px-4 py-3 text-right tabular-nums"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    {s.win_pct.toFixed(1)}%
+                    {parseFloat(s.win_pct.toFixed(2))}%
                   </td>
                 </tr>
               );
