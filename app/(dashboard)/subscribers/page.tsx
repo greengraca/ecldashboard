@@ -52,7 +52,7 @@ export default function SubscribersPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <MonthPicker value={month} onChange={setMonth} />
+          <MonthPicker value={month} onChange={setMonth} maxMonth={getCurrentMonth()} />
           <SyncButton onSynced={() => mutate()} />
         </div>
       </div>

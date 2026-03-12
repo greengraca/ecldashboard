@@ -1,10 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import type { Standing } from "@/lib/types";
 
 interface StandingsTableProps {
   standings: Standing[];
 }
+
+type SortKey = "rank" | "points" | "wins" | "losses" | "draws" | "games" | "win_pct";
+type SortDir = "asc" | "desc";
 
 function getRankStyle(rank: number): { color: string; bg: string } {
   switch (rank) {
@@ -39,7 +43,42 @@ function RankBadge({ rank }: { rank: number }) {
   );
 }
 
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
+  return (
+    <span
+      className="inline-block ml-1 text-[10px]"
+      style={{ color: active ? "var(--accent)" : "var(--text-muted)", opacity: active ? 1 : 0.4 }}
+    >
+      {active ? (dir === "asc" ? "▲" : "▼") : "▲"}
+    </span>
+  );
+}
+
 export default function StandingsTable({ standings }: StandingsTableProps) {
+  const [sortKey, setSortKey] = useState<SortKey>("rank");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir(key === "rank" ? "asc" : "desc");
+    }
+  }
+
+  const sorted = [...standings].sort((a, b) => {
+    let av: number, bv: number;
+    if (sortKey === "wins" || sortKey === "losses" || sortKey === "draws") {
+      av = a[sortKey];
+      bv = b[sortKey];
+    } else {
+      av = a[sortKey];
+      bv = b[sortKey];
+    }
+    return sortDir === "asc" ? av - bv : bv - av;
+  });
+
   if (standings.length === 0) {
     return (
       <div
@@ -50,6 +89,9 @@ export default function StandingsTable({ standings }: StandingsTableProps) {
       </div>
     );
   }
+
+  const thClass =
+    "px-4 py-3 font-medium text-xs uppercase tracking-wider select-none cursor-pointer transition-colors hover:text-[var(--accent)]";
 
   return (
     <div
@@ -64,10 +106,14 @@ export default function StandingsTable({ standings }: StandingsTableProps) {
           <thead>
             <tr className="border-b border-[var(--border)]">
               <th
-                className="px-4 py-3 text-left font-medium text-xs uppercase tracking-wider w-16"
-                style={{ color: "var(--text-muted)" }}
+                className={`${thClass} text-left w-24`}
+                style={{ color: sortKey === "rank" ? "var(--accent)" : "var(--text-muted)" }}
+                onClick={() => handleSort("rank")}
               >
-                Rank
+                <span className="inline-flex items-center gap-1">
+                  Rank
+                  <SortIcon active={sortKey === "rank"} dir={sortDir} />
+                </span>
               </th>
               <th
                 className="px-4 py-3 text-left font-medium text-xs uppercase tracking-wider"
@@ -76,33 +122,49 @@ export default function StandingsTable({ standings }: StandingsTableProps) {
                 Player
               </th>
               <th
-                className="px-4 py-3 text-right font-medium text-xs uppercase tracking-wider"
-                style={{ color: "var(--text-muted)" }}
+                className={`${thClass} text-right`}
+                style={{ color: sortKey === "points" ? "var(--accent)" : "var(--text-muted)" }}
+                onClick={() => handleSort("points")}
               >
-                Points
+                <span className="inline-flex items-center gap-1 justify-end">
+                  Points
+                  <SortIcon active={sortKey === "points"} dir={sortDir} />
+                </span>
               </th>
               <th
-                className="px-4 py-3 text-right font-medium text-xs uppercase tracking-wider"
-                style={{ color: "var(--text-muted)" }}
+                className={`${thClass} text-right`}
+                style={{ color: sortKey === "wins" ? "var(--accent)" : "var(--text-muted)" }}
+                onClick={() => handleSort("wins")}
               >
-                W / L / D
+                <span className="inline-flex items-center gap-1 justify-end">
+                  W / L / D
+                  <SortIcon active={sortKey === "wins"} dir={sortDir} />
+                </span>
               </th>
               <th
-                className="px-4 py-3 text-right font-medium text-xs uppercase tracking-wider"
-                style={{ color: "var(--text-muted)" }}
+                className={`${thClass} text-right`}
+                style={{ color: sortKey === "games" ? "var(--accent)" : "var(--text-muted)" }}
+                onClick={() => handleSort("games")}
               >
-                Games
+                <span className="inline-flex items-center gap-1 justify-end">
+                  Games
+                  <SortIcon active={sortKey === "games"} dir={sortDir} />
+                </span>
               </th>
               <th
-                className="px-4 py-3 text-right font-medium text-xs uppercase tracking-wider"
-                style={{ color: "var(--text-muted)" }}
+                className={`${thClass} text-right`}
+                style={{ color: sortKey === "win_pct" ? "var(--accent)" : "var(--text-muted)" }}
+                onClick={() => handleSort("win_pct")}
               >
-                Win%
+                <span className="inline-flex items-center gap-1 justify-end">
+                  Win%
+                  <SortIcon active={sortKey === "win_pct"} dir={sortDir} />
+                </span>
               </th>
             </tr>
           </thead>
           <tbody>
-            {standings.map((s) => {
+            {sorted.map((s) => {
               const isPodium = s.rank <= 3;
               const rankStyle = getRankStyle(s.rank);
 

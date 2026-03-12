@@ -16,7 +16,7 @@ export async function getTransactions(month: string): Promise<Transaction[]> {
   return db
     .collection<Transaction>("dashboard_transactions")
     .find({ month })
-    .sort({ date: -1 })
+    .sort({ date: 1 })
     .toArray();
 }
 

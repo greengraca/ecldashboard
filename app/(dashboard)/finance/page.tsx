@@ -178,7 +178,7 @@ export default function FinancePage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <MonthPicker value={month} onChange={setMonth} />
+          <MonthPicker value={month} onChange={setMonth} maxMonth={getCurrentMonth()} />
           <button
             onClick={openAdd}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors"

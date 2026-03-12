@@ -35,7 +35,7 @@ function getCurrentMonth(): string {
 
 export default function PlayersPage() {
   const [month, setMonth] = useState(getCurrentMonth);
-  const [filter, setFilter] = useState<"none" | "eligible" | "inactive">("none");
+  const [filter, setFilter] = useState<"none" | "eligible" | "inactive" | "most_games">("none");
 
   const isCurrentMonth = month === getCurrentMonth();
 
@@ -87,7 +87,12 @@ export default function PlayersPage() {
           : 0;
       const top = liveStandings.length > 0 ? liveStandings[0].points.toFixed(0) : "--";
       const topName = liveStandings.length > 0 ? liveStandings[0].name : "";
-      return { total, active, avg, top, topName };
+      const mostGamesPlayer = liveStandings.length > 0
+        ? [...liveStandings].sort((a, b) => b.games - a.games)[0]
+        : null;
+      const mostGames = mostGamesPlayer ? mostGamesPlayer.games : "--";
+      const mostGamesName = mostGamesPlayer ? mostGamesPlayer.name : "";
+      return { total, active, avg, top, topName, mostGames, mostGamesName };
     } else {
       const total = players.length;
       const active = players.filter((p) => p.games > 0).length;
@@ -99,7 +104,12 @@ export default function PlayersPage() {
           : 0;
       const top = dumpStandings.length > 0 ? dumpStandings[0].points.toFixed(0) : "--";
       const topName = dumpStandings.length > 0 ? dumpStandings[0].name : "";
-      return { total, active, avg, top, topName };
+      const mostGamesPlayer = dumpStandings.length > 0
+        ? [...dumpStandings].sort((a, b) => b.games - a.games)[0]
+        : null;
+      const mostGames = mostGamesPlayer ? mostGamesPlayer.games : "--";
+      const mostGamesName = mostGamesPlayer ? mostGamesPlayer.name : "";
+      return { total, active, avg, top, topName, mostGames, mostGamesName };
     }
   }, [isCurrentMonth, liveStandings, players, dumpStandings]);
 
@@ -121,11 +131,11 @@ export default function PlayersPage() {
             Player rankings and game statistics
           </p>
         </div>
-        <MonthPicker value={month} onChange={setMonth} />
+        <MonthPicker value={month} onChange={setMonth} maxMonth={getCurrentMonth()} />
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <StatCard
           title="Total Players"
           value={dataLoading ? "--" : stats.total}
@@ -166,6 +176,17 @@ export default function PlayersPage() {
             <Trophy
               className="w-4 h-4"
               style={{ color: "#fbbf24" }}
+            />
+          }
+        />
+        <StatCard
+          title="Most Games"
+          value={dataLoading ? "--" : stats.mostGames}
+          subtitle={stats.mostGamesName}
+          icon={
+            <Gamepad2
+              className="w-4 h-4"
+              style={{ color: "var(--success)" }}
             />
           }
         />
@@ -217,6 +238,33 @@ export default function PlayersPage() {
               Top 16 Eligible
             </button>
             <button
+              onClick={() => setFilter(filter === "most_games" ? "none" : "most_games")}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              style={{
+                background: filter === "most_games"
+                  ? "var(--success-light)"
+                  : "var(--bg-card)",
+                color: filter === "most_games"
+                  ? "var(--success)"
+                  : "var(--text-secondary)",
+                border: `1px solid ${filter === "most_games" ? "var(--success)" : "var(--border)"}`,
+              }}
+            >
+              <span
+                className="w-3 h-3 rounded-sm border flex items-center justify-center text-[10px]"
+                style={{
+                  borderColor: filter === "most_games"
+                    ? "var(--success)"
+                    : "var(--text-muted)",
+                  background: filter === "most_games" ? "var(--success)" : "transparent",
+                  color: filter === "most_games" ? "var(--bg-page)" : "transparent",
+                }}
+              >
+                {filter === "most_games" ? "\u2713" : ""}
+              </span>
+              Most Games
+            </button>
+            <button
               onClick={() => setFilter(filter === "inactive" ? "none" : "inactive")}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
               style={{
@@ -241,7 +289,7 @@ export default function PlayersPage() {
               >
                 {filter === "inactive" ? "\u2713" : ""}
               </span>
-              Inactive
+              Inactive{filter === "inactive" && ` (${liveStandings.filter((s) => s.games === 0).length})`}
             </button>
           </div>
 
@@ -295,7 +343,7 @@ export default function PlayersPage() {
             </div>
           ) : (
             <LiveStandingsTable
-              standings={filter === "inactive" ? liveStandings.filter((s) => s.games === 0) : liveStandings}
+              standings={filter === "inactive" ? liveStandings.filter((s) => s.games === 0) : filter === "most_games" ? [...liveStandings].sort((a, b) => b.games - a.games).slice(0, 5) : liveStandings}
               showEligibleOnly={filter === "eligible"}
             />
           )}
@@ -307,6 +355,33 @@ export default function PlayersPage() {
         <>
           {/* Filters */}
           <div className="flex items-center gap-3 mb-6">
+            <button
+              onClick={() => setFilter(filter === "most_games" ? "none" : "most_games")}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              style={{
+                background: filter === "most_games"
+                  ? "var(--success-light)"
+                  : "var(--bg-card)",
+                color: filter === "most_games"
+                  ? "var(--success)"
+                  : "var(--text-secondary)",
+                border: `1px solid ${filter === "most_games" ? "var(--success)" : "var(--border)"}`,
+              }}
+            >
+              <span
+                className="w-3 h-3 rounded-sm border flex items-center justify-center text-[10px]"
+                style={{
+                  borderColor: filter === "most_games"
+                    ? "var(--success)"
+                    : "var(--text-muted)",
+                  background: filter === "most_games" ? "var(--success)" : "transparent",
+                  color: filter === "most_games" ? "var(--bg-page)" : "transparent",
+                }}
+              >
+                {filter === "most_games" ? "\u2713" : ""}
+              </span>
+              Most Games
+            </button>
             <button
               onClick={() => setFilter(filter === "inactive" ? "none" : "inactive")}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
@@ -332,7 +407,7 @@ export default function PlayersPage() {
               >
                 {filter === "inactive" ? "\u2713" : ""}
               </span>
-              Inactive
+              Inactive{filter === "inactive" && ` (${dumpStandings.filter((s) => s.games === 0).length})`}
             </button>
           </div>
 
@@ -359,7 +434,7 @@ export default function PlayersPage() {
               </p>
             </div>
           ) : (
-            <StandingsTable standings={filter === "inactive" ? dumpStandings.filter((s) => s.games === 0) : dumpStandings} />
+            <StandingsTable standings={filter === "inactive" ? dumpStandings.filter((s) => s.games === 0) : filter === "most_games" ? [...dumpStandings].sort((a, b) => b.games - a.games).slice(0, 5) : dumpStandings} />
           )}
         </>
       )}

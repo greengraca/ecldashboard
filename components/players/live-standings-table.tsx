@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import type { LiveStanding } from "@/lib/types";
 
 interface LiveStandingsTableProps {
   standings: LiveStanding[];
   showEligibleOnly: boolean;
 }
+
+type SortKey = "rank" | "points" | "wins" | "losses" | "draws" | "games" | "win_pct" | "ow_pct" | "online_games";
+type SortDir = "asc" | "desc";
 
 function getRankStyle(rank: number): { color: string; bg: string } {
   switch (rank) {
@@ -40,10 +44,45 @@ function RankBadge({ rank }: { rank: number }) {
   );
 }
 
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
+  return (
+    <span
+      className="inline-block ml-1 text-[10px]"
+      style={{ color: active ? "var(--accent)" : "var(--text-muted)", opacity: active ? 1 : 0.4 }}
+    >
+      {active ? (dir === "asc" ? "▲" : "▼") : "▲"}
+    </span>
+  );
+}
+
+const COLUMNS: { key: SortKey | null; label: string; align: "left" | "right" }[] = [
+  { key: "rank", label: "Rank", align: "left" },
+  { key: null, label: "Player", align: "left" },
+  { key: "points", label: "Points", align: "right" },
+  { key: "wins", label: "W / L / D", align: "right" },
+  { key: "games", label: "Games", align: "right" },
+  { key: "win_pct", label: "Win%", align: "right" },
+  { key: "ow_pct", label: "OW%", align: "right" },
+  { key: "online_games", label: "Online", align: "right" },
+  { key: null, label: "", align: "right" },
+];
+
 export default function LiveStandingsTable({
   standings,
   showEligibleOnly,
 }: LiveStandingsTableProps) {
+  const [sortKey, setSortKey] = useState<SortKey>("rank");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir(key === "rank" ? "asc" : "desc");
+    }
+  }
+
   const filtered = showEligibleOnly
     ? standings.filter((s) => s.eligible)
     : standings;
@@ -66,6 +105,17 @@ export default function LiveStandingsTable({
     ? filtered.map((s, i) => ({ ...s, rank: i + 1 }))
     : filtered;
 
+  const sorted = [...display].sort((a, b) => {
+    const av = a[sortKey] as number;
+    const bv = b[sortKey] as number;
+    return sortDir === "asc" ? av - bv : bv - av;
+  });
+
+  const thBase =
+    "px-4 py-3 font-medium text-xs uppercase tracking-wider";
+  const thSortable =
+    `${thBase} select-none cursor-pointer transition-colors hover:text-[var(--accent)]`;
+
   return (
     <div
       className="rounded-xl border overflow-hidden"
@@ -78,23 +128,27 @@ export default function LiveStandingsTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--border)]">
-              {["Rank", "Player", "Points", "W / L / D", "Games", "Win%", "OW%", "Online", ""].map(
-                (label, i) => (
-                  <th
-                    key={i}
-                    className={`px-4 py-3 font-medium text-xs uppercase tracking-wider ${
-                      i <= 1 ? "text-left" : "text-right"
-                    } ${i === 0 ? "w-16" : ""}`}
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    {label}
-                  </th>
-                )
-              )}
+              {COLUMNS.map((col, i) => (
+                <th
+                  key={i}
+                  className={`${col.key ? thSortable : thBase} text-${col.align} ${i === 0 ? "w-24" : ""}`}
+                  style={{
+                    color: col.key && sortKey === col.key ? "var(--accent)" : "var(--text-muted)",
+                  }}
+                  onClick={col.key ? () => handleSort(col.key!) : undefined}
+                >
+                  {col.key ? (
+                    <span className={`inline-flex items-center gap-1 ${col.align === "right" ? "justify-end" : ""}`}>
+                      {col.label}
+                      <SortIcon active={sortKey === col.key} dir={sortDir} />
+                    </span>
+                  ) : col.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {display.map((s) => {
+            {sorted.map((s) => {
               const isPodium = s.rank <= 3;
               const rankStyle = getRankStyle(s.rank);
 
