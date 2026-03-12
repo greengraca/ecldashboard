@@ -18,6 +18,7 @@ export const KOFI_ROLE_IDS = parseIntSet(process.env.KOFI_ROLE_IDS);
 export const FREE_ENTRY_ROLE_IDS = parseIntSet(process.env.FREE_ENTRY_ROLE_IDS);
 export const JUDGE_ROLE_IDS = parseIntSet(process.env.JUDGE_ROLE_IDS);
 export const ECL_MOD_ROLE_IDS = parseIntSet(process.env.ECL_MOD_ROLE_IDS);
+export const ARENA_VANGUARD_ROLE_IDS = parseIntSet(process.env.ARENA_VANGUARD_ROLE_IDS);
 
 export const TOPDECK_BRACKET_ID = process.env.TOPDECK_BRACKET_ID || "";
 
@@ -38,7 +39,17 @@ export const WAGER_RATE = parseFloat(process.env.WAGER_RATE || "0.07");
 
 // ─── Subscription Income ───
 
-export const ECL_ELIGIBLE_PATREON_TIERS = ["ECL Grinder", "Gold", "Diamond"];
+export const ECL_ELIGIBLE_PATREON_TIERS = ["ECL Grinder", "Gold", "Diamond", "Bronze", "Silver"];
+
+// Net income per Patreon tier after ~10.9% Patreon fee.
+// Gold/Diamond pay more but extra is donation — capped at Grinder rate.
+export const PATREON_TIER_NET: Record<string, number> = {
+  "Bronze": 2.67,
+  "Silver": 4.45,
+  "ECL Grinder": 5.79,
+  "Gold": 5.79,
+  "Diamond": 5.79,
+};
 
 export const DEFAULT_PATREON_NET = 5.79;
 export const DEFAULT_KOFI_NET = 5.63;
