@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
-import { Users, Gamepad2, Trophy, TrendingUp } from "lucide-react";
+import { Users, Gamepad2, Trophy, TrendingUp, Save, Check } from "lucide-react";
 import StatCard from "@/components/dashboard/stat-card";
 import MonthPicker from "@/components/dashboard/month-picker";
 import StandingsTable from "@/components/players/standings-table";
 import LiveStandingsTable from "@/components/players/live-standings-table";
-import type { Player, LiveStanding } from "@/lib/types";
+import type { Player, LiveStanding, Standing } from "@/lib/types";
 
 interface PlayersData {
   players: Player[];
@@ -23,6 +23,12 @@ interface LiveStandingsData {
   bracket_id?: string;
 }
 
+interface BracketData {
+  month: string;
+  top16_winners: string[];
+  top4_winner: string | null;
+}
+
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 function getCurrentMonth(): string {
@@ -30,9 +36,301 @@ function getCurrentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+// Snake-draft seeding into 4 pods (same pattern as TopDeck)
+// Seeds 1-16 distributed: Pod1=[1,8,9,16], Pod2=[2,7,10,15], Pod3=[3,6,11,14], Pod4=[4,5,12,13]
+function seedIntoPods(players: Standing[]): Standing[][] {
+  const pods: Standing[][] = [[], [], [], []];
+  const pattern = [0, 1, 2, 3, 3, 2, 1, 0, 0, 1, 2, 3, 3, 2, 1, 0];
+  for (let i = 0; i < Math.min(players.length, 16); i++) {
+    pods[pattern[i]].push(players[i]);
+  }
+  return pods;
+}
+
+// ─── Interactive Bracket Editor ───
+
+function BracketEditor({
+  eligible,
+  month,
+  mode,
+}: {
+  eligible: Standing[];
+  month: string;
+  mode: "top16" | "top4";
+}) {
+  const { data: bracketRes, mutate } = useSWR<{ data: BracketData | null }>(
+    `/api/players/brackets?month=${month}`,
+    fetcher
+  );
+
+  const saved = bracketRes?.data;
+  const [top16Winners, setTop16Winners] = useState<string[]>([]);
+  const [top4Winner, setTop4Winner] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  // Sync from server when data loads
+  useEffect(() => {
+    if (saved) {
+      setTop16Winners(saved.top16_winners || []);
+      setTop4Winner(saved.top4_winner || null);
+      setDirty(false);
+    }
+  }, [saved]);
+
+  const pods = useMemo(() => seedIntoPods(eligible), [eligible]);
+
+  // Find which pod a uid belongs to
+  const uidToPod = useMemo(() => {
+    const map = new Map<string, number>();
+    pods.forEach((pod, podIdx) => {
+      pod.forEach((p) => map.set(p.uid, podIdx));
+    });
+    return map;
+  }, [pods]);
+
+  const toggleTop16Winner = useCallback(
+    (uid: string) => {
+      const podIdx = uidToPod.get(uid);
+      if (podIdx === undefined) return;
+
+      setTop16Winners((prev) => {
+        if (prev.includes(uid)) {
+          setTop4Winner((w) => (w === uid ? null : w));
+          return prev.filter((id) => id !== uid);
+        }
+        const existing = prev.find((id) => uidToPod.get(id) === podIdx);
+        let next = prev;
+        if (existing) {
+          setTop4Winner((w) => (w === existing ? null : w));
+          next = prev.filter((id) => id !== existing);
+        }
+        return [...next, uid];
+      });
+      setDirty(true);
+    },
+    [uidToPod]
+  );
+
+  const toggleTop4Winner = useCallback((uid: string) => {
+    setTop4Winner((prev) => (prev === uid ? null : uid));
+    setDirty(true);
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await fetch("/api/players/brackets", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ month, top16_winners: top16Winners, top4_winner: top4Winner }),
+      });
+      await mutate();
+      setDirty(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Build the top4 pod from the winners of each top16 pod (ordered by pod)
+  const top4Players = useMemo(() => {
+    const ordered: Standing[] = [];
+    for (let i = 0; i < 4; i++) {
+      const winner = pods[i]?.find((p) => top16Winners.includes(p.uid));
+      if (winner) ordered.push(winner);
+    }
+    return ordered;
+  }, [pods, top16Winners]);
+
+  if (mode === "top4") {
+    if (top16Winners.length < 4) {
+      return (
+        <div
+          className="rounded-xl border p-8 text-center"
+          style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+        >
+          <Trophy className="w-8 h-8 mx-auto mb-3" style={{ color: "var(--text-muted)" }} />
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            Select all 4 pod winners in Top 16 first
+          </p>
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+            {top16Winners.length}/4 winners selected
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {/* Champion banner */}
+        {top4Winner && (
+          <div
+            className="rounded-xl border p-4 text-center"
+            style={{ background: "var(--accent-light)", borderColor: "var(--accent-border)" }}
+          >
+            <Trophy className="w-6 h-6 mx-auto mb-1" style={{ color: "var(--accent)" }} />
+            <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Champion</p>
+            <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>
+              {top4Players.find((p) => p.uid === top4Winner)?.name}
+            </p>
+          </div>
+        )}
+
+        <div className="max-w-md mx-auto">
+          <div
+            className="rounded-xl border overflow-hidden"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+          >
+            <div
+              className="px-4 py-2.5 text-center font-semibold text-sm border-b"
+              style={{ color: "var(--accent)", borderColor: "var(--border)", background: "var(--card-inner-bg)" }}
+            >
+              Top 4
+            </div>
+            <div>
+              {top4Players.map((p, i) => {
+                const isWinner = top4Winner === p.uid;
+                return (
+                  <button
+                    key={p.uid}
+                    onClick={() => toggleTop4Winner(p.uid)}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left"
+                    style={{
+                      borderTop: i > 0 ? "1px solid var(--border-subtle)" : undefined,
+                      background: isWinner ? "var(--accent-light)" : "transparent",
+                    }}
+                  >
+                    <span
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                      style={{
+                        background: isWinner ? "var(--accent)" : "var(--bg-hover)",
+                        color: isWinner ? "var(--bg-page)" : "var(--text-muted)",
+                      }}
+                    >
+                      {isWinner ? <Trophy className="w-3 h-3" /> : i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                        {p.name}
+                      </p>
+                      <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                        {p.points.toFixed(0)} pts &middot; {p.games}G {p.wins}W-{p.losses}L
+                      </p>
+                    </div>
+                    {isWinner && (
+                      <span
+                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                        style={{ background: "var(--accent)", color: "var(--bg-page)" }}
+                      >
+                        WINNER
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {dirty && <SaveButton saving={saving} onSave={handleSave} />}
+      </div>
+    );
+  }
+
+  // ─── Top 16 mode ───
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {pods.map((pod, podIdx) => {
+          const podWinner = pod.find((p) => top16Winners.includes(p.uid));
+          return (
+            <div
+              key={podIdx}
+              className="rounded-xl border overflow-hidden"
+              style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+            >
+              <div
+                className="px-4 py-2.5 text-center font-semibold text-sm border-b flex items-center justify-center gap-2"
+                style={{ color: "var(--text-primary)", borderColor: "var(--border)", background: "var(--card-inner-bg)" }}
+              >
+                Pod {podIdx + 1}
+                {podWinner && <Check className="w-3.5 h-3.5" style={{ color: "var(--success)" }} />}
+              </div>
+              <div>
+                {pod.map((p, i) => {
+                  const isWinner = top16Winners.includes(p.uid);
+                  return (
+                    <button
+                      key={p.uid}
+                      onClick={() => toggleTop16Winner(p.uid)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left"
+                      style={{
+                        borderTop: i > 0 ? "1px solid var(--border-subtle)" : undefined,
+                        background: isWinner ? "var(--accent-light)" : "transparent",
+                      }}
+                    >
+                      <span
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                        style={{
+                          background: isWinner ? "var(--accent)" : "var(--bg-hover)",
+                          color: isWinner ? "var(--bg-page)" : "var(--text-muted)",
+                        }}
+                      >
+                        {p.rank}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                          {p.name}
+                        </p>
+                        <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                          {p.points.toFixed(0)} pts &middot; {p.games}G {p.wins}W-{p.losses}L
+                        </p>
+                      </div>
+                      {isWinner && (
+                        <span
+                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                          style={{ background: "var(--accent)", color: "var(--bg-page)" }}
+                        >
+                          WINNER
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {dirty && <SaveButton saving={saving} onSave={handleSave} />}
+    </div>
+  );
+}
+
+function SaveButton({ saving, onSave }: { saving: boolean; onSave: () => void }) {
+  return (
+    <div className="flex justify-center">
+      <button
+        onClick={onSave}
+        disabled={saving}
+        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        style={{ background: "var(--accent)", color: "var(--bg-page)", opacity: saving ? 0.6 : 1 }}
+      >
+        {saving ? (
+          <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: "var(--bg-page)", borderTopColor: "transparent" }} />
+        ) : (
+          <Save className="w-4 h-4" />
+        )}
+        {saving ? "Saving..." : "Save"}
+      </button>
+    </div>
+  );
+}
+
 export default function PlayersPage() {
   const [month, setMonth] = useState(getCurrentMonth);
-  const [filter, setFilter] = useState<"none" | "eligible" | "top16" | "inactive" | "most_games">("none");
+  const [filter, setFilter] = useState<"none" | "eligible" | "top16" | "inactive" | "most_games" | "top16_pods" | "top4_pods">("none");
 
   const handleMonthChange = (newMonth: string) => {
     setMonth(newMonth);
@@ -127,19 +425,20 @@ export default function PlayersPage() {
         </div>
         <div className="flex flex-col items-center gap-1">
           <MonthPicker value={month} onChange={handleMonthChange} minMonth="2025-12" maxMonth={getCurrentMonth()} />
-          {bracketId && (
-            <a
-              href={`https://topdeck.gg/bracket/${bracketId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[11px] transition-colors hover:underline"
-              style={{ color: "var(--text-muted)" }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
-            >
-              ({bracketId})
-            </a>
-          )}
+          <a
+            href={bracketId ? `https://topdeck.gg/bracket/${bracketId}` : undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[11px] transition-colors hover:underline h-4"
+            style={{
+              color: "var(--text-muted)",
+              visibility: bracketId ? "visible" : "hidden",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+          >
+            ({bracketId})
+          </a>
         </div>
       </div>
 
@@ -445,6 +744,41 @@ export default function PlayersPage() {
               </span>
               Inactive{filter === "inactive" && ` (${players.filter((p) => p.games === 0).length})`}
             </button>
+
+            <div className="flex-1" />
+
+            <button
+              onClick={() => setFilter(filter === "top16_pods" ? "none" : "top16_pods")}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              style={{
+                background: filter === "top16_pods"
+                  ? "var(--accent-light)"
+                  : "var(--bg-card)",
+                color: filter === "top16_pods"
+                  ? "var(--accent)"
+                  : "var(--text-secondary)",
+                border: `1px solid ${filter === "top16_pods" ? "var(--accent)" : "var(--border)"}`,
+              }}
+            >
+              <Trophy className="w-3.5 h-3.5" />
+              Top 16
+            </button>
+            <button
+              onClick={() => setFilter(filter === "top4_pods" ? "none" : "top4_pods")}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              style={{
+                background: filter === "top4_pods"
+                  ? "var(--accent-light)"
+                  : "var(--bg-card)",
+                color: filter === "top4_pods"
+                  ? "var(--accent)"
+                  : "var(--text-secondary)",
+                border: `1px solid ${filter === "top4_pods" ? "var(--accent)" : "var(--border)"}`,
+              }}
+            >
+              <Trophy className="w-3.5 h-3.5" />
+              Top 4
+            </button>
           </div>
 
           {playersLoading ? (
@@ -469,12 +803,24 @@ export default function PlayersPage() {
                 Loading standings...
               </p>
             </div>
+          ) : (filter === "top16_pods" || filter === "top4_pods") ? (
+            <BracketEditor
+              eligible={players
+                .filter((p) => p.games >= 10)
+                .slice(0, 16)
+                .map((p, i) => ({ rank: i + 1, uid: p.uid, name: p.name, points: p.points, games: p.games, wins: p.wins, losses: p.losses, draws: p.draws, win_pct: p.win_pct }))}
+              month={month}
+              mode={filter === "top16_pods" ? "top16" : "top4"}
+            />
           ) : (
             <StandingsTable
               key={filter}
               standings={(() => {
                 const allStandings = players.map((p) => ({ rank: p.rank!, uid: p.uid, name: p.name, points: p.points, games: p.games, wins: p.wins, losses: p.losses, draws: p.draws, win_pct: p.win_pct }));
-                if (filter === "top16") return allStandings.slice(0, 16);
+                if (filter === "top16") {
+                  const eligible = allStandings.filter((s) => s.games >= 10);
+                  return eligible.slice(0, 16).map((s, i) => ({ ...s, rank: i + 1 }));
+                }
                 if (filter === "inactive") return allStandings.filter((s) => s.games === 0);
                 if (filter === "most_games") return [...allStandings].sort((a, b) => b.games - a.games).slice(0, 5);
                 return allStandings;

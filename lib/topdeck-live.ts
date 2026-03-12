@@ -384,3 +384,77 @@ export function clearLiveCache(): void {
   cachedResult = null;
   cacheExpires = 0;
 }
+
+// ─── Elimination pods (Top 16 / Top 4) ───
+
+export interface EliminationPod {
+  season: number;
+  table: number;
+  players: { uid: string; name: string }[];
+  winner: { uid: string; name: string } | null;
+}
+
+export interface EliminationData {
+  top16: EliminationPod[];
+  top4: EliminationPod[];
+  champion: { uid: string; name: string } | null;
+}
+
+// Cache per bracket_id
+const elimCache = new Map<string, { data: EliminationData; expires: number }>();
+
+/**
+ * Fetch elimination round pods (Top 16 = season 1, Top 4 = season 2)
+ * directly from the TopDeck Firestore API for any bracket.
+ */
+export async function fetchEliminationPods(bracketId: string): Promise<EliminationData> {
+  const cached = elimCache.get(bracketId);
+  if (cached && Date.now() < cached.expires) return cached.data;
+
+  if (!FIRESTORE_DOC_URL_TEMPLATE) {
+    throw new Error("FIRESTORE_DOC_URL_TEMPLATE not configured");
+  }
+
+  const docUrl = FIRESTORE_DOC_URL_TEMPLATE.replace("{bracket_id}", bracketId);
+
+  const [players, docRes] = await Promise.all([
+    fetchPublicPData(bracketId),
+    fetch(docUrl),
+  ]);
+
+  if (!docRes.ok) {
+    throw new Error(`TopDeck Firestore doc returned ${docRes.status}`);
+  }
+
+  const doc = await docRes.json();
+  const fields = parseTournamentFields(doc);
+  const entrantToUid = extractEntrantToUid(fields);
+  const matches = extractMatches(fields);
+
+  function resolveName(eid: number): { uid: string; name: string } {
+    const uid = entrantToUid.get(eid) ?? String(eid);
+    const pdata = uid && typeof players === "object" && players !== null ? players[uid] : null;
+    return { uid, name: pdata?.name || uid };
+  }
+
+  function buildPod(m: RawMatch): EliminationPod {
+    const podPlayers = m.es.map(resolveName);
+    let winner: { uid: string; name: string } | null = null;
+    if (typeof m.winner === "number") {
+      winner = resolveName(m.winner);
+    }
+    return { season: m.season, table: m.table, players: podPlayers, winner };
+  }
+
+  // Season 1 = Top 16 (4 pods of 4), Season 2 = Top 4 (1 pod of 4)
+  const top16 = matches.filter((m) => m.season === 1 && m.es.length >= 2).map(buildPod);
+  const top4 = matches.filter((m) => m.season === 2 && m.es.length >= 2).map(buildPod);
+
+  // Champion = winner of the Top 4 pod
+  const champion = top4.length > 0 && top4[0].winner ? top4[0].winner : null;
+
+  const data: EliminationData = { top16, top4, champion };
+  elimCache.set(bracketId, { data, expires: Date.now() + CACHE_TTL_MS });
+
+  return data;
+}
