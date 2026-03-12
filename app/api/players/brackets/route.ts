@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
       ? {
           month: doc.month,
           top16_winners: doc.top16_winners || [],
+          top4_order: doc.top4_order || [],
           top4_winner: doc.top4_winner || null,
         }
       : null,
@@ -30,7 +31,7 @@ export async function PUT(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { month, top16_winners, top4_winner } = body;
+  const { month, top16_winners, top4_order, top4_winner } = body;
 
   if (!month) {
     return NextResponse.json({ error: "month is required" }, { status: 400 });
@@ -47,6 +48,7 @@ export async function PUT(req: NextRequest) {
       $set: {
         month,
         top16_winners: top16_winners || [],
+        top4_order: top4_order || [],
         top4_winner: top4_winner || null,
         updated_at: new Date().toISOString(),
         updated_by: session.user.name || session.user.id,
@@ -59,7 +61,7 @@ export async function PUT(req: NextRequest) {
     "update",
     "bracket",
     month,
-    { top16_winners, top4_winner },
+    { top16_winners, top4_order, top4_winner },
     session.user.id || "",
     session.user.name || ""
   );

@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
-import { Users, Gamepad2, Trophy, TrendingUp, Save, Check } from "lucide-react";
+import { Users, Gamepad2, Trophy, TrendingUp, Save, Check, GripVertical } from "lucide-react";
 import StatCard from "@/components/dashboard/stat-card";
 import MonthPicker from "@/components/dashboard/month-picker";
 import StandingsTable from "@/components/players/standings-table";
@@ -26,6 +26,7 @@ interface LiveStandingsData {
 interface BracketData {
   month: string;
   top16_winners: string[];
+  top4_order: string[];
   top4_winner: string | null;
 }
 
@@ -65,14 +66,22 @@ function BracketEditor({
 
   const saved = bracketRes?.data;
   const [top16Winners, setTop16Winners] = useState<string[]>([]);
+  const [top4Order, setTop4Order] = useState<string[]>([]);
   const [top4Winner, setTop4Winner] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+
+  // Drag-and-drop state for Top 4
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+  const dragStartY = useRef(0);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // Sync from server when data loads
   useEffect(() => {
     if (saved) {
       setTop16Winners(saved.top16_winners || []);
+      setTop4Order(saved.top4_order || []);
       setTop4Winner(saved.top4_winner || null);
       setDirty(false);
     }
@@ -123,7 +132,7 @@ function BracketEditor({
       await fetch("/api/players/brackets", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month, top16_winners: top16Winners, top4_winner: top4Winner }),
+        body: JSON.stringify({ month, top16_winners: top16Winners, top4_order: top4Order, top4_winner: top4Winner }),
       });
       await mutate();
       setDirty(false);
@@ -132,15 +141,30 @@ function BracketEditor({
     }
   };
 
-  // Build the top4 pod from the winners of each top16 pod (ordered by pod)
+  // Build the top4 pod from the winners of each top16 pod, respecting saved order
   const top4Players = useMemo(() => {
-    const ordered: Standing[] = [];
+    const winners: Standing[] = [];
     for (let i = 0; i < 4; i++) {
       const winner = pods[i]?.find((p) => top16Winners.includes(p.uid));
-      if (winner) ordered.push(winner);
+      if (winner) winners.push(winner);
     }
-    return ordered;
-  }, [pods, top16Winners]);
+    // Apply saved order if we have one
+    if (top4Order.length > 0 && winners.length === 4) {
+      const byUid = new Map(winners.map((w) => [w.uid, w]));
+      const ordered: Standing[] = [];
+      for (const uid of top4Order) {
+        const p = byUid.get(uid);
+        if (p) {
+          ordered.push(p);
+          byUid.delete(uid);
+        }
+      }
+      // Append any not in the saved order (new winners)
+      for (const p of byUid.values()) ordered.push(p);
+      return ordered;
+    }
+    return winners;
+  }, [pods, top16Winners, top4Order]);
 
   if (mode === "top4") {
     if (top16Winners.length < 4) {
@@ -160,26 +184,52 @@ function BracketEditor({
       );
     }
 
+    const handleDragStart = (idx: number, e: React.PointerEvent) => {
+      // Only allow drag from the grip handle
+      setDragIdx(idx);
+      setOverIdx(idx);
+      dragStartY.current = e.clientY;
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    };
+
+    const handleDragMove = (e: React.PointerEvent) => {
+      if (dragIdx === null) return;
+      // Determine which item we're over based on pointer position
+      for (let i = 0; i < itemRefs.current.length; i++) {
+        const el = itemRefs.current[i];
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (e.clientY >= rect.top && e.clientY < rect.bottom) {
+          if (i !== overIdx) setOverIdx(i);
+          break;
+        }
+      }
+    };
+
+    const handleDragEnd = () => {
+      if (dragIdx !== null && overIdx !== null && dragIdx !== overIdx) {
+        const newOrder = [...top4Players.map((p) => p.uid)];
+        const [moved] = newOrder.splice(dragIdx, 1);
+        newOrder.splice(overIdx, 0, moved);
+        setTop4Order(newOrder);
+        setDirty(true);
+      }
+      setDragIdx(null);
+      setOverIdx(null);
+    };
+
     return (
       <div className="space-y-4">
-        {/* Champion banner */}
-        {top4Winner && (
-          <div
-            className="rounded-xl border p-4 text-center"
-            style={{ background: "var(--accent-light)", borderColor: "var(--accent-border)" }}
-          >
-            <Trophy className="w-6 h-6 mx-auto mb-1" style={{ color: "var(--accent)" }} />
-            <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Champion</p>
-            <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>
-              {top4Players.find((p) => p.uid === top4Winner)?.name}
-            </p>
-          </div>
-        )}
-
         <div className="max-w-md mx-auto">
+          <p className="text-[11px] text-center mb-2" style={{ color: "var(--text-muted)" }}>
+            Drag to reorder &middot; Tap name to set winner
+          </p>
           <div
             className="rounded-xl border overflow-hidden"
             style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+            onPointerMove={handleDragMove}
+            onPointerUp={handleDragEnd}
+            onPointerCancel={handleDragEnd}
           >
             <div
               className="px-4 py-2.5 text-center font-semibold text-sm border-b"
@@ -190,42 +240,66 @@ function BracketEditor({
             <div>
               {top4Players.map((p, i) => {
                 const isWinner = top4Winner === p.uid;
+                const isDragging = dragIdx === i;
+                const isOver = dragIdx !== null && overIdx === i && dragIdx !== i;
                 return (
-                  <button
+                  <div
                     key={p.uid}
-                    onClick={() => toggleTop4Winner(p.uid)}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left"
+                    ref={(el) => { itemRefs.current[i] = el; }}
+                    className="flex items-center transition-all duration-150"
                     style={{
                       borderTop: i > 0 ? "1px solid var(--border-subtle)" : undefined,
-                      background: isWinner ? "var(--accent-light)" : "transparent",
+                      background: isDragging
+                        ? "var(--bg-hover)"
+                        : isOver
+                        ? "var(--accent-light)"
+                        : isWinner
+                        ? "var(--accent-light)"
+                        : "transparent",
+                      opacity: isDragging ? 0.7 : 1,
+                      boxShadow: isOver ? "inset 0 -2px 0 var(--accent)" : undefined,
                     }}
                   >
-                    <span
-                      className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-                      style={{
-                        background: isWinner ? "var(--accent)" : "var(--bg-hover)",
-                        color: isWinner ? "var(--bg-page)" : "var(--text-muted)",
-                      }}
+                    {/* Drag handle */}
+                    <div
+                      className="flex items-center justify-center px-2 py-2.5 cursor-grab active:cursor-grabbing touch-none select-none"
+                      style={{ color: "var(--text-muted)" }}
+                      onPointerDown={(e) => handleDragStart(i, e)}
                     >
-                      {isWinner ? <Trophy className="w-3 h-3" /> : i + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
-                        {p.name}
-                      </p>
-                      <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                        {p.points.toFixed(0)} pts &middot; {p.games}G {p.wins}W-{p.losses}L
-                      </p>
+                      <GripVertical className="w-4 h-4" />
                     </div>
-                    {isWinner && (
+                    {/* Player button */}
+                    <button
+                      onClick={() => toggleTop4Winner(p.uid)}
+                      className="flex-1 flex items-center gap-3 pr-4 py-2.5 transition-colors text-left"
+                    >
                       <span
-                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                        style={{ background: "var(--accent)", color: "var(--bg-page)" }}
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                        style={{
+                          background: isWinner ? "var(--accent)" : "var(--bg-hover)",
+                          color: isWinner ? "var(--bg-page)" : "var(--text-muted)",
+                        }}
                       >
-                        WINNER
+                        {isWinner ? <Trophy className="w-3 h-3" /> : i + 1}
                       </span>
-                    )}
-                  </button>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                          {p.name}
+                        </p>
+                        <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                          {p.points.toFixed(0)} pts &middot; {p.games}G {p.wins}W-{p.losses}L
+                        </p>
+                      </div>
+                      {isWinner && (
+                        <span
+                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                          style={{ background: "var(--accent)", color: "var(--bg-page)" }}
+                        >
+                          WINNER
+                        </span>
+                      )}
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -357,12 +431,26 @@ export default function PlayersPage() {
     { refreshInterval: 5 * 60 * 1000 }
   );
 
+  // Bracket data — fetch for past months to show champion banner
+  const { data: bracketRes } = useSWR<{ data: BracketData | null }>(
+    !isCurrentMonth ? `/api/players/brackets?month=${month}` : null,
+    fetcher
+  );
+
   const players = playersData?.data?.players || [];
   const liveStandings = liveData?.data?.standings || [];
   const liveTotalMatches: number = liveData?.data?.total_matches ?? 0;
   const liveInProgress: number = liveData?.data?.in_progress ?? 0;
   const liveVoided: number = liveData?.data?.voided ?? 0;
   const bracketId = liveData?.data?.bracket_id || playersData?.data?.bracket_id || "";
+
+  // Resolve champion name from bracket data + player list
+  const championName = useMemo(() => {
+    const winnerId = bracketRes?.data?.top4_winner;
+    if (!winnerId) return null;
+    const player = players.find((p) => p.uid === winnerId);
+    return player?.name || winnerId;
+  }, [bracketRes, players]);
 
   // Summary stats — derived from live data or dump data depending on month
   const dataLoading = isCurrentMonth ? liveLoading : playersLoading;
@@ -661,6 +749,20 @@ export default function PlayersPage() {
       {/* ═══ Past Months — Dump Standings ═══ */}
       {!isCurrentMonth && (
         <>
+          {/* Champion banner — always visible */}
+          {championName && (
+            <div
+              className="rounded-xl border p-4 text-center mb-6"
+              style={{ background: "var(--accent-light)", borderColor: "var(--accent-border)" }}
+            >
+              <Trophy className="w-6 h-6 mx-auto mb-1" style={{ color: "var(--accent)" }} />
+              <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Champion</p>
+              <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>
+                {championName}
+              </p>
+            </div>
+          )}
+
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-3 mb-6">
             <button
