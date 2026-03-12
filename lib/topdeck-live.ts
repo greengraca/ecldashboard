@@ -38,9 +38,16 @@ export interface LivePlayerRow {
 const START_POINTS = 1000;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+export interface LiveStandingsResult {
+  rows: LivePlayerRow[];
+  totalMatches: number;
+  inProgress: number;
+  voided: number;
+}
+
 // ─── Cache ───
 
-let cachedRows: LivePlayerRow[] | null = null;
+let cachedResult: LiveStandingsResult | null = null;
 let cacheExpires = 0;
 
 // ─── Firestore value parsing ───
@@ -196,6 +203,9 @@ function isValidCompletedMatch(m: RawMatch): boolean {
 function computeStandings(matches: RawMatch[], entrantIds: Set<number>) {
   const points = new Map<number, number>();
   const stats = new Map<number, { games: number; wins: number; draws: number; losses: number; opponents: Set<number> }>();
+  let totalMatches = 0;
+  let inProgress = 0;
+  let voided = 0;
 
   for (const eid of entrantIds) {
     points.set(eid, START_POINTS);
@@ -203,7 +213,14 @@ function computeStandings(matches: RawMatch[], entrantIds: Set<number>) {
   }
 
   for (const m of matches) {
-    if (!isValidCompletedMatch(m)) continue;
+    if (!isValidCompletedMatch(m)) {
+      if (m.es.length >= 2) {
+        if (m.end === null) inProgress++;
+        else voided++; // muted or no valid winner
+      }
+      continue;
+    }
+    totalMatches++;
 
     // Ensure all participants initialized
     for (const eid of m.es) {
@@ -270,15 +287,15 @@ function computeStandings(matches: RawMatch[], entrantIds: Set<number>) {
     owPct.set(eid, avg);
   }
 
-  return { points, stats, winPct, owPct };
+  return { points, stats, winPct, owPct, totalMatches, inProgress, voided };
 }
 
 // ─── Main fetch ───
 
-export async function fetchLiveStandings(bracketId?: string): Promise<LivePlayerRow[]> {
+export async function fetchLiveStandings(bracketId?: string): Promise<LiveStandingsResult> {
   // Check cache
-  if (cachedRows && Date.now() < cacheExpires) {
-    return cachedRows;
+  if (cachedResult && Date.now() < cacheExpires) {
+    return cachedResult;
   }
 
   const bid = bracketId || TOPDECK_BRACKET_ID;
@@ -318,7 +335,7 @@ export async function fetchLiveStandings(bracketId?: string): Promise<LivePlayer
     for (const eid of m.es) entrantIds.add(eid);
   }
 
-  const { points, stats, winPct, owPct } = computeStandings(matches, entrantIds);
+  const { points, stats, winPct, owPct, totalMatches, inProgress, voided } = computeStandings(matches, entrantIds);
 
   // Build rows
   const rows: LivePlayerRow[] = [];
@@ -359,14 +376,15 @@ export async function fetchLiveStandings(bracketId?: string): Promise<LivePlayer
   });
 
   // Cache
-  cachedRows = rows;
+  const result: LiveStandingsResult = { rows, totalMatches, inProgress, voided };
+  cachedResult = result;
   cacheExpires = Date.now() + CACHE_TTL_MS;
 
-  return rows;
+  return result;
 }
 
 /** Clear the in-memory cache (e.g. after a manual refresh). */
 export function clearLiveCache(): void {
-  cachedRows = null;
+  cachedResult = null;
   cacheExpires = 0;
 }

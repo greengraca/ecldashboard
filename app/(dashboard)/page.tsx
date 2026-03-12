@@ -67,6 +67,9 @@ export default function HomePage() {
   const summary = subData?.data?.summary;
   const finance = financeData?.data;
   const liveStandings = playerData?.data?.standings;
+  const totalMatches = playerData?.data?.total_matches ?? null;
+  const matchesInProgress: number = playerData?.data?.in_progress ?? 0;
+  const matchesVoided: number = playerData?.data?.voided ?? 0;
   const recentActivity: ActivityEntry[] = activityData?.data || [];
 
   const subscriberCount = summary?.total ?? null;
@@ -76,13 +79,6 @@ export default function HomePage() {
   const net = finance?.net ?? null;
   const activeStandings = liveStandings?.filter((s: { dropped: boolean }) => !s.dropped);
   const playerCount = activeStandings?.length ?? null;
-  const totalGames =
-    activeStandings != null
-      ? activeStandings.reduce(
-          (sum: number, s: { games: number }) => sum + s.games,
-          0
-        )
-      : null;
 
   return (
     <div>
@@ -167,8 +163,15 @@ export default function HomePage() {
         ) : (
           <StatCard
             title="Games This Month"
-            value={totalGames != null ? totalGames : "--"}
-            subtitle={month}
+            value={totalMatches != null ? totalMatches : "--"}
+            subtitle={
+              [
+                matchesInProgress > 0 ? `${matchesInProgress} in progress` : "",
+                matchesVoided > 0 ? `${matchesVoided} voided` : "",
+              ]
+                .filter(Boolean)
+                .join(", ") || month
+            }
             icon={
               <Activity
                 className="w-4 h-4"

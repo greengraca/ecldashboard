@@ -22,6 +22,9 @@ interface StandingsData {
 
 interface LiveStandingsData {
   standings: LiveStanding[];
+  total_matches: number;
+  in_progress: number;
+  voided: number;
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -68,6 +71,9 @@ export default function PlayersPage() {
   const players = playersData?.data?.players || [];
   const standings = standingsData?.data?.standings || [];
   const liveStandings = liveData?.data?.standings || [];
+  const liveTotalMatches: number = liveData?.data?.total_matches ?? 0;
+  const liveInProgress: number = liveData?.data?.in_progress ?? 0;
+  const liveVoided: number = liveData?.data?.voided ?? 0;
 
   // Summary stats for Players tab
   const totalPlayers = players.length;
@@ -176,6 +182,32 @@ export default function PlayersPage() {
               Active + 10 total games + 10 online games
             </span>
           </div>
+
+          {/* Match summary */}
+          {!liveLoading && liveTotalMatches > 0 && (
+            <div
+              className="flex items-center gap-3 mb-4 text-xs"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <span>{liveTotalMatches} completed games</span>
+              {liveInProgress > 0 && (
+                <span
+                  className="px-1.5 py-0.5 rounded"
+                  style={{ background: "var(--warning-light)", color: "var(--warning)" }}
+                >
+                  {liveInProgress} in progress
+                </span>
+              )}
+              {liveVoided > 0 && (
+                <span
+                  className="px-1.5 py-0.5 rounded"
+                  style={{ background: "var(--error-light)", color: "var(--error)" }}
+                >
+                  {liveVoided} voided
+                </span>
+              )}
+            </div>
+          )}
 
           {liveLoading ? (
             <div

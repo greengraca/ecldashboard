@@ -37,14 +37,14 @@ async function getOnlineGameCounts(): Promise<Map<string, number>> {
 
 export async function GET() {
   try {
-    const [rows, onlineCounts] = await Promise.all([
+    const [liveResult, onlineCounts] = await Promise.all([
       fetchLiveStandings(),
       getOnlineGameCounts(),
     ]);
 
     // Build standings with eligibility
     let rank = 0;
-    const standings: LiveStanding[] = rows.map((r) => {
+    const standings: LiveStanding[] = liveResult.rows.map((r) => {
       rank++;
       const onlineGames = r.uid ? (onlineCounts.get(r.uid) ?? 0) : 0;
       const eligible =
@@ -70,7 +70,14 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ data: { standings } });
+    return NextResponse.json({
+      data: {
+        standings,
+        total_matches: liveResult.totalMatches,
+        in_progress: liveResult.inProgress,
+        voided: liveResult.voided,
+      },
+    });
   } catch (err) {
     console.error("GET /api/players/standings/live error:", err);
     return NextResponse.json(
