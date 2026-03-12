@@ -3,12 +3,13 @@
 import { useState } from "react";
 import type { Standing } from "@/lib/types";
 
-interface StandingsTableProps {
-  standings: Standing[];
-}
-
 type SortKey = "rank" | "points" | "wins" | "losses" | "draws" | "games" | "win_pct";
 type SortDir = "asc" | "desc";
+
+interface StandingsTableProps {
+  standings: Standing[];
+  defaultSort?: { key: SortKey; dir: SortDir };
+}
 
 function getRankStyle(rank: number): { color: string; bg: string } {
   switch (rank) {
@@ -54,9 +55,9 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   );
 }
 
-export default function StandingsTable({ standings }: StandingsTableProps) {
-  const [sortKey, setSortKey] = useState<SortKey>("rank");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+export default function StandingsTable({ standings, defaultSort }: StandingsTableProps) {
+  const [sortKey, setSortKey] = useState<SortKey>(defaultSort?.key ?? "rank");
+  const [sortDir, setSortDir] = useState<SortDir>(defaultSort?.dir ?? "asc");
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {

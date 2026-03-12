@@ -7,15 +7,10 @@ import StatCard from "@/components/dashboard/stat-card";
 import MonthPicker from "@/components/dashboard/month-picker";
 import StandingsTable from "@/components/players/standings-table";
 import LiveStandingsTable from "@/components/players/live-standings-table";
-import type { Player, Standing, LiveStanding } from "@/lib/types";
+import type { Player, LiveStanding } from "@/lib/types";
 
 interface PlayersData {
   players: Player[];
-  month: string | null;
-}
-
-interface StandingsData {
-  standings: Standing[];
   month: string | null;
 }
 
@@ -35,7 +30,12 @@ function getCurrentMonth(): string {
 
 export default function PlayersPage() {
   const [month, setMonth] = useState(getCurrentMonth);
-  const [filter, setFilter] = useState<"none" | "eligible" | "inactive" | "most_games">("none");
+  const [filter, setFilter] = useState<"none" | "eligible" | "top16" | "inactive" | "most_games">("none");
+
+  const handleMonthChange = (newMonth: string) => {
+    setMonth(newMonth);
+    setFilter("none");
+  };
 
   const isCurrentMonth = month === getCurrentMonth();
 
@@ -45,14 +45,6 @@ export default function PlayersPage() {
       !isCurrentMonth ? `/api/players?month=${month}` : null,
       fetcher
     );
-
-  const {
-    data: standingsData,
-    isLoading: standingsLoading,
-  } = useSWR<{ data: StandingsData }>(
-    !isCurrentMonth ? `/api/players/standings?month=${month}` : null,
-    fetcher
-  );
 
   // Live standings — only fetch for current month
   const {
@@ -66,14 +58,13 @@ export default function PlayersPage() {
   );
 
   const players = playersData?.data?.players || [];
-  const dumpStandings = standingsData?.data?.standings || [];
   const liveStandings = liveData?.data?.standings || [];
   const liveTotalMatches: number = liveData?.data?.total_matches ?? 0;
   const liveInProgress: number = liveData?.data?.in_progress ?? 0;
   const liveVoided: number = liveData?.data?.voided ?? 0;
 
   // Summary stats — derived from live data or dump data depending on month
-  const dataLoading = isCurrentMonth ? liveLoading : (playersLoading || standingsLoading);
+  const dataLoading = isCurrentMonth ? liveLoading : playersLoading;
 
   const stats = useMemo(() => {
     if (isCurrentMonth) {
@@ -102,16 +93,16 @@ export default function PlayersPage() {
               players.reduce((sum, p) => sum + p.games, 0) / active
             )
           : 0;
-      const top = dumpStandings.length > 0 ? dumpStandings[0].points.toFixed(0) : "--";
-      const topName = dumpStandings.length > 0 ? dumpStandings[0].name : "";
-      const mostGamesPlayer = dumpStandings.length > 0
-        ? [...dumpStandings].sort((a, b) => b.games - a.games)[0]
+      const top = players.length > 0 ? players[0].points.toFixed(0) : "--";
+      const topName = players.length > 0 ? players[0].name : "";
+      const mostGamesPlayer = players.length > 0
+        ? [...players].sort((a, b) => b.games - a.games)[0]
         : null;
       const mostGames = mostGamesPlayer ? mostGamesPlayer.games : "--";
       const mostGamesName = mostGamesPlayer ? mostGamesPlayer.name : "";
       return { total, active, avg, top, topName, mostGames, mostGamesName };
     }
-  }, [isCurrentMonth, liveStandings, players, dumpStandings]);
+  }, [isCurrentMonth, liveStandings, players]);
 
   return (
     <div>
@@ -131,7 +122,7 @@ export default function PlayersPage() {
             Player rankings and game statistics
           </p>
         </div>
-        <MonthPicker value={month} onChange={setMonth} maxMonth={getCurrentMonth()} />
+        <MonthPicker value={month} onChange={handleMonthChange} maxMonth={getCurrentMonth()} />
       </div>
 
       {/* Summary Cards */}
@@ -356,6 +347,33 @@ export default function PlayersPage() {
           {/* Filters */}
           <div className="flex items-center gap-3 mb-6">
             <button
+              onClick={() => setFilter(filter === "top16" ? "none" : "top16")}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              style={{
+                background: filter === "top16"
+                  ? "var(--success-light)"
+                  : "var(--bg-card)",
+                color: filter === "top16"
+                  ? "var(--success)"
+                  : "var(--text-secondary)",
+                border: `1px solid ${filter === "top16" ? "var(--success)" : "var(--border)"}`,
+              }}
+            >
+              <span
+                className="w-3 h-3 rounded-sm border flex items-center justify-center text-[10px]"
+                style={{
+                  borderColor: filter === "top16"
+                    ? "var(--success)"
+                    : "var(--text-muted)",
+                  background: filter === "top16" ? "var(--success)" : "transparent",
+                  color: filter === "top16" ? "var(--bg-page)" : "transparent",
+                }}
+              >
+                {filter === "top16" ? "\u2713" : ""}
+              </span>
+              Top 16 Cut
+            </button>
+            <button
               onClick={() => setFilter(filter === "most_games" ? "none" : "most_games")}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
               style={{
@@ -411,7 +429,7 @@ export default function PlayersPage() {
             </button>
           </div>
 
-          {(standingsLoading || playersLoading) ? (
+          {playersLoading ? (
             <div
               className="rounded-xl border p-12 text-center"
               style={{
@@ -434,13 +452,17 @@ export default function PlayersPage() {
               </p>
             </div>
           ) : (
-            <StandingsTable standings={
-              filter === "inactive"
-                ? players.filter((p) => p.games === 0).map((p, i) => ({ rank: i + 1, uid: p.uid, name: p.name, points: p.points, games: p.games, wins: p.wins, losses: p.losses, draws: p.draws, win_pct: p.win_pct }))
-                : filter === "most_games"
-                  ? [...dumpStandings].sort((a, b) => b.games - a.games).slice(0, 5)
-                  : dumpStandings
-            } />
+            <StandingsTable
+              key={filter}
+              standings={(() => {
+                const allStandings = players.map((p) => ({ rank: p.rank!, uid: p.uid, name: p.name, points: p.points, games: p.games, wins: p.wins, losses: p.losses, draws: p.draws, win_pct: p.win_pct }));
+                if (filter === "top16") return allStandings.slice(0, 16);
+                if (filter === "inactive") return allStandings.filter((s) => s.games === 0);
+                if (filter === "most_games") return [...allStandings].sort((a, b) => b.games - a.games).slice(0, 5);
+                return allStandings;
+              })()}
+              defaultSort={filter === "most_games" ? { key: "games", dir: "desc" } : undefined}
+            />
           )}
         </>
       )}
