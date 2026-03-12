@@ -7,11 +7,13 @@ import {
   FREE_ENTRY_ROLE_IDS,
   JUDGE_ROLE_IDS,
   ECL_MOD_ROLE_IDS,
+  ARENA_VANGUARD_ROLE_IDS,
   DISCORD_GUILD_ID,
   TOPDECK_BRACKET_ID,
 } from "./constants";
 import { fetchPublicPData } from "./topdeck-cache";
 import { getHistoricalMonths, reassembleMonthDump, computeStandings } from "./topdeck";
+import { getStandings } from "./players";
 import type { Subscriber, SubscriberSummary, SubscriptionSource } from "./types";
 
 /**
@@ -101,6 +103,83 @@ function determineTier(source: SubscriptionSource, roles?: string[]): string {
       }
       return "Manual";
   }
+}
+
+// Cache December 2025 topcut discord usernames (immutable historical data)
+let decTopcut: Set<string> | null = null;
+
+async function getDecemberTopcut(): Promise<Set<string>> {
+  if (decTopcut) return decTopcut;
+
+  try {
+    const { standings } = await getStandings("2025-12");
+    // Topcut = top 16 with 10+ games (eligibility threshold)
+    const eligible = standings.filter((s) => s.games >= 10);
+
+    // Map TopDeck UIDs to discord usernames via PublicPData
+    const months = await getHistoricalMonths();
+    const decMonths = months.filter((m) => m.month === "2025-12");
+    const bracketIds = [...new Set(decMonths.map((m) => m.bracket_id))];
+
+    const discordUsernames = new Set<string>();
+    for (const bid of bracketIds) {
+      try {
+        const pdata = await fetchPublicPData(bid);
+        for (const standing of eligible) {
+          const info = pdata[standing.uid];
+          if (info?.discord) {
+            discordUsernames.add(info.discord.toLowerCase().trim());
+          }
+        }
+      } catch {
+        // bracket may no longer exist
+      }
+    }
+
+    decTopcut = discordUsernames;
+    return decTopcut;
+  } catch {
+    return new Set();
+  }
+}
+
+function hasFreeEntryRole(roles: string[]): boolean {
+  return (
+    roleSetHasAny(roles, FREE_ENTRY_ROLE_IDS) ||
+    roleSetHasAny(roles, JUDGE_ROLE_IDS) ||
+    roleSetHasAny(roles, ECL_MOD_ROLE_IDS) ||
+    roleSetHasAny(roles, ARENA_VANGUARD_ROLE_IDS)
+  );
+}
+
+async function detectFreeEntryReason(
+  roles: string[],
+  username: string,
+  month: string,
+  isPaidSource: boolean
+): Promise<string | null> {
+  if (!hasFreeEntryRole(roles)) return null;
+
+  // Topcut: only for January 2026
+  if (month === "2026-01") {
+    const topcut = await getDecemberTopcut();
+    if (topcut.has(username.toLowerCase().trim())) return "Topcut";
+  }
+
+  // Vanguard
+  if (roleSetHasAny(roles, ARENA_VANGUARD_ROLE_IDS)) return "Vanguard";
+
+  // Judge/Mod — only informative for paid subscribers
+  // (free subscribers already show Judge/Mod in their tier)
+  if (isPaidSource) {
+    if (roleSetHasAny(roles, JUDGE_ROLE_IDS)) return "Judge";
+    if (roleSetHasAny(roles, ECL_MOD_ROLE_IDS)) return "Mod";
+  }
+
+  // Generic fallback for paid subscribers with free entry roles
+  if (isPaidSource && roleSetHasAny(roles, FREE_ENTRY_ROLE_IDS)) return "Free Entry";
+
+  return null;
 }
 
 export async function getSubscribers(month: string): Promise<Subscriber[]> {
@@ -197,6 +276,11 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
     const accessRec = accessByUser.get(member.id);
     const gamesPlayed = getGamesForMember(member.username);
 
+    const isPaid = source === "patreon" || source === "kofi";
+    const freeReason = member.roles.length > 0
+      ? await detectFreeEntryReason(member.roles, member.username, month, isPaid)
+      : null;
+
     subscribers.push({
       discord_id: member.id,
       username: member.username,
@@ -206,7 +290,7 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
       tier: determineTier(source, member.roles),
       is_playing: gamesPlayed > 0,
       games_played: gamesPlayed,
-      free_entry_reason: null,
+      free_entry_reason: freeReason,
       joined_at: member.joined_at,
       expires_at: accessRec?.expires_at
         ? String(accessRec.expires_at)
