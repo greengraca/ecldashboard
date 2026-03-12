@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import StatCard from "@/components/dashboard/stat-card";
+import FinanceOverview from "@/components/finance/finance-overview";
 import { Users, Wallet, Swords, Activity } from "lucide-react";
 import type { ActivityEntry, ActivityAction } from "@/lib/types";
 
@@ -38,7 +39,22 @@ const actionColors: Record<ActivityAction, string> = {
 };
 
 function StatSkeleton() {
-  return <div className="skeleton h-[106px] w-full rounded-xl" />;
+  return (
+    <div
+      className="h-full p-5 rounded-xl border"
+      style={{
+        background: "var(--bg-card)",
+        borderColor: "var(--border)",
+      }}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className="skeleton h-3 w-24 rounded" />
+        <div className="skeleton w-8 h-8 rounded-lg" />
+      </div>
+      <div className="skeleton h-7 w-20 rounded mb-1" />
+      <div className="skeleton h-3 w-16 rounded mt-1" />
+    </div>
+  );
 }
 
 export default function HomePage() {
@@ -180,6 +196,11 @@ export default function HomePage() {
             }
           />
         )}
+      </div>
+
+      {/* Treasury Overview */}
+      <div className="mb-8">
+        <FinanceOverview />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

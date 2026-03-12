@@ -9,6 +9,7 @@ import BalanceCard from "@/components/finance/balance-card";
 import TransactionForm from "@/components/finance/transaction-form";
 import TransactionTable from "@/components/finance/transaction-table";
 import FixedCostManager from "@/components/finance/fixed-cost-manager";
+import MonthlyBreakdownChart from "@/components/finance/monthly-breakdown-chart";
 import type {
   Transaction,
   FixedCost,
@@ -192,6 +193,9 @@ export default function FinancePage() {
           </button>
         </div>
       </div>
+
+      {/* Monthly Breakdown Chart */}
+      <MonthlyBreakdownChart month={month} summary={summary} isLoading={summaryLoading} />
 
       {/* Balance Cards */}
       <div className="mb-8">

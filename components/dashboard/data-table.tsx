@@ -18,7 +18,7 @@ interface DataTableProps<T> {
   emptyMessage?: string;
   onRowClick?: (row: T) => void;
   rowHover?: boolean;
-  defaultSortKey?: string;
+  defaultSortKey?: string | null;
   defaultSortDir?: "asc" | "desc";
 }
 
