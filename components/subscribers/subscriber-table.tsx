@@ -45,6 +45,21 @@ function SourceBadge({ source }: { source: SubscriptionSource }) {
   );
 }
 
+function FreeReasonBadge({ reason, muted = false }: { reason: string; muted?: boolean }) {
+  return (
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+      style={{
+        color: "var(--status-free)",
+        background: "var(--status-free-light)",
+        opacity: muted ? 0.6 : 1,
+      }}
+    >
+      Free: {reason}
+    </span>
+  );
+}
+
 function PlayingStatus({ isPlaying }: { isPlaying: boolean }) {
   return (
     <span
@@ -109,10 +124,21 @@ export default function SubscriberTable({
       sortable: true,
       render: (row) => {
         const isPaid = manualPaidIds?.has(row.discord_id as string);
+        const freeReason = row.free_entry_reason as string | null;
+        const isFreeSource = row.source === "free";
         return (
           <div className="flex items-center gap-2.5">
-            <SourceBadge source={row.source as SubscriptionSource} />
-            {row.source === "free" && onToggleManualPaid && (
+            {/* For free subscribers with a reason, replace generic badge */}
+            {isFreeSource && freeReason ? (
+              <FreeReasonBadge reason={freeReason} />
+            ) : (
+              <SourceBadge source={row.source as SubscriptionSource} />
+            )}
+            {/* For paid subscribers with a reason, show muted secondary badge */}
+            {!isFreeSource && freeReason && (
+              <FreeReasonBadge reason={freeReason} muted />
+            )}
+            {isFreeSource && onToggleManualPaid && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -237,7 +263,16 @@ export default function SubscriberTable({
                   </p>
                 </div>
               </div>
-              <SourceBadge source={row.source as SubscriptionSource} />
+              <div className="flex items-center gap-1.5">
+                {row.source === "free" && (row.free_entry_reason as string | null) ? (
+                  <FreeReasonBadge reason={row.free_entry_reason as string} />
+                ) : (
+                  <SourceBadge source={row.source as SubscriptionSource} />
+                )}
+                {row.source !== "free" && (row.free_entry_reason as string | null) && (
+                  <FreeReasonBadge reason={row.free_entry_reason as string} muted />
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-4 text-xs" style={{ color: "var(--text-secondary)" }}>
               <PlayingStatus isPlaying={row.is_playing as boolean} />
