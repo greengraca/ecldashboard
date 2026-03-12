@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { Settings, User, Database, Shield, Globe } from "lucide-react";
 import TopDeckRefreshButton from "@/components/settings/topdeck-refresh-button";
+import SyncDiscordButton from "@/components/settings/sync-discord-button";
 
 function mask(value: string, showChars = 4): string {
   if (!value) return "Not set";
@@ -224,13 +225,14 @@ export default function SettingsContent({
           />
         </Section>
 
-        {/* TopDeck Data */}
+        {/* Data & Caches */}
         <Section
           icon={
             <Globe className="w-4 h-4" style={{ color: "var(--accent)" }} />
           }
-          title="TopDeck Data"
+          title="Data & Caches"
         >
+          <SyncDiscordButton />
           <TopDeckRefreshButton />
         </Section>
       </div>

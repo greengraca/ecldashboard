@@ -6,7 +6,6 @@ import { Users, Crown, Coffee, Gift, AlertTriangle } from "lucide-react";
 import StatCard from "@/components/dashboard/stat-card";
 import MonthPicker from "@/components/dashboard/month-picker";
 import SubscriberTable from "@/components/subscribers/subscriber-table";
-import SyncButton from "@/components/subscribers/sync-button";
 import type { Subscriber, SubscriberSummary } from "@/lib/types";
 
 interface SubscriberData {
@@ -62,10 +61,7 @@ export default function SubscribersPage() {
             Manage and monitor subscription status
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <MonthPicker value={month} onChange={setMonth} minMonth="2025-12" maxMonth={getCurrentMonth()} />
-          <SyncButton onSynced={() => mutate()} />
-        </div>
+        <MonthPicker value={month} onChange={setMonth} minMonth="2025-12" maxMonth={getCurrentMonth()} />
       </div>
 
       {/* Error state */}
