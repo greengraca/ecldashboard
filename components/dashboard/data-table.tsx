@@ -18,6 +18,8 @@ interface DataTableProps<T> {
   emptyMessage?: string;
   onRowClick?: (row: T) => void;
   rowHover?: boolean;
+  defaultSortKey?: string;
+  defaultSortDir?: "asc" | "desc";
 }
 
 export default function DataTable<T extends Record<string, unknown>>({
@@ -27,9 +29,11 @@ export default function DataTable<T extends Record<string, unknown>>({
   emptyMessage = "No data",
   onRowClick,
   rowHover,
+  defaultSortKey = null,
+  defaultSortDir = "asc",
 }: DataTableProps<T>) {
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [sortKey, setSortKey] = useState<string | null>(defaultSortKey);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(defaultSortDir);
 
   const sorted = sortKey
     ? [...data].sort((a, b) => {
