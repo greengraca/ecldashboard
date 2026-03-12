@@ -39,24 +39,24 @@ export default function BalanceCard({ summary, isLoading }: BalanceCardProps) {
   const net = summary?.net ?? 0;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       {items.map((item) => (
         <div
           key={item.label}
-          className="p-5 rounded-xl border transition-colors"
+          className="p-3 sm:p-5 rounded-xl border transition-colors"
           style={{
             background: "var(--bg-card)",
             borderColor: "var(--border)",
           }}
         >
-          <div className="flex items-start justify-between mb-3">
+          <div className="flex items-start justify-between mb-1.5 sm:mb-3">
             <p
-              className="text-xs font-medium uppercase tracking-wider"
+              className="text-[10px] sm:text-xs font-medium uppercase tracking-wider"
               style={{ color: "var(--text-muted)" }}
             >
               {item.label}
             </p>
-            <div className="p-2 rounded-lg" style={{ background: item.bgColor }}>
+            <div className="hidden sm:block p-2 rounded-lg" style={{ background: item.bgColor }}>
               <span style={{ color: item.color }}>{item.icon}</span>
             </div>
           </div>
@@ -70,21 +70,21 @@ export default function BalanceCard({ summary, isLoading }: BalanceCardProps) {
 
       {/* Net Balance */}
       <div
-        className="p-5 rounded-xl border transition-colors"
+        className="p-3 sm:p-5 rounded-xl border transition-colors"
         style={{
           background: "var(--bg-card)",
           borderColor: net >= 0 ? "var(--success)" : "var(--error)",
         }}
       >
-        <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start justify-between mb-1.5 sm:mb-3">
           <p
-            className="text-xs font-medium uppercase tracking-wider"
+            className="text-[10px] sm:text-xs font-medium uppercase tracking-wider"
             style={{ color: "var(--text-muted)" }}
           >
             Net Balance
           </p>
           <div
-            className="p-2 rounded-lg"
+            className="hidden sm:block p-2 rounded-lg"
             style={{
               background: net >= 0 ? "var(--success-light)" : "var(--error-light)",
             }}

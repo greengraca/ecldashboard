@@ -41,18 +41,18 @@ const actionColors: Record<ActivityAction, string> = {
 function StatSkeleton() {
   return (
     <div
-      className="h-full p-5 rounded-xl border"
+      className="h-full p-3 sm:p-5 rounded-xl border"
       style={{
         background: "var(--bg-card)",
         borderColor: "var(--border)",
       }}
     >
-      <div className="flex items-start justify-between mb-3">
-        <div className="skeleton h-3 w-24 rounded" />
-        <div className="skeleton w-8 h-8 rounded-lg" />
+      <div className="flex items-start justify-between mb-1.5 sm:mb-3">
+        <div className="skeleton h-3 w-20 sm:w-24 rounded" />
+        <div className="skeleton w-8 h-8 rounded-lg hidden sm:block" />
       </div>
-      <div className="skeleton h-7 w-20 rounded mb-1" />
-      <div className="skeleton h-3 w-16 rounded mt-1" />
+      <div className="skeleton h-5 sm:h-7 w-16 sm:w-20 rounded mb-1" />
+      <div className="skeleton h-3 w-14 sm:w-16 rounded mt-1" />
     </div>
   );
 }
@@ -113,7 +113,7 @@ export default function HomePage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
         {subLoading ? (
           <StatSkeleton />
         ) : (

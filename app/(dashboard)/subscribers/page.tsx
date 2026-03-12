@@ -83,7 +83,7 @@ export default function SubscribersPage() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-8">
         <div className="cursor-pointer" onClick={() => toggleFilter("all")}>
           <StatCard
             title="Total Subscribers"

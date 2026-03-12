@@ -17,20 +17,20 @@ function StatBox({
 }) {
   return (
     <div
-      className="p-4 rounded-xl border text-center"
+      className="p-2.5 sm:p-4 rounded-xl border text-center"
       style={{
         background: "var(--bg-card)",
         borderColor: "var(--border)",
       }}
     >
       <p
-        className="text-xs font-medium uppercase tracking-wider mb-1"
+        className="text-[10px] sm:text-xs font-medium uppercase tracking-wider mb-0.5 sm:mb-1"
         style={{ color: "var(--text-muted)" }}
       >
         {label}
       </p>
       <p
-        className="text-xl font-bold tabular-nums"
+        className="text-base sm:text-xl font-bold tabular-nums"
         style={{ color: color || "var(--text-primary)" }}
       >
         {value}
@@ -113,7 +113,7 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
         >
           Current Stats
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
           <StatBox label="Points" value={player.points.toFixed(0)} color="var(--accent)" />
           <StatBox label="Games" value={player.games} />
           <StatBox label="Wins" value={player.wins} color="var(--success)" />
