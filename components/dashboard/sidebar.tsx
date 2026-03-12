@@ -139,7 +139,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     <>
       {/* Desktop sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-screen bg-[var(--card-inner-bg)] border-r border-[var(--border)] flex-col transition-all duration-200 ease-in-out z-40 hidden md:flex ${
+        className={`fixed left-0 top-0 h-dvh bg-[var(--card-inner-bg)] border-r border-[var(--border)] flex-col transition-all duration-200 ease-in-out z-40 hidden md:flex ${
           collapsed ? "w-16" : "w-60"
         }`}
       >
@@ -161,7 +161,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             className="fixed inset-0 bg-[var(--overlay-bg)] z-40 md:hidden"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="fixed left-0 top-0 h-screen w-60 bg-[var(--card-inner-bg)] border-r border-[var(--border)] flex flex-col z-50 md:hidden">
+          <aside className="fixed left-0 top-0 h-dvh w-60 bg-[var(--card-inner-bg)] border-r border-[var(--border)] flex flex-col z-50 md:hidden">
             {sidebarContent(true)}
           </aside>
         </>
