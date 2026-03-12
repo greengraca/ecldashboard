@@ -77,7 +77,7 @@ export async function backfillPatreon(
   let skipped = 0;
 
   for (const row of rows) {
-    const tier = row["Tier"] || "";
+    const tier = (row["Tier"] || "").trim();
     if (!ECL_ELIGIBLE_PATREON_TIERS.includes(tier)) {
       skipped++;
       continue;
@@ -127,7 +127,7 @@ export async function backfillPatreon(
             month,
             discord_id: discord, // CSV has Discord username, not ID — best we have for backfill
             patreon_name: patreonName,
-            tier,
+            tier: tier.trim(),
             pledge_amount: pledgeAmount,
             patreon_user_id: patreonUserId,
             synced_at: syncTimestamp,
