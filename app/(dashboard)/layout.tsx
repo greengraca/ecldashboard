@@ -1,0 +1,25 @@
+"use client";
+
+import { useState } from "react";
+import Sidebar from "@/components/dashboard/sidebar";
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <div className="min-h-screen" style={{ background: "var(--bg-page)" }}>
+      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+      <main
+        className={`transition-all duration-200 ease-in-out min-h-screen ${
+          collapsed ? "md:ml-16" : "md:ml-60"
+        }`}
+      >
+        <div className="p-6 md:p-8 max-w-7xl mx-auto">{children}</div>
+      </main>
+    </div>
+  );
+}

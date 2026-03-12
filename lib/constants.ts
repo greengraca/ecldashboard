@@ -1,0 +1,30 @@
+function parseIntSet(csv: string | undefined): Set<number> {
+  if (!csv) return new Set();
+  const out = new Set<number>();
+  for (const part of csv.split(",")) {
+    const trimmed = part.trim();
+    if (trimmed && /^\d+$/.test(trimmed)) {
+      out.add(parseInt(trimmed, 10));
+    }
+  }
+  return out;
+}
+
+export const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID || "";
+export const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || "";
+
+export const PATREON_ROLE_IDS = parseIntSet(process.env.PATREON_ROLE_IDS);
+export const KOFI_ROLE_IDS = parseIntSet(process.env.KOFI_ROLE_IDS);
+export const FREE_ENTRY_ROLE_IDS = parseIntSet(process.env.FREE_ENTRY_ROLE_IDS);
+
+export const TOPDECK_BRACKET_ID = process.env.TOPDECK_BRACKET_ID || "";
+
+export const ALLOWED_DISCORD_IDS = parseIntSet(
+  process.env.DASHBOARD_ALLOWED_DISCORD_IDS
+);
+
+export const ALL_SUB_ROLE_IDS = new Set([
+  ...PATREON_ROLE_IDS,
+  ...KOFI_ROLE_IDS,
+  ...FREE_ENTRY_ROLE_IDS,
+]);
