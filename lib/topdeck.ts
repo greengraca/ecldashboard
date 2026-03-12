@@ -1,5 +1,5 @@
 import { getDb } from "./mongodb";
-import { WAGER_RATE } from "./constants";
+import { WAGER_RATE, FIRESTORE_DOC_URL_TEMPLATE } from "./constants";
 
 // ─── Types ───
 
@@ -166,7 +166,45 @@ export async function reassembleMonthDump(monthInfo: MonthInfo): Promise<MonthDu
 
   // Concatenate all chunk data and parse
   const jsonString = chunks.map((c) => c.data).join("");
-  const payload: MonthDumpPayload = JSON.parse(jsonString);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const raw: any = JSON.parse(jsonString);
+
+  // Older dumps (schema v1) may lack entrant_to_uid — fetch from Firestore
+  let entrantToUid: Record<string, string> = raw.entrant_to_uid;
+  if (!entrantToUid && FIRESTORE_DOC_URL_TEMPLATE) {
+    try {
+      const docUrl = FIRESTORE_DOC_URL_TEMPLATE.replace("{bracket_id}", monthInfo.bracket_id);
+      const res = await fetch(docUrl);
+      if (res.ok) {
+        const doc = await res.json();
+        entrantToUid = {};
+        const fields = doc?.fields || {};
+        for (const [k, v] of Object.entries(fields)) {
+          const m = k.match(/^E(\d+):P1$/);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (m && (v as any)?.stringValue) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            entrantToUid[m[1]] = (v as any).stringValue;
+          }
+        }
+      }
+    } catch {
+      // Firestore unavailable — fall through
+    }
+  }
+
+  if (!entrantToUid) {
+    throw new Error(
+      `No entrant_to_uid in dump and could not fetch from Firestore for bracket_id=${monthInfo.bracket_id}`
+    );
+  }
+
+  const payload: MonthDumpPayload = {
+    month: raw.month,
+    bracket_id: raw.bracket_id,
+    matches: raw.matches,
+    entrant_to_uid: entrantToUid,
+  };
 
   setCache(dumpCache, cacheKey, payload);
   return payload;
