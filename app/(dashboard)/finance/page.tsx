@@ -98,7 +98,13 @@ export default function FinancePage() {
     }
     setModalOpen(false);
     setEditingTx(undefined);
-    refreshAll();
+    // Navigate to the month of the submitted transaction
+    const txMonth = data.date.substring(0, 7); // "YYYY-MM"
+    if (txMonth !== month) {
+      setMonth(txMonth);
+    } else {
+      refreshAll();
+    }
   }
 
   async function handleDeleteTransaction(tx: Transaction) {

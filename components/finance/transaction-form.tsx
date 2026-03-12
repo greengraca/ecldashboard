@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Transaction, TransactionType, TransactionCategory } from "@/lib/types";
+import Select from "@/components/dashboard/select";
 
 interface TransactionFormProps {
   transaction?: Transaction;
@@ -26,22 +27,9 @@ const CATEGORIES: { value: TransactionCategory; label: string }[] = [
 ];
 
 function getDefaultDate(defaultMonth?: string): string {
-  if (defaultMonth) return `${defaultMonth}-01`;
-  return new Date().toISOString().substring(0, 10);
-}
-
-function isoToDisplay(iso: string): string {
-  // "YYYY-MM-DD" → "DD/MM/YYYY"
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
-}
-
-function displayToIso(display: string): string | null {
-  // "DD/MM/YYYY" → "YYYY-MM-DD"
-  const match = display.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!match) return null;
-  const [, d, m, y] = match;
-  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  const today = new Date().toISOString().substring(0, 10);
+  if (!defaultMonth || defaultMonth === today.substring(0, 7)) return today;
+  return `${defaultMonth}-01`;
 }
 
 export default function TransactionForm({
@@ -50,9 +38,34 @@ export default function TransactionForm({
   onSubmit,
   onCancel,
 }: TransactionFormProps) {
-  const initialIso = transaction?.date || getDefaultDate(defaultMonth);
-  const [dateDisplay, setDateDisplay] = useState(isoToDisplay(initialIso));
-  const [dateIso, setDateIso] = useState(initialIso);
+  const initialDate = transaction?.date || getDefaultDate(defaultMonth);
+  const [day, setDay] = useState(initialDate.split("-")[2]);
+  const [monthVal, setMonthVal] = useState(initialDate.split("-")[1]);
+  const [year, setYear] = useState(initialDate.split("-")[0]);
+
+  const date = `${year}-${monthVal}-${day}`;
+
+  // Restrict date picker to not allow future dates
+  const today = new Date();
+  const todayYear = today.getFullYear();
+  const todayMonth = today.getMonth() + 1;
+  const todayDay = today.getDate();
+  const numYear = parseInt(year);
+  const numMonth = parseInt(monthVal);
+
+  const maxMonth = numYear >= todayYear ? todayMonth : 12;
+  const maxDay =
+    numYear >= todayYear && numMonth >= todayMonth ? todayDay : 31;
+
+  // Clamp month/day when they exceed the allowed max
+  useEffect(() => {
+    if (numMonth > maxMonth) setMonthVal(String(maxMonth).padStart(2, "0"));
+  }, [numMonth, maxMonth]);
+
+  useEffect(() => {
+    if (parseInt(day) > maxDay) setDay(String(maxDay).padStart(2, "0"));
+  }, [day, maxDay]);
+
   const [type, setType] = useState<TransactionType>(transaction?.type || "income");
   const [category, setCategory] = useState<TransactionCategory>(transaction?.category || "subscription");
   const [description, setDescription] = useState(transaction?.description || "");
@@ -62,12 +75,12 @@ export default function TransactionForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!dateIso || !description || !amount) return;
+    if (!date || !description || !amount) return;
 
     setLoading(true);
     try {
       await onSubmit({
-        date: dateIso,
+        date,
         type,
         category,
         description,
@@ -98,20 +111,38 @@ export default function TransactionForm({
         >
           Date
         </label>
-        <input
-          type="text"
-          value={dateDisplay}
-          onChange={(e) => {
-            const val = e.target.value;
-            setDateDisplay(val);
-            const iso = displayToIso(val);
-            if (iso) setDateIso(iso);
-          }}
-          placeholder="DD/MM/YYYY"
-          required
-          className="w-full px-3 py-2 rounded-lg border text-sm outline-none focus:border-[var(--accent)]"
-          style={inputStyle}
-        />
+        <div className="flex gap-2">
+          <Select
+            value={day}
+            onChange={setDay}
+            options={Array.from({ length: maxDay }, (_, i) => {
+              const d = String(i + 1).padStart(2, "0");
+              return { value: d, label: d };
+            })}
+            className="flex-1"
+          />
+          <Select
+            value={monthVal}
+            onChange={setMonthVal}
+            options={[
+              "January", "February", "March", "April", "May", "June",
+              "July", "August", "September", "October", "November", "December",
+            ].slice(0, maxMonth).map((name, i) => ({
+              value: String(i + 1).padStart(2, "0"),
+              label: name,
+            }))}
+            className="flex-1"
+          />
+          <Select
+            value={year}
+            onChange={setYear}
+            options={Array.from({ length: todayYear - 2024 + 1 }, (_, i) => {
+              const y = String(2024 + i);
+              return { value: y, label: y };
+            })}
+            className="flex-1"
+          />
+        </div>
       </div>
 
       {/* Type */}
@@ -164,18 +195,12 @@ export default function TransactionForm({
         >
           Category
         </label>
-        <select
+        <Select
           value={category}
-          onChange={(e) => setCategory(e.target.value as TransactionCategory)}
-          className="w-full px-3 py-2 rounded-lg border text-sm outline-none focus:border-[var(--accent)]"
-          style={inputStyle}
-        >
-          {CATEGORIES.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </select>
+          onChange={(val) => setCategory(val as TransactionCategory)}
+          options={CATEGORIES}
+          className="w-full"
+        />
       </div>
 
       {/* Description */}

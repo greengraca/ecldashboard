@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import type { FixedCost } from "@/lib/types";
+import Select from "@/components/dashboard/select";
 
 interface FixedCostManagerProps {
   fixedCosts: FixedCost[];
@@ -155,20 +156,19 @@ export default function FixedCostManager({
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <select
+            <Select
               value={form.category}
-              onChange={(e) =>
+              onChange={(val) =>
                 setForm({
                   ...form,
-                  category: e.target.value as "prize" | "operational",
+                  category: val as "prize" | "operational",
                 })
               }
-              className="px-3 py-2 rounded-lg border text-sm outline-none"
-              style={inputStyle}
-            >
-              <option value="operational">Operational</option>
-              <option value="prize">Prize</option>
-            </select>
+              options={[
+                { value: "operational", label: "Operational" },
+                { value: "prize", label: "Prize" },
+              ]}
+            />
             <input
               type="month"
               value={form.start_month}
@@ -241,20 +241,20 @@ export default function FixedCostManager({
                     style={inputStyle}
                     step="0.01"
                   />
-                  <select
+                  <Select
                     value={editForm.category}
-                    onChange={(e) =>
+                    onChange={(val) =>
                       setEditForm({
                         ...editForm,
-                        category: e.target.value as "prize" | "operational",
+                        category: val as "prize" | "operational",
                       })
                     }
-                    className="px-2 py-1 rounded border text-sm outline-none"
-                    style={inputStyle}
-                  >
-                    <option value="operational">Operational</option>
-                    <option value="prize">Prize</option>
-                  </select>
+                    options={[
+                      { value: "operational", label: "Operational" },
+                      { value: "prize", label: "Prize" },
+                    ]}
+                    size="sm"
+                  />
                   <button
                     onClick={() => handleUpdate(id)}
                     className="p-1 rounded hover:bg-[var(--success-light)]"

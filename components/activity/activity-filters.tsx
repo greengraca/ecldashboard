@@ -1,6 +1,7 @@
 "use client";
 
 import { RotateCcw } from "lucide-react";
+import Select from "@/components/dashboard/select";
 
 export interface ActivityFilterValues {
   action: string;
@@ -47,12 +48,6 @@ export default function ActivityFilters({
   const hasFilters =
     values.action || values.entity_type || values.from || values.to;
 
-  const selectStyle = {
-    background: "var(--bg-card)",
-    borderColor: "var(--border)",
-    color: "var(--text-primary)",
-  };
-
   const inputStyle = {
     background: "var(--bg-card)",
     borderColor: "var(--border)",
@@ -62,31 +57,17 @@ export default function ActivityFilters({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <select
-        className="px-3 py-2 rounded-lg border text-sm"
-        style={selectStyle}
+      <Select
         value={values.action}
-        onChange={(e) => update({ action: e.target.value })}
-      >
-        {ACTIONS.map((a) => (
-          <option key={a.value} value={a.value}>
-            {a.label}
-          </option>
-        ))}
-      </select>
+        onChange={(val) => update({ action: val })}
+        options={ACTIONS}
+      />
 
-      <select
-        className="px-3 py-2 rounded-lg border text-sm"
-        style={selectStyle}
+      <Select
         value={values.entity_type}
-        onChange={(e) => update({ entity_type: e.target.value })}
-      >
-        {ENTITY_TYPES.map((e) => (
-          <option key={e.value} value={e.value}>
-            {e.label}
-          </option>
-        ))}
-      </select>
+        onChange={(val) => update({ entity_type: val })}
+        options={ENTITY_TYPES}
+      />
 
       <input
         type="date"
