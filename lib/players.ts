@@ -307,12 +307,20 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
   }
 
   // Try live standings for current month data
+  let livePlayerDiscord = "";
   try {
     const liveResult = await fetchLiveStandings();
     const livePlayer = liveResult.rows.find(
       (r) => r.uid === uid || r.entrant_id.toString() === uid
     );
     if (livePlayer) {
+      // Ensure name lookup has this player's name from live data
+      if (livePlayer.name && !nameLookup.has(uid)) {
+        nameLookup.set(uid, livePlayer.name);
+      }
+      if (livePlayer.discord) {
+        livePlayerDiscord = livePlayer.discord.toLowerCase().trim();
+      }
       const now = new Date();
       const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
       // Only add if not already covered by dump data
@@ -368,12 +376,22 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
 
   const firstMonth = monthlyHistory[0].month;
 
-  // Look up avatar via discord handle from PublicPData → guild member match
+  // Look up avatar via discord handle from PublicPData or live data → guild member match
   let avatarUrl: string | null = null;
-  const bracketIdForAvatar = TOPDECK_BRACKET_ID || latestBracketId;
   try {
-    const pdata = await fetchPublicPData(bracketIdForAvatar);
-    const discordHandle = pdata[uid]?.discord?.toLowerCase().trim() || "";
+    let discordHandle = "";
+    // Try PublicPData first
+    const bracketIdForAvatar = TOPDECK_BRACKET_ID || latestBracketId;
+    try {
+      const pdata = await fetchPublicPData(bracketIdForAvatar);
+      discordHandle = pdata[uid]?.discord?.toLowerCase().trim() || "";
+    } catch {
+      // fall through
+    }
+    // Fall back to cached live player discord handle
+    if (!discordHandle && livePlayerDiscord) {
+      discordHandle = livePlayerDiscord;
+    }
     if (discordHandle) {
       const guildMembers = await fetchGuildMembers();
       for (const m of guildMembers) {
