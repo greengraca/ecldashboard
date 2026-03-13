@@ -7,6 +7,18 @@ interface PlayerDetailProps {
   player: PlayerDetailType;
 }
 
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function formatMonth(yyyymm: string): string {
+  const [y, m] = yyyymm.split("-").map(Number);
+  return `${MONTH_NAMES[m - 1]} ${y}`;
+}
+
+function formatMonthShort(yyyymm: string): string {
+  const m = parseInt(yyyymm.slice(5), 10);
+  return MONTH_NAMES[m - 1];
+}
+
 function StatBox({
   label,
   value,
@@ -131,7 +143,7 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
               className="text-xs mt-0.5"
               style={{ color: "var(--text-muted)" }}
             >
-              Member since {player.first_month}
+              Member since {formatMonth(player.first_month)}
             </p>
           )}
         </div>
@@ -238,7 +250,7 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
                       </span>
                       <div className="w-10" style={{ height: "20px" }} />
                       <span className="text-xs" style={{ color: "var(--text-muted)", opacity: 0.4 }}>
-                        {month.slice(5)}
+                        {formatMonthShort(month)}
                       </span>
                     </div>
                   );
@@ -268,7 +280,7 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
                       className="text-xs"
                       style={{ color: "var(--text-muted)" }}
                     >
-                      {month.slice(5)}
+                      {formatMonthShort(month)}
                     </span>
                   </div>
                 );
@@ -299,7 +311,7 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
               <div key={h.month} className="mobile-card space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                    {h.month}
+                    {formatMonth(h.month)}
                   </span>
                   <div className="flex items-center gap-2">
                     {h.rank && (
@@ -351,7 +363,7 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
                       className="px-4 py-3 font-medium"
                       style={{ color: "var(--text-primary)" }}
                     >
-                      {h.month}
+                      {formatMonth(h.month)}
                     </td>
                     <td
                       className="px-4 py-3 text-right tabular-nums"
