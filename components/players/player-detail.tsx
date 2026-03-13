@@ -1,5 +1,6 @@
 "use client";
 
+import { Trophy, Medal, Award, Gift } from "lucide-react";
 import type { PlayerDetail as PlayerDetailType } from "@/lib/types";
 
 interface PlayerDetailProps {
@@ -102,7 +103,72 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
               </span>
             )}
           </div>
+          {player.first_month && (
+            <p
+              className="text-xs mt-0.5"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Member since {player.first_month}
+            </p>
+          )}
         </div>
+      </div>
+
+      {/* Achievement Badges */}
+      {(player.achievements.champion.length > 0 ||
+        player.achievements.top4.length > 0 ||
+        player.achievements.top16.length > 0) && (
+        <div>
+          <h3
+            className="text-sm font-medium uppercase tracking-wider mb-3"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Achievements
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {player.achievements.champion.map((m) => (
+              <span
+                key={`champ-${m}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                style={{ background: "rgba(251, 191, 36, 0.12)", color: "#fbbf24", border: "1px solid rgba(251, 191, 36, 0.25)" }}
+              >
+                <Trophy className="w-3.5 h-3.5" />
+                Champion {m}
+              </span>
+            ))}
+            {player.achievements.top4.map((m) => (
+              <span
+                key={`top4-${m}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                style={{ background: "rgba(148, 163, 184, 0.12)", color: "#94a3b8", border: "1px solid rgba(148, 163, 184, 0.25)" }}
+              >
+                <Medal className="w-3.5 h-3.5" />
+                Top 4 {m}
+              </span>
+            ))}
+            {player.achievements.top16.map((m) => (
+              <span
+                key={`top16-${m}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                style={{ background: "rgba(205, 127, 50, 0.12)", color: "#cd7f32", border: "1px solid rgba(205, 127, 50, 0.25)" }}
+              >
+                <Award className="w-3.5 h-3.5" />
+                Top 16 {m}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Prizes Placeholder */}
+      <div
+        className="rounded-xl border p-6 text-center"
+        style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+      >
+        <Gift className="w-6 h-6 mx-auto mb-2" style={{ color: "var(--text-muted)" }} />
+        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+          Prizes coming soon
+        </p>
       </div>
 
       {/* Current Stats */}

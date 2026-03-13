@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { Users, Gamepad2, Trophy, TrendingUp, Save, Check, GripVertical } from "lucide-react";
 import StatCard from "@/components/dashboard/stat-card";
@@ -403,6 +404,7 @@ function SaveButton({ saving, onSave }: { saving: boolean; onSave: () => void })
 }
 
 export default function PlayersPage() {
+  const router = useRouter();
   const [month, setMonth] = useState(getCurrentMonth);
   const [filter, setFilter] = useState<"none" | "eligible" | "top16" | "inactive" | "most_games" | "top16_pods" | "top4_pods">("none");
 
@@ -741,6 +743,7 @@ export default function PlayersPage() {
             <LiveStandingsTable
               standings={filter === "inactive" ? liveStandings.filter((s) => s.games === 0) : filter === "most_games" ? [...liveStandings].sort((a, b) => b.games - a.games).slice(0, 5) : liveStandings}
               showEligibleOnly={filter === "eligible"}
+              onRowClick={(uid) => router.push(`/players/${uid}`)}
             />
           )}
         </>
@@ -920,6 +923,7 @@ export default function PlayersPage() {
           ) : (
             <StandingsTable
               key={filter}
+              onRowClick={(uid) => router.push(`/players/${uid}`)}
               standings={(() => {
                 const allStandings = players.map((p) => ({ rank: p.rank!, uid: p.uid, name: p.name, points: p.points, games: p.games, wins: p.wins, losses: p.losses, draws: p.draws, win_pct: p.win_pct }));
                 if (filter === "top16") {

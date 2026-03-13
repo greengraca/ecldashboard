@@ -307,6 +307,33 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
 
   if (monthlyHistory.length === 0) return null;
 
+  // Query bracket results for achievements
+  const db = await getDb();
+  const achievements = { top16: [] as string[], top4: [] as string[], champion: [] as string[] };
+  try {
+    const bracketDocs = await db
+      .collection("dashboard_bracket_results")
+      .find({})
+      .toArray();
+
+    for (const doc of bracketDocs) {
+      const m = doc.month as string;
+      if (Array.isArray(doc.top16_winners) && doc.top16_winners.includes(uid)) {
+        achievements.top16.push(m);
+      }
+      if (Array.isArray(doc.top4_order) && doc.top4_order.includes(uid)) {
+        achievements.top4.push(m);
+      }
+      if (doc.top4_winner === uid) {
+        achievements.champion.push(m);
+      }
+    }
+  } catch {
+    // collection may not exist
+  }
+
+  const firstMonth = monthlyHistory[0].month;
+
   // Use the latest month's stats as current
   const latestMonth = monthlyHistory[monthlyHistory.length - 1];
   const subInfo = subscriberLookup.get(uid);
@@ -324,6 +351,8 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
     is_subscriber: !!subInfo,
     subscription_source: subInfo?.source ?? null,
     monthly_history: monthlyHistory,
+    first_month: firstMonth,
+    achievements,
   };
 }
 

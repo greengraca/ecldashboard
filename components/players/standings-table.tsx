@@ -9,6 +9,7 @@ type SortDir = "asc" | "desc";
 interface StandingsTableProps {
   standings: Standing[];
   defaultSort?: { key: SortKey; dir: SortDir };
+  onRowClick?: (uid: string) => void;
 }
 
 function getRankStyle(rank: number): { color: string; bg: string } {
@@ -55,7 +56,7 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   );
 }
 
-export default function StandingsTable({ standings, defaultSort }: StandingsTableProps) {
+export default function StandingsTable({ standings, defaultSort, onRowClick }: StandingsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>(defaultSort?.key ?? "rank");
   const [sortDir, setSortDir] = useState<SortDir>(defaultSort?.dir ?? "asc");
 
@@ -111,7 +112,8 @@ export default function StandingsTable({ standings, defaultSort }: StandingsTabl
             <div
               key={s.uid}
               className="mobile-card"
-              style={{ background: isPodium ? rankStyle.bg : undefined }}
+              style={{ background: isPodium ? rankStyle.bg : undefined, cursor: onRowClick ? "pointer" : undefined }}
+              onClick={onRowClick ? () => onRowClick(s.uid) : undefined}
             >
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2.5">
@@ -227,7 +229,9 @@ export default function StandingsTable({ standings, defaultSort }: StandingsTabl
                   className="border-b border-[var(--border-subtle)] transition-colors"
                   style={{
                     background: isPodium ? rankStyle.bg : undefined,
+                    cursor: onRowClick ? "pointer" : undefined,
                   }}
+                  onClick={onRowClick ? () => onRowClick(s.uid) : undefined}
                 >
                   <td className="px-4 py-3">
                     <RankBadge rank={s.rank} />

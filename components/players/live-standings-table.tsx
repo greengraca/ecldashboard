@@ -6,6 +6,7 @@ import type { LiveStanding } from "@/lib/types";
 interface LiveStandingsTableProps {
   standings: LiveStanding[];
   showEligibleOnly: boolean;
+  onRowClick?: (uid: string) => void;
 }
 
 type SortKey = "rank" | "points" | "wins" | "losses" | "draws" | "games" | "win_pct" | "ow_pct" | "online_games";
@@ -70,6 +71,7 @@ const COLUMNS: { key: SortKey | null; label: string; align: "left" | "right" }[]
 export default function LiveStandingsTable({
   standings,
   showEligibleOnly,
+  onRowClick,
 }: LiveStandingsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("rank");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -136,7 +138,9 @@ export default function LiveStandingsTable({
               style={{
                 background: isPodium && !s.dropped ? rankStyle.bg : undefined,
                 opacity: s.dropped ? 0.4 : 1,
+                cursor: onRowClick ? "pointer" : undefined,
               }}
+              onClick={onRowClick ? () => onRowClick(s.uid) : undefined}
             >
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
@@ -240,7 +244,9 @@ export default function LiveStandingsTable({
                   style={{
                     background: isPodium && !s.dropped ? rankStyle.bg : undefined,
                     opacity: s.dropped ? 0.4 : 1,
+                    cursor: onRowClick ? "pointer" : undefined,
                   }}
+                  onClick={onRowClick ? () => onRowClick(s.uid) : undefined}
                 >
                   <td className="px-4 py-3">
                     <RankBadge rank={s.rank} />

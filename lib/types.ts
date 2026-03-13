@@ -154,8 +154,16 @@ export interface Player {
   subscription_source: SubscriptionSource | null;
 }
 
+export interface PlayerAchievements {
+  top16: string[];   // months as "YYYY-MM"
+  top4: string[];
+  champion: string[];
+}
+
 export interface PlayerDetail extends Player {
   monthly_history: PlayerMonthStats[];
+  first_month: string | null;
+  achievements: PlayerAchievements;
 }
 
 export interface PlayerMonthStats {
