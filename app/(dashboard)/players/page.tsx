@@ -871,7 +871,9 @@ export default function PlayersPage() {
                   border: `1px solid ${filter === "top16_pods" ? "var(--accent)" : "var(--border)"}`,
                 }}
               >
-                <Trophy className="w-3.5 h-3.5" />
+                <span className="w-3 h-3 flex items-center justify-center">
+                  <Trophy className="w-3.5 h-3.5" />
+                </span>
                 Top 16
               </button>
               <button
@@ -887,7 +889,9 @@ export default function PlayersPage() {
                   border: `1px solid ${filter === "top4_pods" ? "var(--accent)" : "var(--border)"}`,
                 }}
               >
-                <Trophy className="w-3.5 h-3.5" />
+                <span className="w-3 h-3 flex items-center justify-center">
+                  <Trophy className="w-3.5 h-3.5" />
+                </span>
                 Top 4
               </button>
             </div>
