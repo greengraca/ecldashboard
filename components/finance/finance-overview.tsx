@@ -186,7 +186,7 @@ export default function FinanceOverview() {
 
         {/* Chart view tabs */}
         <div
-          className="flex rounded-lg overflow-hidden border"
+          className="flex w-fit rounded-lg overflow-hidden border"
           style={{ borderColor: "var(--border)" }}
         >
           {CHART_VIEWS.map((view) => (
