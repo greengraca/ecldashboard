@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   BarChart,
   Bar,
@@ -10,6 +11,7 @@ import {
   ResponsiveContainer,
   Legend,
   Cell,
+  ReferenceLine,
 } from "recharts";
 import type { MonthlySummary } from "@/lib/types";
 
@@ -59,6 +61,7 @@ export default function MonthlyBreakdownChart({
   summary,
   isLoading,
 }: MonthlyBreakdownChartProps) {
+  const [refLineHover, setRefLineHover] = useState<{ x: number; y: number } | null>(null);
   const breakdown = summary?.breakdown;
 
   const data = breakdown
@@ -82,6 +85,8 @@ export default function MonthlyBreakdownChart({
           }));
       })()
     : [];
+
+  const subscriptionHalf = breakdown?.subscription ? breakdown.subscription / 2 : null;
 
   return (
     <div
@@ -131,7 +136,7 @@ export default function MonthlyBreakdownChart({
           No transactions this month
         </div>
       ) : (
-        <div style={{ height: 220, outline: "none", WebkitTapHighlightColor: "transparent" }}>
+        <div style={{ height: 220, outline: "none", WebkitTapHighlightColor: "transparent", position: "relative" }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} layout="vertical" barSize={20} margin={{ left: -10, right: 5, top: 5, bottom: 0 }}>
               <CartesianGrid
@@ -155,6 +160,36 @@ export default function MonthlyBreakdownChart({
                 width={90}
               />
               <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+              {subscriptionHalf !== null && (
+                <ReferenceLine
+                  x={subscriptionHalf}
+                  strokeDasharray="6 4"
+                  strokeWidth={1.5}
+                  ifOverflow="extendDomain"
+                  shape={(props: any) => {
+                    const { x1, y1, x2, y2 } = props;
+                    return (
+                      <g
+                        onMouseEnter={(e) => setRefLineHover({ x: e.clientX, y: e.clientY })}
+                        onMouseMove={(e) => setRefLineHover({ x: e.clientX, y: e.clientY })}
+                        onMouseLeave={() => setRefLineHover(null)}
+                      >
+                        <line
+                          x1={x1} y1={y1} x2={x2} y2={y2}
+                          stroke="var(--accent)"
+                          strokeDasharray="6 4"
+                          strokeWidth={1.5}
+                        />
+                        <line
+                          x1={x1} y1={y1} x2={x2} y2={y2}
+                          stroke="transparent"
+                          strokeWidth={12}
+                        />
+                      </g>
+                    );
+                  }}
+                />
+              )}
               <Bar dataKey="amount" radius={[0, 4, 4, 0]}>
                 {data.map((entry, index) => (
                   <Cell key={index} fill={entry.color} opacity={0.85} />
@@ -162,6 +197,23 @@ export default function MonthlyBreakdownChart({
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+          {refLineHover && subscriptionHalf !== null && (
+            <div
+              className="rounded-lg px-3 py-2 text-xs border pointer-events-none"
+              style={{
+                position: "fixed",
+                left: refLineHover.x + 12,
+                top: refLineHover.y - 16,
+                background: "var(--bg-page)",
+                borderColor: "var(--border)",
+                zIndex: 50,
+              }}
+            >
+              <p style={{ color: "var(--accent)" }}>
+                {"\u20AC"}{subscriptionHalf.toFixed(2)}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
