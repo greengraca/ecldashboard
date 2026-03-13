@@ -193,10 +193,11 @@ export default function LiveStandingsTable({
                   <span style={{ color: "var(--text-muted)" }}>/</span>
                   <span style={{ color: "var(--text-secondary)" }}>{s.draws}D</span>
                 </span>
-                <span style={{ color: "var(--text-muted)" }}>{s.games}g</span>
+                <span style={{ color: "var(--text-muted)" }}>
+                  {s.games}g &middot; {s.online_games} online
+                </span>
                 <span style={{ color: "var(--text-secondary)" }}>{parseFloat(s.win_pct.toFixed(2))}%</span>
                 <span style={{ color: "var(--text-secondary)" }}>OW {parseFloat(s.ow_pct.toFixed(2))}%</span>
-                <span style={{ color: "var(--text-muted)" }}>{s.online_games} online</span>
               </div>
             </div>
           );
