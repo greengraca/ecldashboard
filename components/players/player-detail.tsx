@@ -168,7 +168,7 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
                 style={{ background: "rgba(251, 191, 36, 0.12)", color: "#fbbf24", border: "1px solid rgba(251, 191, 36, 0.25)" }}
               >
                 <Trophy className="w-3.5 h-3.5" />
-                Champion {m}
+                Champion {formatMonth(m)}
               </span>
             ))}
             {player.achievements.top4.map((m) => (
@@ -178,7 +178,7 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
                 style={{ background: "rgba(148, 163, 184, 0.12)", color: "#94a3b8", border: "1px solid rgba(148, 163, 184, 0.25)" }}
               >
                 <Medal className="w-3.5 h-3.5" />
-                Top 4 {m}
+                Top 4 {formatMonth(m)}
               </span>
             ))}
             {player.achievements.top16.map((m) => (
@@ -188,7 +188,7 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
                 style={{ background: "rgba(205, 127, 50, 0.12)", color: "#cd7f32", border: "1px solid rgba(205, 127, 50, 0.25)" }}
               >
                 <Award className="w-3.5 h-3.5" />
-                Top 16 {m}
+                Top 16 {formatMonth(m)}
               </span>
             ))}
           </div>
