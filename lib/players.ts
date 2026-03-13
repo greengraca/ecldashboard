@@ -7,6 +7,7 @@ import {
 } from "./topdeck";
 import type { MonthDumpPayload, EntrantStats } from "./topdeck";
 import { fetchPublicPData } from "./topdeck-cache";
+import { fetchGuildMembers } from "./discord";
 import type {
   Player,
   PlayerDetail,
@@ -334,6 +335,21 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
 
   const firstMonth = monthlyHistory[0].month;
 
+  // Look up avatar from Discord guild members by matching player name
+  let avatarUrl: string | null = null;
+  try {
+    const playerName = (nameLookup.get(uid) || uid).toLowerCase();
+    const guildMembers = await fetchGuildMembers();
+    const match = guildMembers.find(
+      (m) =>
+        m.username.toLowerCase() === playerName ||
+        m.display_name.toLowerCase() === playerName
+    );
+    if (match?.avatar_url) avatarUrl = match.avatar_url;
+  } catch {
+    // avatar will be null
+  }
+
   // Use the latest month's stats as current
   const latestMonth = monthlyHistory[monthlyHistory.length - 1];
   const subInfo = subscriberLookup.get(uid);
@@ -341,6 +357,7 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
   return {
     uid,
     name: nameLookup.get(uid) || uid,
+    avatar_url: avatarUrl,
     games: latestMonth.games,
     wins: latestMonth.wins,
     losses: latestMonth.losses,

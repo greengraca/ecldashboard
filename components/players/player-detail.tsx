@@ -51,16 +51,24 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
     <div className="space-y-8">
       {/* Player Header */}
       <div className="flex items-center gap-4">
-        <div
-          className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold"
-          style={{
-            background: "var(--accent-light)",
-            color: "var(--accent)",
-            border: "1px solid var(--accent-border)",
-          }}
-        >
-          {player.name.charAt(0).toUpperCase()}
-        </div>
+        {player.avatar_url ? (
+          <img
+            src={player.avatar_url}
+            alt=""
+            className="w-14 h-14 rounded-full"
+          />
+        ) : (
+          <div
+            className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold"
+            style={{
+              background: "var(--accent-light)",
+              color: "var(--accent)",
+              border: "1px solid var(--accent-border)",
+            }}
+          >
+            {player.name.charAt(0).toUpperCase()}
+          </div>
+        )}
         <div>
           <h2
             className="text-xl font-bold"

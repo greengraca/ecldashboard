@@ -152,6 +152,7 @@ export interface Player {
   rank: number | null;
   is_subscriber: boolean;
   subscription_source: SubscriptionSource | null;
+  avatar_url?: string | null;
 }
 
 export interface PlayerAchievements {
