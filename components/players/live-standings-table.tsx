@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Search } from "lucide-react";
 import type { LiveStanding } from "@/lib/types";
 
 interface LiveStandingsTableProps {
@@ -75,6 +76,7 @@ export default function LiveStandingsTable({
 }: LiveStandingsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("rank");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [search, setSearch] = useState("");
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -85,9 +87,11 @@ export default function LiveStandingsTable({
     }
   }
 
-  const filtered = showEligibleOnly
-    ? standings.filter((s) => s.eligible)
-    : standings;
+  const filtered = standings.filter((s) => {
+    const matchesEligible = !showEligibleOnly || s.eligible;
+    const matchesSearch = !search || s.name.toLowerCase().includes(search.toLowerCase());
+    return matchesEligible && matchesSearch;
+  });
 
   if (filtered.length === 0) {
     return (
@@ -126,6 +130,26 @@ export default function LiveStandingsTable({
         borderColor: "var(--border)",
       }}
     >
+      <div className="px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
+        <div className="relative max-w-xs">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+            style={{ color: "var(--text-muted)" }}
+          />
+          <input
+            type="text"
+            placeholder="Search players..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 rounded-lg text-sm outline-none transition-colors hover:border-[var(--text-muted)] focus:border-[var(--accent)]"
+            style={{
+              background: "var(--bg-page)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border)",
+            }}
+          />
+        </div>
+      </div>
       {/* Mobile card view */}
       <div className="sm:hidden">
         {sorted.map((s) => {

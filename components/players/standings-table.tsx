@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Search } from "lucide-react";
 import type { Standing } from "@/lib/types";
 
 type SortKey = "rank" | "points" | "wins" | "losses" | "draws" | "games" | "win_pct";
@@ -59,6 +60,7 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
 export default function StandingsTable({ standings, defaultSort, onRowClick }: StandingsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>(defaultSort?.key ?? "rank");
   const [sortDir, setSortDir] = useState<SortDir>(defaultSort?.dir ?? "asc");
+  const [search, setSearch] = useState("");
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -69,7 +71,11 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
     }
   }
 
-  const sorted = [...standings].sort((a, b) => {
+  const filtered = search
+    ? standings.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
+    : standings;
+
+  const sorted = [...filtered].sort((a, b) => {
     let av: number, bv: number;
     if (sortKey === "wins" || sortKey === "losses" || sortKey === "draws") {
       av = a[sortKey];
@@ -103,6 +109,26 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
         borderColor: "var(--border)",
       }}
     >
+      <div className="px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
+        <div className="relative max-w-xs">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+            style={{ color: "var(--text-muted)" }}
+          />
+          <input
+            type="text"
+            placeholder="Search players..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 rounded-lg text-sm outline-none transition-colors hover:border-[var(--text-muted)] focus:border-[var(--accent)]"
+            style={{
+              background: "var(--bg-page)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border)",
+            }}
+          />
+        </div>
+      </div>
       {/* Mobile card view */}
       <div className="sm:hidden">
         {sorted.map((s) => {
