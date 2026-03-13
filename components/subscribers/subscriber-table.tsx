@@ -122,6 +122,11 @@ export default function SubscriberTable({
       key: "source",
       label: "Source",
       sortable: true,
+      sortValue: (row) => {
+        const reason = row.free_entry_reason as string | null;
+        if (row.source === "free" && reason) return `free:${reason}`;
+        return row.source as string;
+      },
       render: (row) => {
         const isPaid = manualPaidIds?.has(row.discord_id as string);
         const freeReason = row.free_entry_reason as string | null;

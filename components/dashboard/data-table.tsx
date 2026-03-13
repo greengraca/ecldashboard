@@ -7,6 +7,7 @@ export interface Column<T> {
   key: string;
   label: string;
   sortable?: boolean;
+  sortValue?: (row: T) => string | number;
   render?: (row: T) => React.ReactNode;
   className?: string;
 }
@@ -39,8 +40,9 @@ export default function DataTable<T extends Record<string, unknown>>({
 
   const sorted = sortKey
     ? [...data].sort((a, b) => {
-        const aVal = a[sortKey];
-        const bVal = b[sortKey];
+        const col = columns.find((c) => c.key === sortKey);
+        const aVal = col?.sortValue ? col.sortValue(a) : a[sortKey];
+        const bVal = col?.sortValue ? col.sortValue(b) : b[sortKey];
         if (aVal == null || bVal == null) return 0;
         const cmp =
           typeof aVal === "number" && typeof bVal === "number"

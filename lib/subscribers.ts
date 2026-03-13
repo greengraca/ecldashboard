@@ -158,23 +158,20 @@ async function detectFreeEntryReason(
   month: string,
   isPaidSource: boolean
 ): Promise<string | null> {
-  if (!hasFreeEntryRole(roles)) return null;
+  // Judge/Mod — highest priority, always shown (requires role)
+  if (roleSetHasAny(roles, JUDGE_ROLE_IDS)) return "Judge";
+  if (roleSetHasAny(roles, ECL_MOD_ROLE_IDS)) return "Mod";
 
-  // Topcut: only for January 2026
+  // Topcut: January 2026 only, based on standings (no role needed)
   if (month === "2026-01") {
     const topcut = await getDecemberTopcut();
     if (topcut.has(username.toLowerCase().trim())) return "Topcut";
   }
 
-  // Vanguard
-  if (roleSetHasAny(roles, ARENA_VANGUARD_ROLE_IDS)) return "Vanguard";
+  // Vanguard — only for January 2026
+  if (month === "2026-01" && roleSetHasAny(roles, ARENA_VANGUARD_ROLE_IDS)) return "Vanguard";
 
-  // Judge/Mod — only informative for paid subscribers
-  // (free subscribers already show Judge/Mod in their tier)
-  if (isPaidSource) {
-    if (roleSetHasAny(roles, JUDGE_ROLE_IDS)) return "Judge";
-    if (roleSetHasAny(roles, ECL_MOD_ROLE_IDS)) return "Mod";
-  }
+  if (!hasFreeEntryRole(roles)) return null;
 
   // Generic fallback for paid subscribers with free entry roles
   if (isPaidSource && roleSetHasAny(roles, FREE_ENTRY_ROLE_IDS)) return "Free Entry";
@@ -263,12 +260,19 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
     return gamesPerDiscordUsername.get(username.toLowerCase().trim()) || 0;
   }
 
+  // Pre-fetch Topcut set for January 2026 so role-less topcut players get included
+  const topcutUsernames = month === "2026-01" ? await getDecemberTopcut() : new Set<string>();
+
   const subscribers: Subscriber[] = [];
   const processedIds = new Set<string>();
 
-  // 1) Process Discord members with subscription roles
+  // 1) Process Discord members with subscription roles (or Topcut eligibility)
   for (const member of members) {
-    const source = determineSource(member.roles);
+    let source = determineSource(member.roles);
+    // Topcut players without a subscription role still get free entry in Jan 2026
+    if (!source && topcutUsernames.has(member.username.toLowerCase().trim())) {
+      source = "free";
+    }
     if (!source) continue;
 
     processedIds.add(member.id);
