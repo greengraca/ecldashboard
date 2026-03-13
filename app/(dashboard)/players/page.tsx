@@ -847,40 +847,43 @@ export default function PlayersPage() {
               Inactive{filter === "inactive" && ` (${players.filter((p) => p.games === 0).length})`}
             </button>
 
-            <div className="flex-1" />
+            <div className="hidden sm:block flex-1" />
 
-            <button
-              onClick={() => setFilter(filter === "top16_pods" ? "none" : "top16_pods")}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-              style={{
-                background: filter === "top16_pods"
-                  ? "var(--accent-light)"
-                  : "var(--bg-card)",
-                color: filter === "top16_pods"
-                  ? "var(--accent)"
-                  : "var(--text-secondary)",
-                border: `1px solid ${filter === "top16_pods" ? "var(--accent)" : "var(--border)"}`,
-              }}
-            >
-              <Trophy className="w-3.5 h-3.5" />
-              Top 16
-            </button>
-            <button
-              onClick={() => setFilter(filter === "top4_pods" ? "none" : "top4_pods")}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-              style={{
-                background: filter === "top4_pods"
-                  ? "var(--accent-light)"
-                  : "var(--bg-card)",
-                color: filter === "top4_pods"
-                  ? "var(--accent)"
-                  : "var(--text-secondary)",
-                border: `1px solid ${filter === "top4_pods" ? "var(--accent)" : "var(--border)"}`,
-              }}
-            >
-              <Trophy className="w-3.5 h-3.5" />
-              Top 4
-            </button>
+            {/* Top 16 / Top 4 — separate row on mobile, inline on desktop */}
+            <div className="w-full sm:w-auto flex items-center gap-3 pt-1 sm:pt-0">
+              <button
+                onClick={() => setFilter(filter === "top16_pods" ? "none" : "top16_pods")}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                style={{
+                  background: filter === "top16_pods"
+                    ? "var(--accent-light)"
+                    : "var(--bg-card)",
+                  color: filter === "top16_pods"
+                    ? "var(--accent)"
+                    : "var(--text-secondary)",
+                  border: `1px solid ${filter === "top16_pods" ? "var(--accent)" : "var(--border)"}`,
+                }}
+              >
+                <Trophy className="w-3.5 h-3.5" />
+                Top 16
+              </button>
+              <button
+                onClick={() => setFilter(filter === "top4_pods" ? "none" : "top4_pods")}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                style={{
+                  background: filter === "top4_pods"
+                    ? "var(--accent-light)"
+                    : "var(--bg-card)",
+                  color: filter === "top4_pods"
+                    ? "var(--accent)"
+                    : "var(--text-secondary)",
+                  border: `1px solid ${filter === "top4_pods" ? "var(--accent)" : "var(--border)"}`,
+                }}
+              >
+                <Trophy className="w-3.5 h-3.5" />
+                Top 4
+              </button>
+            </div>
           </div>
 
           {playersLoading ? (
