@@ -217,10 +217,10 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
         <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
           <StatBox label="Points" value={player.points.toFixed(0)} color="var(--accent)" />
           <StatBox label="Games" value={player.games} />
+          <StatBox label="Win %" value={`${parseFloat(player.win_pct.toFixed(2))}%`} />
           <StatBox label="Wins" value={player.wins} color="var(--success)" />
           <StatBox label="Losses" value={player.losses} color="var(--error)" />
           <StatBox label="Draws" value={player.draws} />
-          <StatBox label="Win %" value={`${parseFloat(player.win_pct.toFixed(2))}%`} />
         </div>
       </div>
 
