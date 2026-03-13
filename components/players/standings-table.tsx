@@ -165,16 +165,20 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
                   {s.points.toFixed(0)}
                 </span>
               </div>
-              <div className="flex items-center gap-3 text-xs ml-[42px]">
-                <span className="tabular-nums">
-                  <span style={{ color: "var(--success)" }}>{s.wins}W</span>
-                  <span style={{ color: "var(--text-muted)" }}> / </span>
-                  <span style={{ color: "var(--error)" }}>{s.losses}L</span>
-                  <span style={{ color: "var(--text-muted)" }}> / </span>
-                  <span style={{ color: "var(--text-secondary)" }}>{s.draws}D</span>
-                </span>
-                <span style={{ color: "var(--text-muted)" }}>{s.games} games</span>
-                <span style={{ color: "var(--text-secondary)" }}>{parseFloat(s.win_pct.toFixed(2))}%</span>
+              <div className="text-xs ml-[42px] space-y-1">
+                <div className="flex items-center gap-3">
+                  <span className="tabular-nums">
+                    <span style={{ color: "var(--success)" }}>{s.wins}W</span>
+                    <span style={{ color: "var(--text-muted)" }}> / </span>
+                    <span style={{ color: "var(--error)" }}>{s.losses}L</span>
+                    <span style={{ color: "var(--text-muted)" }}> / </span>
+                    <span style={{ color: "var(--text-secondary)" }}>{s.draws}D</span>
+                  </span>
+                  <span style={{ color: "var(--text-secondary)" }}>{parseFloat(s.win_pct.toFixed(2))}%</span>
+                </div>
+                <div style={{ color: "var(--text-muted)" }}>
+                  {s.games} games
+                </div>
               </div>
             </div>
           );

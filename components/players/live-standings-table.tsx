@@ -213,19 +213,23 @@ export default function LiveStandingsTable({
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-xs ml-[42px] flex-wrap">
-                <span className="tabular-nums">
-                  <span style={{ color: "var(--success)" }}>{s.wins}W</span>
-                  <span style={{ color: "var(--text-muted)" }}>/</span>
-                  <span style={{ color: "var(--error)" }}>{s.losses}L</span>
-                  <span style={{ color: "var(--text-muted)" }}>/</span>
-                  <span style={{ color: "var(--text-secondary)" }}>{s.draws}D</span>
-                </span>
-                <span style={{ color: "var(--text-muted)" }}>
-                  {s.games}g &middot; {s.online_games} online
-                </span>
-                <span style={{ color: "var(--text-secondary)" }}>{parseFloat(s.win_pct.toFixed(2))}%</span>
-                <span style={{ color: "var(--text-secondary)" }}>OW {parseFloat(s.ow_pct.toFixed(2))}%</span>
+              <div className="text-xs ml-[42px] space-y-1">
+                <div className="flex items-center gap-3">
+                  <span className="tabular-nums">
+                    <span style={{ color: "var(--success)" }}>{s.wins}W</span>
+                    <span style={{ color: "var(--text-muted)" }}>/</span>
+                    <span style={{ color: "var(--error)" }}>{s.losses}L</span>
+                    <span style={{ color: "var(--text-muted)" }}>/</span>
+                    <span style={{ color: "var(--text-secondary)" }}>{s.draws}D</span>
+                  </span>
+                  <span style={{ color: "var(--text-secondary)" }}>{parseFloat(s.win_pct.toFixed(2))}%</span>
+                  <span style={{ color: "var(--text-secondary)" }}>OW {parseFloat(s.ow_pct.toFixed(2))}%</span>
+                </div>
+                <div className="flex items-center gap-3" style={{ color: "var(--text-muted)" }}>
+                  <span>{s.games} games</span>
+                  <span>&middot;</span>
+                  <span>{s.online_games} online</span>
+                </div>
               </div>
             </div>
           );
