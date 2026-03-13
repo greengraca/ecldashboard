@@ -605,10 +605,10 @@ export default function PlayersPage() {
           )}
 
           {/* Filters */}
-          <div className="flex flex-wrap items-center gap-3 mb-6">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-6">
             <button
               onClick={() => setFilter(filter === "eligible" ? "none" : "eligible")}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
               style={{
                 background: filter === "eligible"
                   ? "var(--success-light)"
@@ -635,7 +635,7 @@ export default function PlayersPage() {
             </button>
             <button
               onClick={() => setFilter(filter === "most_games" ? "none" : "most_games")}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
               style={{
                 background: filter === "most_games"
                   ? "var(--success-light)"
@@ -662,7 +662,7 @@ export default function PlayersPage() {
             </button>
             <button
               onClick={() => setFilter(filter === "inactive" ? "none" : "inactive")}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
               style={{
                 background: filter === "inactive"
                   ? "var(--error-light)"
@@ -853,7 +853,7 @@ export default function PlayersPage() {
             <div className="w-full sm:w-auto flex items-center gap-2 sm:gap-3 mt-3 sm:mt-0">
               <button
                 onClick={() => setFilter(filter === "top16_pods" ? "none" : "top16_pods")}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                className="flex items-center justify-center gap-1.5 sm:gap-2 min-w-22 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
                 style={{
                   background: filter === "top16_pods"
                     ? "var(--accent-light)"
@@ -869,7 +869,7 @@ export default function PlayersPage() {
               </button>
               <button
                 onClick={() => setFilter(filter === "top4_pods" ? "none" : "top4_pods")}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                className="flex items-center justify-center gap-1.5 sm:gap-2 min-w-22 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
                 style={{
                   background: filter === "top4_pods"
                     ? "var(--accent-light)"
