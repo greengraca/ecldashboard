@@ -30,10 +30,12 @@ export default function SubscriptionIncomeCard({
   async function toggleSource(key: SourceKey) {
     if (expanded === key) {
       setExpanded(null);
+      setActiveTierFilter(null);
       return;
     }
 
     setExpanded(key);
+    setActiveTierFilter(null);
 
     // Fetch breakdown if not cached for this month
     if (!breakdown || breakdownMonth !== month) {
@@ -101,62 +103,109 @@ export default function SubscriptionIncomeCard({
     },
   ];
 
-  const TIER_ORDER: Record<string, number> = {
-    "Diamond": 0,
-    "Gold": 1,
-    "ECL Grinder": 2,
-    "Silver": 3,
-    "Bronze": 4,
-  };
+  // Collect unique tiers from the current Patreon breakdown
+  const patreonEntries = breakdown?.patreon ?? [];
+  const uniqueTiers = [...new Set(patreonEntries.map((e) => e.tier).filter(Boolean))] as string[];
+  // Sort tiers by value descending
+  const TIER_VALUE: Record<string, number> = { "Diamond": 5, "Gold": 4, "ECL Grinder": 3, "Silver": 2, "Bronze": 1 };
+  uniqueTiers.sort((a, b) => (TIER_VALUE[b] ?? 0) - (TIER_VALUE[a] ?? 0));
 
-  function sortEntries(entries: SubscriptionBreakdownEntry[]) {
-    return [...entries].sort((a, b) => {
-      // Sort by tier rank first (higher tiers on top), then by amount desc, then name
-      const tierA = a.tier ? (TIER_ORDER[a.tier] ?? 99) : 99;
-      const tierB = b.tier ? (TIER_ORDER[b.tier] ?? 99) : 99;
-      if (tierA !== tierB) return tierA - tierB;
+  function renderBreakdownEntries(entries: SubscriptionBreakdownEntry[], color: string, sourceKey: SourceKey) {
+    // Sort by amount descending, then name
+    const sorted = [...entries].sort((a, b) => {
       if (b.amount !== a.amount) return b.amount - a.amount;
       return a.name.localeCompare(b.name);
     });
-  }
 
-  function renderBreakdownEntries(entries: SubscriptionBreakdownEntry[], color: string) {
-    const sorted = sortEntries(entries);
+    // If tier filter is active, split into matched (top) and rest (muted)
+    const hasTierFilter = activeTierFilter && sourceKey === "patreon";
+    const matched = hasTierFilter ? sorted.filter((e) => e.tier === activeTierFilter) : sorted;
+    const rest = hasTierFilter ? sorted.filter((e) => e.tier !== activeTierFilter) : [];
+
     return (
-      <div
-        className="mt-2 ml-4 space-y-1 text-sm"
-        style={{ borderLeft: `2px solid ${color}`, paddingLeft: "12px" }}
-      >
-        {sorted.map((entry, i) => (
-          <div key={i} className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span
-                className="truncate"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                {entry.name}
-              </span>
-              {entry.tier && (
-                <span
-                  className="shrink-0 rounded px-1 py-px leading-none"
+      <div className="mt-2 ml-4" style={{ borderLeft: `2px solid ${color}`, paddingLeft: "12px" }}>
+        {/* Tier filter pills — only for Patreon */}
+        {sourceKey === "patreon" && uniqueTiers.length > 1 && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {uniqueTiers.map((tier) => {
+              const isActive = activeTierFilter === tier;
+              const count = entries.filter((e) => e.tier === tier).length;
+              return (
+                <button
+                  key={tier}
+                  type="button"
+                  onClick={() => setActiveTierFilter(isActive ? null : tier)}
+                  className="rounded px-1.5 py-0.5 transition-colors"
                   style={{
                     fontSize: "10px",
-                    background: "rgba(255,255,255,0.06)",
-                    color: "var(--text-muted)",
+                    lineHeight: "1.4",
+                    background: isActive ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)",
+                    color: isActive ? "var(--text-primary)" : "var(--text-muted)",
+                    border: isActive ? "1px solid rgba(255,255,255,0.15)" : "1px solid transparent",
                   }}
                 >
-                  {entry.tier}
-                </span>
-              )}
-            </div>
-            <span
-              className="shrink-0"
-              style={{ color: "var(--text-muted)" }}
-            >
-              &euro;{entry.amount.toFixed(2)}
-            </span>
+                  {tier} ({count})
+                </button>
+              );
+            })}
           </div>
-        ))}
+        )}
+
+        <div className="space-y-1 text-sm">
+          {matched.map((entry, i) => (
+            <div key={`m-${i}`} className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="truncate" style={{ color: "var(--text-secondary)" }}>
+                  {entry.name}
+                </span>
+                {entry.tier && (
+                  <span
+                    className="shrink-0 rounded px-1 py-px leading-none"
+                    style={{
+                      fontSize: "10px",
+                      background: "rgba(255,255,255,0.06)",
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    {entry.tier}
+                  </span>
+                )}
+              </div>
+              <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+                &euro;{entry.amount.toFixed(2)}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {rest.length > 0 && (
+          <div className="space-y-1 text-sm mt-1" style={{ opacity: 0.4 }}>
+            {rest.map((entry, i) => (
+              <div key={`r-${i}`} className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="truncate" style={{ color: "var(--text-secondary)" }}>
+                    {entry.name}
+                  </span>
+                  {entry.tier && (
+                    <span
+                      className="shrink-0 rounded px-1 py-px leading-none"
+                      style={{
+                        fontSize: "10px",
+                        background: "rgba(255,255,255,0.06)",
+                        color: "var(--text-muted)",
+                      }}
+                    >
+                      {entry.tier}
+                    </span>
+                  )}
+                </div>
+                <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+                  &euro;{entry.amount.toFixed(2)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -258,7 +307,7 @@ export default function SubscriptionIncomeCard({
                     </span>
                   </div>
                 ) : entries.length > 0 ? (
-                  renderBreakdownEntries(entries, src.color)
+                  renderBreakdownEntries(entries, src.color, src.key)
                 ) : (
                   <p className="mt-2 ml-6 text-sm" style={{ color: "var(--text-muted)" }}>
                     No entries found
