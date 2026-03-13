@@ -1,7 +1,8 @@
 import { getDb } from "./mongodb";
 import { getRatesForMonth } from "./subscription-rates";
+import { fetchGuildMembers } from "./discord";
 import { PATREON_TIER_NET } from "./constants";
-import type { SubscriptionIncome } from "./types";
+import type { SubscriptionIncome, SubscriptionIncomeBreakdown } from "./types";
 
 // Bronze/Silver only count for income in January 2026
 const BRONZE_SILVER_TIERS = new Set(["Bronze", "Silver"]);
@@ -93,5 +94,98 @@ export async function getSubscriptionIncome(
     kofi: { count: totalKofi, amount: kofiAmount },
     manual: { count: manualCount, amount: manualAmount },
     total: Math.round((patreonAmount + kofiAmount + manualAmount) * 100) / 100,
+  };
+}
+
+export async function getSubscriptionIncomeBreakdown(
+  month: string
+): Promise<SubscriptionIncomeBreakdown> {
+  if (month === FREE_MONTH) {
+    return { patreon: [], kofi: [], manual: [] };
+  }
+
+  const db = await getDb();
+  const rates = await getRatesForMonth(month);
+
+  // 1. Patreon: individual snapshots with tier + net rate
+  const patreonSnapshots = await db
+    .collection("dashboard_patreon_snapshots")
+    .find({ month })
+    .toArray();
+
+  const patreonEntries = patreonSnapshots
+    .map((s) => {
+      const tier = (s.tier as string || "").trim();
+      if (BRONZE_SILVER_TIERS.has(tier) && month !== BRONZE_SILVER_ELIGIBLE_MONTH) {
+        return null;
+      }
+      const netRate = PATREON_TIER_NET[tier];
+      if (netRate === undefined) return null;
+      return {
+        name: (s.patreon_name as string) || s.discord_id || "Unknown",
+        tier,
+        amount: netRate,
+      };
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // Build discord ID → display name lookup
+  let memberMap: Map<string, string>;
+  try {
+    const members = await fetchGuildMembers();
+    memberMap = new Map(members.map((m) => [m.id, m.display_name]));
+  } catch {
+    memberMap = new Map();
+  }
+  const resolveName = (discordId: string) => memberMap.get(discordId) || discordId;
+
+  // 2. Ko-fi: individual users
+  const kofiFromBot = await db
+    .collection("subs_kofi_events")
+    .aggregate<{ _id: number }>([
+      { $match: { purchase_month: month } },
+      { $group: { _id: "$user_id" } },
+    ])
+    .toArray();
+
+  let kofiEntries: { name: string; amount: number }[];
+  if (kofiFromBot.length > 0) {
+    kofiEntries = kofiFromBot.map((k) => ({
+      name: resolveName(String(k._id)),
+      amount: rates.kofi_net,
+    }));
+  } else {
+    const kofiBackfill = await db
+      .collection("dashboard_kofi_backfill")
+      .aggregate<{ _id: string }>([
+        { $match: { month } },
+        { $group: { _id: "$discord_username" } },
+      ])
+      .toArray();
+    kofiEntries = kofiBackfill.map((k) => ({
+      name: k._id,
+      amount: rates.kofi_net,
+    }));
+  }
+  kofiEntries.sort((a, b) => a.name.localeCompare(b.name));
+
+  // 3. Manual: individual payments
+  const manualPayments = await db
+    .collection("dashboard_manual_payments")
+    .find({ month })
+    .toArray();
+
+  const manualEntries = manualPayments
+    .map((m) => ({
+      name: resolveName(m.discord_id as string),
+      amount: rates.manual_net,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return {
+    patreon: patreonEntries,
+    kofi: kofiEntries,
+    manual: manualEntries,
   };
 }

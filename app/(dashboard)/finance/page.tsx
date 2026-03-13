@@ -230,45 +230,33 @@ export default function FinancePage() {
             Track income, expenses, and monthly P&amp;L
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <MonthPicker value={month} onChange={setMonth} minMonth="2025-11" maxMonth={getCurrentMonth()} />
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            style={{
-              background: "var(--accent)",
-              color: "var(--accent-text)",
-            }}
-          >
-            <Plus className="w-4 h-4" />
-            Add Transaction
-          </button>
-        </div>
+        <MonthPicker value={month} onChange={setMonth} minMonth="2025-11" maxMonth={getCurrentMonth()} />
       </div>
 
-      {/* Monthly Breakdown Chart */}
-      <MonthlyBreakdownChart month={month} summary={summary} isLoading={summaryLoading} />
-
-      {/* Subscription Income */}
-      <div className="mb-8">
-        <SubscriptionIncomeCard
-          income={summary?.subscription_income ?? null}
-          isLoading={summaryLoading}
-          onSyncPatreon={handleSyncPatreon}
-          isSyncing={isSyncing}
-        />
-        {syncError && (
-          <div
-            className="mt-3 rounded-lg border px-4 py-3 text-sm"
-            style={{
-              background: "rgba(239, 68, 68, 0.1)",
-              borderColor: "var(--error)",
-              color: "var(--error)",
-            }}
-          >
-            {syncError}
-          </div>
-        )}
+      {/* Category Breakdown + Subscription Income */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+        <MonthlyBreakdownChart month={month} summary={summary} isLoading={summaryLoading} />
+        <div>
+          <SubscriptionIncomeCard
+            income={summary?.subscription_income ?? null}
+            isLoading={summaryLoading}
+            month={month}
+            onSyncPatreon={handleSyncPatreon}
+            isSyncing={isSyncing}
+          />
+          {syncError && (
+            <div
+              className="mt-3 rounded-lg border px-4 py-3 text-sm"
+              style={{
+                background: "rgba(239, 68, 68, 0.1)",
+                borderColor: "var(--error)",
+                color: "var(--error)",
+              }}
+            >
+              {syncError}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Balance Cards */}
@@ -276,29 +264,27 @@ export default function FinancePage() {
         <BalanceCard summary={summary} isLoading={summaryLoading} />
       </div>
 
-      {/* Group Profit Split */}
-      <div className="mb-8">
-        <h2
-          className="text-sm font-semibold uppercase tracking-wider mb-4"
-          style={{ color: "var(--text-muted)" }}
-        >
-          Team Split
-        </h2>
-        <GroupSummaryCard
-          summary={groupSummary}
-          isLoading={groupLoading}
-          onReimburse={handleReimburse}
-        />
-      </div>
-
       {/* Transaction Table */}
       <div className="mb-8">
-        <h2
-          className="text-sm font-semibold uppercase tracking-wider mb-4"
-          style={{ color: "var(--text-muted)" }}
-        >
-          Transactions
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2
+            className="text-sm font-semibold uppercase tracking-wider"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Transactions
+          </h2>
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            style={{
+              background: "var(--accent-light)",
+              color: "var(--accent)",
+            }}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add
+          </button>
+        </div>
         {isLoading ? (
           <div
             className="rounded-xl border p-12 text-center"
@@ -364,6 +350,21 @@ export default function FinancePage() {
             onDelete={handleDeleteFixedCost}
           />
         )}
+      </div>
+
+      {/* Group Profit Split */}
+      <div className="mb-8">
+        <h2
+          className="text-sm font-semibold uppercase tracking-wider mb-4"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Team Split
+        </h2>
+        <GroupSummaryCard
+          summary={groupSummary}
+          isLoading={groupLoading}
+          onReimburse={handleReimburse}
+        />
       </div>
 
       {/* Transaction Modal */}

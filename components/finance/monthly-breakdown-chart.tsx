@@ -85,7 +85,7 @@ export default function MonthlyBreakdownChart({
 
   return (
     <div
-      className="rounded-xl border p-4 sm:p-6 mb-8"
+      className="rounded-xl border p-4 sm:p-6 h-full"
       style={{
         background: "var(--bg-card)",
         borderColor: "var(--border)",

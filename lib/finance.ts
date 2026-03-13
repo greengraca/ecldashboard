@@ -303,6 +303,64 @@ function getMemberGroup(id: string): "cedhpt" | "ca" | null {
   return TEAM_MEMBERS.find((m) => m.id === id)?.group || null;
 }
 
+export async function getAllPendingReimbursements(): Promise<PendingReimbursement[]> {
+  const db = await getDb();
+  const pending: PendingReimbursement[] = [];
+
+  const [transactions, fixedCostPayments] = await Promise.all([
+    db.collection<Transaction>("dashboard_transactions")
+      .find({
+        type: "expense",
+        paid_by: { $ne: null, $nin: [TREASURER_ID] },
+        reimbursed: { $ne: true },
+      })
+      .sort({ date: -1 })
+      .toArray(),
+    db.collection<FixedCostPayment>("dashboard_fixed_cost_payments")
+      .find({
+        paid_by: { $ne: TREASURER_ID },
+        reimbursed: { $ne: true },
+      })
+      .sort({ month: -1 })
+      .toArray(),
+  ]);
+
+  for (const tx of transactions) {
+    pending.push({
+      id: String(tx._id),
+      source: "transaction",
+      description: tx.description,
+      amount: tx.amount,
+      paid_by: tx.paid_by!,
+      paid_by_name: getMemberName(tx.paid_by!),
+      date: tx.date,
+    });
+  }
+
+  // Batch-load fixed cost names
+  const fcIds = [...new Set(fixedCostPayments.map((p) => p.fixed_cost_id))];
+  const fcDocs = fcIds.length > 0
+    ? await db.collection<FixedCost>("dashboard_fixed_costs")
+        .find({ _id: { $in: fcIds.map((id) => new ObjectId(id)) } })
+        .toArray()
+    : [];
+  const fcNameMap = new Map(fcDocs.map((fc) => [String(fc._id), fc.name]));
+
+  for (const fcp of fixedCostPayments) {
+    pending.push({
+      id: String(fcp._id),
+      source: "fixed_cost",
+      description: fcNameMap.get(fcp.fixed_cost_id) || "Fixed cost",
+      amount: fcp.amount,
+      paid_by: fcp.paid_by,
+      paid_by_name: getMemberName(fcp.paid_by),
+      date: `${fcp.month}-01`,
+    });
+  }
+
+  return pending;
+}
+
 export async function reimburseExpense(
   id: string,
   source: "transaction" | "fixed_cost",

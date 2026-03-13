@@ -152,6 +152,18 @@ export interface SubscriptionIncome {
   total: number;
 }
 
+export interface SubscriptionBreakdownEntry {
+  name: string;
+  tier?: string;
+  amount: number;
+}
+
+export interface SubscriptionIncomeBreakdown {
+  patreon: SubscriptionBreakdownEntry[];
+  kofi: SubscriptionBreakdownEntry[];
+  manual: SubscriptionBreakdownEntry[];
+}
+
 export interface SubscriptionRate {
   _id?: ObjectId | string;
   effective_from: string; // "YYYY-MM"

@@ -3,8 +3,8 @@
 import useSWR from "swr";
 import StatCard from "@/components/dashboard/stat-card";
 import FinanceOverview from "@/components/finance/finance-overview";
-import { Users, Wallet, Swords, Activity } from "lucide-react";
-import type { ActivityEntry, ActivityAction } from "@/lib/types";
+import { Users, Wallet, Swords, Activity, CheckCircle, Clock } from "lucide-react";
+import type { ActivityEntry, ActivityAction, PendingReimbursement } from "@/lib/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -80,6 +80,11 @@ export default function HomePage() {
     fetcher
   );
 
+  const { data: pendingData, isLoading: pendingLoading, mutate: mutatePending } = useSWR<{ data: PendingReimbursement[] }>(
+    "/api/finance/pending-reimbursements",
+    fetcher
+  );
+
   const summary = subData?.data?.summary;
   const finance = financeData?.data;
   const liveStandings = playerData?.data?.standings;
@@ -95,6 +100,16 @@ export default function HomePage() {
   const net = finance?.net ?? null;
   const activeStandings = liveStandings?.filter((s: { dropped: boolean }) => !s.dropped);
   const playerCount = activeStandings?.length ?? null;
+  const pendingReimbursements: PendingReimbursement[] = pendingData?.data || [];
+
+  async function handleReimburse(item: PendingReimbursement) {
+    await fetch("/api/finance/reimburse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: item.id, source: item.source, reimbursed: true }),
+    });
+    mutatePending();
+  }
 
   return (
     <div>
@@ -285,34 +300,66 @@ export default function HomePage() {
             className="text-sm font-medium uppercase tracking-wider mb-4"
             style={{ color: "var(--text-muted)" }}
           >
-            Quick Links
+            Pending Reimbursements
           </h2>
-          <div className="space-y-2">
-            {[
-              { label: "Manage Subscribers", href: "/subscribers" },
-              { label: "View Finances", href: "/finance" },
-              { label: "Player Standings", href: "/players" },
-              { label: "Activity Log", href: "/activity" },
-              { label: "Settings", href: "/settings" },
-            ].map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="block px-3 py-2 rounded-lg text-sm transition-colors"
-                style={{ color: "var(--text-secondary)" }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--bg-hover)";
-                  e.currentTarget.style.color = "var(--text-primary)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "var(--text-secondary)";
-                }}
+
+          {pendingLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="skeleton h-8 w-full" />
+              ))}
+            </div>
+          ) : pendingReimbursements.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-6 gap-2">
+              <CheckCircle className="w-8 h-8" style={{ color: "var(--success)" }} />
+              <p
+                className="text-sm"
+                style={{ color: "var(--text-muted)" }}
               >
-                {link.label}
-              </a>
-            ))}
-          </div>
+                All caught up — no pending reimbursements
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-y-auto space-y-1 pr-1" style={{ maxHeight: "320px" }}>
+              {pendingReimbursements.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 py-2 border-b last:border-b-0"
+                  style={{ borderColor: "var(--border-subtle)" }}
+                >
+                  <Clock
+                    className="w-4 h-4 flex-shrink-0"
+                    style={{ color: "var(--warning, #f59e0b)" }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className="text-sm truncate"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      {item.description}
+                    </p>
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                      {item.paid_by_name} &middot; {item.date}
+                    </p>
+                  </div>
+                  <span
+                    className="text-sm font-medium flex-shrink-0"
+                    style={{ color: "var(--error)" }}
+                  >
+                    &euro;{item.amount.toFixed(2)}
+                  </span>
+                  <button
+                    onClick={() => handleReimburse(item)}
+                    className="p-1.5 rounded-lg transition-colors flex-shrink-0"
+                    style={{ color: "var(--success)" }}
+                    title="Mark as reimbursed"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
