@@ -1,20 +1,28 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, CheckCircle, Clock } from "lucide-react";
 import DataTable from "@/components/dashboard/data-table";
 import type { Column } from "@/components/dashboard/data-table";
 import type { Transaction } from "@/lib/types";
+import { TEAM_MEMBERS, TREASURER_ID } from "@/lib/constants";
 
 interface TransactionTableProps {
   transactions: Transaction[];
   onEdit: (transaction: Transaction) => void;
   onDelete: (transaction: Transaction) => void;
+  onReimburse?: (tx: Transaction) => void;
+}
+
+function getMemberName(id: string | null | undefined): string {
+  if (!id) return "—";
+  return TEAM_MEMBERS.find((m) => m.id === id)?.name || id;
 }
 
 export default function TransactionTable({
   transactions,
   onEdit,
   onDelete,
+  onReimburse,
 }: TransactionTableProps) {
   const columns: Column<Transaction>[] = [
     {
@@ -60,6 +68,15 @@ export default function TransactionTable({
       ),
     },
     {
+      key: "paid_by",
+      label: "Paid by",
+      render: (row) => (
+        <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+          {getMemberName((row as unknown as Transaction).paid_by)}
+        </span>
+      ),
+    },
+    {
       key: "description",
       label: "Description",
       render: (row) => (
@@ -88,33 +105,52 @@ export default function TransactionTable({
     {
       key: "actions",
       label: "",
-      className: "w-24",
-      render: (row) => (
-        <div className="flex items-center gap-1 justify-end">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(row);
-            }}
-            className="p-1.5 rounded-lg transition-colors hover:bg-[var(--bg-hover)]"
-            style={{ color: "var(--text-muted)" }}
-            title="Edit"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(row);
-            }}
-            className="p-1.5 rounded-lg transition-colors hover:bg-[var(--error-light)]"
-            style={{ color: "var(--text-muted)" }}
-            title="Delete"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ),
+      className: "w-32",
+      render: (row) => {
+        const tx = row as unknown as Transaction;
+        const showReimburse = tx.type === "expense" && tx.paid_by && tx.paid_by !== TREASURER_ID && onReimburse;
+        return (
+          <div className="flex items-center gap-1 justify-end">
+            {showReimburse && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReimburse(tx);
+                }}
+                className="p-1.5 rounded-lg transition-colors"
+                style={{
+                  color: tx.reimbursed ? "var(--success)" : "var(--warning, #f59e0b)",
+                }}
+                title={tx.reimbursed ? "Reimbursed — click to undo" : "Pending — click to reimburse"}
+              >
+                {tx.reimbursed ? <CheckCircle className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
+              </button>
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(row);
+              }}
+              className="p-1.5 rounded-lg transition-colors hover:bg-[var(--bg-hover)]"
+              style={{ color: "var(--text-muted)" }}
+              title="Edit"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(row);
+              }}
+              className="p-1.5 rounded-lg transition-colors hover:bg-[var(--error-light)]"
+              style={{ color: "var(--text-muted)" }}
+              title="Delete"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -162,6 +198,16 @@ export default function TransactionTable({
                   {tx.description}
                 </span>
                 <div className="flex items-center gap-1">
+                  {tx.type === "expense" && tx.paid_by && tx.paid_by !== TREASURER_ID && onReimburse && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onReimburse(tx); }}
+                      className="p-1.5 rounded-lg transition-colors"
+                      style={{ color: tx.reimbursed ? "var(--success)" : "var(--warning, #f59e0b)" }}
+                      title={tx.reimbursed ? "Reimbursed" : "Pending"}
+                    >
+                      {tx.reimbursed ? <CheckCircle className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
+                    </button>
+                  )}
                   <button
                     onClick={(e) => { e.stopPropagation(); onEdit(tx); }}
                     className="p-1.5 rounded-lg transition-colors hover:bg-[var(--bg-hover)]"
@@ -178,7 +224,14 @@ export default function TransactionTable({
                   </button>
                 </div>
               </div>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{tx.date}</p>
+              <div className="flex items-center gap-2">
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>{tx.date}</span>
+                {tx.paid_by && (
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    Paid by {getMemberName(tx.paid_by)}
+                  </span>
+                )}
+              </div>
             </div>
           );
         }}

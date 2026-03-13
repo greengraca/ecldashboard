@@ -66,6 +66,9 @@ export interface Transaction {
   amount: number;
   currency: string;
   tags: string[];
+  paid_by?: string | null;
+  reimbursed?: boolean;
+  reimbursed_at?: string | null;
   modified_by: string;
   created_at: string;
   updated_at: string;
@@ -79,9 +82,49 @@ export interface FixedCost {
   active: boolean;
   start_month: string;
   end_month: string | null;
+  paid_by?: string | null;
   modified_by: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface FixedCostPayment {
+  _id?: ObjectId | string;
+  fixed_cost_id: string;
+  month: string;
+  paid_by: string;
+  amount: number;
+  reimbursed: boolean;
+  reimbursed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GroupSummary {
+  month: string;
+  total_income: number;
+  total_expenses: number;
+  total_net: number;
+  profit_split: number;
+  groups: { cedhpt: GroupDetail; ca: GroupDetail };
+  pending_reimbursements: PendingReimbursement[];
+}
+
+export interface GroupDetail {
+  label: string;
+  profit_share: number;
+  expenses_paid: number;
+  pending: number;
+}
+
+export interface PendingReimbursement {
+  id: string;
+  source: "transaction" | "fixed_cost";
+  description: string;
+  amount: number;
+  paid_by: string;
+  paid_by_name: string;
+  date: string;
 }
 
 export interface MonthlySummary {

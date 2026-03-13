@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, amount, category, active, start_month, end_month } = body;
+    const { name, amount, category, active, start_month, end_month, paid_by } = body;
 
     if (!name || amount == null || !category || !start_month) {
       return NextResponse.json(
@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
         active: active ?? true,
         start_month,
         end_month: end_month || null,
+        paid_by: paid_by || null,
       },
       userId,
       userName

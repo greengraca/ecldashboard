@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import type { FixedCost } from "@/lib/types";
 import Select from "@/components/dashboard/select";
+import { TEAM_MEMBERS } from "@/lib/constants";
 
 function appliesToMonth(fc: FixedCost, month: string): boolean {
   if (fc.start_month > month) return false;
@@ -21,6 +22,7 @@ interface FixedCostManagerProps {
     active: boolean;
     start_month: string;
     end_month: string | null;
+    paid_by?: string | null;
   }) => Promise<void>;
   onUpdate: (
     id: string,
@@ -31,6 +33,7 @@ interface FixedCostManagerProps {
       active: boolean;
       start_month: string;
       end_month: string | null;
+      paid_by: string | null;
     }>
   ) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -50,12 +53,14 @@ export default function FixedCostManager({
     amount: "",
     category: "operational" as "prize" | "operational",
     start_month: new Date().toISOString().substring(0, 7),
+    paid_by: "",
   });
   const [editForm, setEditForm] = useState({
     name: "",
     amount: "",
     category: "operational" as "prize" | "operational",
     start_month: "",
+    paid_by: "",
   });
 
   const monthlyTotal = fixedCosts
@@ -71,8 +76,9 @@ export default function FixedCostManager({
       active: true,
       start_month: form.start_month,
       end_month: null,
+      paid_by: form.paid_by || null,
     });
-    setForm({ name: "", amount: "", category: "operational", start_month: new Date().toISOString().substring(0, 7) });
+    setForm({ name: "", amount: "", category: "operational", start_month: new Date().toISOString().substring(0, 7), paid_by: "" });
     setAdding(false);
   }
 
@@ -83,6 +89,7 @@ export default function FixedCostManager({
       amount: fc.amount.toString(),
       category: fc.category,
       start_month: fc.start_month,
+      paid_by: fc.paid_by || "",
     });
   }
 
@@ -92,6 +99,7 @@ export default function FixedCostManager({
       amount: parseFloat(editForm.amount),
       category: editForm.category,
       start_month: editForm.start_month,
+      paid_by: editForm.paid_by || null,
     });
     setEditingId(null);
   }
@@ -167,7 +175,7 @@ export default function FixedCostManager({
               style={inputStyle}
             />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Select
               value={form.category}
               onChange={(val) =>
@@ -179,6 +187,14 @@ export default function FixedCostManager({
               options={[
                 { value: "operational", label: "Operational" },
                 { value: "prize", label: "Prize" },
+              ]}
+            />
+            <Select
+              value={form.paid_by}
+              onChange={(val) => setForm({ ...form, paid_by: val })}
+              options={[
+                { value: "", label: "Paid by..." },
+                ...TEAM_MEMBERS.map((m) => ({ value: m.id, label: m.name })),
               ]}
             />
             <div className="flex flex-col gap-1">
@@ -274,6 +290,15 @@ export default function FixedCostManager({
                     ]}
                     size="sm"
                   />
+                  <Select
+                    value={editForm.paid_by}
+                    onChange={(val) => setEditForm({ ...editForm, paid_by: val })}
+                    options={[
+                      { value: "", label: "Paid by..." },
+                      ...TEAM_MEMBERS.map((m) => ({ value: m.id, label: m.name })),
+                    ]}
+                    size="sm"
+                  />
                   <input
                     type="month"
                     value={editForm.start_month}
@@ -342,6 +367,14 @@ export default function FixedCostManager({
                       >
                         {fc.category}
                       </span>
+                      {fc.paid_by && (
+                        <span
+                          className="ml-2 text-xs"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          ({TEAM_MEMBERS.find((m) => m.id === fc.paid_by)?.name || fc.paid_by})
+                        </span>
+                      )}
                       {!applies && (
                         <span
                           className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full font-medium"

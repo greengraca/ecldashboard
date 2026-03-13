@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { date, type, category, description, amount, tags } = body;
+    const { date, type, category, description, amount, tags, paid_by } = body;
 
     if (!date || !type || !category || !description || amount == null) {
       return NextResponse.json(
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     const userName = (session.user as any).username || session.user.name || "unknown";
 
     const transaction = await createTransaction(
-      { month, date, type, category, description, amount: Number(amount), tags: tags || [] },
+      { month, date, type, category, description, amount: Number(amount), tags: tags || [], paid_by: paid_by || null },
       userId,
       userName
     );

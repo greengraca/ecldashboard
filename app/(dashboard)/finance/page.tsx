@@ -11,10 +11,12 @@ import TransactionTable from "@/components/finance/transaction-table";
 import FixedCostManager from "@/components/finance/fixed-cost-manager";
 import MonthlyBreakdownChart from "@/components/finance/monthly-breakdown-chart";
 import SubscriptionIncomeCard from "@/components/finance/SubscriptionIncomeCard";
+import GroupSummaryCard from "@/components/finance/group-summary-card";
 import type {
   Transaction,
   FixedCost,
   MonthlySummary,
+  GroupSummary,
   TransactionType,
   TransactionCategory,
 } from "@/lib/types";
@@ -59,15 +61,26 @@ export default function FinancePage() {
     mutate: mutateFc,
   } = useSWR<{ data: FixedCost[] }>("/api/finance/fixed-costs", fetcher);
 
+  const {
+    data: groupData,
+    isLoading: groupLoading,
+    mutate: mutateGroup,
+  } = useSWR<{ data: GroupSummary }>(
+    `/api/finance/group-summary?month=${month}`,
+    fetcher
+  );
+
   const transactions = txData?.data || [];
   const summary = summaryData?.data || null;
   const fixedCosts = fcData?.data || [];
+  const groupSummary = groupData?.data || null;
 
   const refreshAll = useCallback(() => {
     mutateTx();
     mutateSummary();
     mutateFc();
-  }, [mutateTx, mutateSummary, mutateFc]);
+    mutateGroup();
+  }, [mutateTx, mutateSummary, mutateFc, mutateGroup]);
 
   const handleSyncPatreon = async () => {
     setIsSyncing(true);
@@ -106,6 +119,7 @@ export default function FinancePage() {
     description: string;
     amount: number;
     tags: string[];
+    paid_by?: string | null;
   }) {
     if (editingTx) {
       await fetch(`/api/finance/transactions/${editingTx._id}`, {
@@ -146,6 +160,7 @@ export default function FinancePage() {
     active: boolean;
     start_month: string;
     end_month: string | null;
+    paid_by?: string | null;
   }) {
     await fetch("/api/finance/fixed-costs", {
       method: "POST",
@@ -163,6 +178,7 @@ export default function FinancePage() {
       category: "prize" | "operational";
       active: boolean;
       end_month: string | null;
+      paid_by: string | null;
     }>
   ) {
     await fetch(`/api/finance/fixed-costs/${id}`, {
@@ -179,6 +195,19 @@ export default function FinancePage() {
       method: "DELETE",
     });
     refreshAll();
+  }
+
+  async function handleReimburse(id: string, source: "transaction" | "fixed_cost", currentlyReimbursed: boolean) {
+    await fetch("/api/finance/reimburse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, source, reimbursed: !currentlyReimbursed }),
+    });
+    refreshAll();
+  }
+
+  function handleReimburseTx(tx: Transaction) {
+    handleReimburse(String(tx._id), "transaction", !!tx.reimbursed);
   }
 
   const isLoading = txLoading || summaryLoading || fcLoading;
@@ -247,6 +276,21 @@ export default function FinancePage() {
         <BalanceCard summary={summary} isLoading={summaryLoading} />
       </div>
 
+      {/* Group Profit Split */}
+      <div className="mb-8">
+        <h2
+          className="text-sm font-semibold uppercase tracking-wider mb-4"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Team Split
+        </h2>
+        <GroupSummaryCard
+          summary={groupSummary}
+          isLoading={groupLoading}
+          onReimburse={handleReimburse}
+        />
+      </div>
+
       {/* Transaction Table */}
       <div className="mb-8">
         <h2
@@ -282,6 +326,7 @@ export default function FinancePage() {
             transactions={transactions}
             onEdit={openEdit}
             onDelete={handleDeleteTransaction}
+            onReimburse={handleReimburseTx}
           />
         )}
       </div>

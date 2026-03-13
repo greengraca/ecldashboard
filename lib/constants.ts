@@ -56,3 +56,26 @@ export const DEFAULT_KOFI_NET = 5.63;
 export const DEFAULT_MANUAL_NET = 6.50;
 
 export const PATREON_CREATOR_TOKEN = process.env.PATREON_CREATOR_TOKEN || "";
+
+// ─── Team Members & Groups ───
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  group: "cedhpt" | "ca";
+}
+
+export const TEAM_MEMBERS: TeamMember[] = [
+  { id: "kakah",    name: "Kakah",    group: "cedhpt" },
+  { id: "graca",    name: "Graça",    group: "ca" },
+  { id: "rodrigo",  name: "Rodrigo",  group: "ca" },
+  { id: "ruka",     name: "Ruka",     group: "ca" },
+  { id: "bezugas",  name: "Bezugas",  group: "ca" },
+];
+
+export const TREASURER_ID = "kakah";
+
+export const GROUPS = {
+  cedhpt: { label: "cedhpt", members: ["kakah"] },
+  ca:     { label: "CommanderArena", members: ["graca", "rodrigo", "ruka", "bezugas"] },
+} as const;

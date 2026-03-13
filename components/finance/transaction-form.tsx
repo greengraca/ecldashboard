@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import type { Transaction, TransactionType, TransactionCategory } from "@/lib/types";
 import Select from "@/components/dashboard/select";
+import { TEAM_MEMBERS } from "@/lib/constants";
 
 interface TransactionFormProps {
   transaction?: Transaction;
@@ -14,6 +15,7 @@ interface TransactionFormProps {
     description: string;
     amount: number;
     tags: string[];
+    paid_by?: string | null;
   }) => Promise<void>;
   onCancel: () => void;
 }
@@ -71,6 +73,7 @@ export default function TransactionForm({
   const [description, setDescription] = useState(transaction?.description || "");
   const [amount, setAmount] = useState(transaction?.amount?.toString() || "");
   const [tagsInput, setTagsInput] = useState(transaction?.tags?.join(", ") || "");
+  const [paidBy, setPaidBy] = useState(transaction?.paid_by || "");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -89,6 +92,7 @@ export default function TransactionForm({
           .split(",")
           .map((t) => t.trim())
           .filter(Boolean),
+        paid_by: type === "expense" && paidBy ? paidBy : null,
       });
     } finally {
       setLoading(false);
@@ -202,6 +206,27 @@ export default function TransactionForm({
           className="w-full"
         />
       </div>
+
+      {/* Paid by (expenses only) */}
+      {type === "expense" && (
+        <div>
+          <label
+            className="block text-xs font-medium uppercase tracking-wider mb-1.5"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Paid by
+          </label>
+          <Select
+            value={paidBy}
+            onChange={setPaidBy}
+            options={[
+              { value: "", label: "Select member..." },
+              ...TEAM_MEMBERS.map((m) => ({ value: m.id, label: m.name })),
+            ]}
+            className="w-full"
+          />
+        </div>
+      )}
 
       {/* Description */}
       <div>
