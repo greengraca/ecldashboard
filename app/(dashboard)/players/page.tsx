@@ -446,12 +446,12 @@ export default function PlayersPage() {
   const liveVoided: number = liveData?.data?.voided ?? 0;
   const bracketId = liveData?.data?.bracket_id || playersData?.data?.bracket_id || "";
 
-  // Resolve champion name from bracket data + player list
-  const championName = useMemo(() => {
+  // Resolve champion name + uid from bracket data + player list
+  const champion = useMemo(() => {
     const winnerId = bracketRes?.data?.top4_winner;
     if (!winnerId) return null;
     const player = players.find((p) => p.uid === winnerId);
-    return player?.name || winnerId;
+    return { name: player?.name || winnerId, uid: winnerId };
   }, [bracketRes, players]);
 
   // Summary stats — derived from live data or dump data depending on month
@@ -753,15 +753,19 @@ export default function PlayersPage() {
       {!isCurrentMonth && (
         <>
           {/* Champion banner — always visible */}
-          {championName && (
+          {champion && (
             <div
               className="rounded-xl border p-4 text-center mb-6"
               style={{ background: "var(--accent-light)", borderColor: "var(--accent-border)" }}
             >
               <Trophy className="w-6 h-6 mx-auto mb-1" style={{ color: "var(--accent)" }} />
               <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Champion</p>
-              <p className="text-lg font-bold" style={{ color: "var(--accent)" }}>
-                {championName}
+              <p
+                className="text-lg font-bold cursor-pointer transition-opacity hover:opacity-80"
+                style={{ color: "var(--accent)" }}
+                onClick={() => router.push(`/players/${champion.uid}`)}
+              >
+                {champion.name}
               </p>
             </div>
           )}
