@@ -235,7 +235,7 @@ export default function FinanceOverview() {
           No data available
         </div>
       ) : (
-        <div style={{ height: 280 }}>
+        <div style={{ height: 280, outline: "none", WebkitTapHighlightColor: "transparent" }}>
           <ResponsiveContainer width="100%" height="100%">
             {chartView === "area" ? (
               <AreaChart data={chartData} margin={{ left: -15, right: 5, top: 5, bottom: 0 }}>

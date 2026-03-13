@@ -131,7 +131,7 @@ export default function MonthlyBreakdownChart({
           No transactions this month
         </div>
       ) : (
-        <div style={{ height: 220 }}>
+        <div style={{ height: 220, outline: "none", WebkitTapHighlightColor: "transparent" }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} layout="vertical" barSize={20} margin={{ left: -10, right: 5, top: 5, bottom: 0 }}>
               <CartesianGrid

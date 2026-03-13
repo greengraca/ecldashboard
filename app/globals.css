@@ -87,7 +87,7 @@ body {
 }
 
 /* Remove focus outlines from chart containers */
-.recharts-wrapper, .recharts-wrapper svg, .recharts-surface {
+.recharts-wrapper, .recharts-wrapper * {
   outline: none !important;
   -webkit-tap-highlight-color: transparent;
 }
