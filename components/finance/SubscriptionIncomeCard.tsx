@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { SubscriptionIncome, SubscriptionIncomeBreakdown, SubscriptionBreakdownEntry } from "@/lib/types";
 
@@ -26,6 +27,24 @@ export default function SubscriptionIncomeCard({
   const [breakdownLoading, setBreakdownLoading] = useState(false);
   const [breakdownMonth, setBreakdownMonth] = useState<string | null>(null);
   const [activeTierFilter, setActiveTierFilter] = useState<string | null>(null);
+
+  // Re-fetch breakdown when month changes — keep stale data visible to avoid jitter
+  useEffect(() => {
+    if (breakdownMonth && breakdownMonth !== month && expanded) {
+      setActiveTierFilter(null);
+      setBreakdownLoading(true);
+      fetch(`/api/finance/subscription-income/breakdown?month=${month}`)
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.data) {
+            setBreakdown(json.data);
+            setBreakdownMonth(month);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setBreakdownLoading(false));
+    }
+  }, [month, breakdownMonth, expanded]);
 
   async function toggleSource(key: SourceKey) {
     if (expanded === key) {
@@ -101,7 +120,7 @@ export default function SubscriptionIncomeCard({
       amount: income.manual.amount,
       color: "var(--success)",
     },
-  ];
+  ].filter((src) => src.count > 0) as { key: SourceKey; label: string; count: number; amount: number; color: string }[];
 
   // Collect unique tiers from the current Patreon breakdown
   const patreonEntries = breakdown?.patreon ?? [];
@@ -109,6 +128,55 @@ export default function SubscriptionIncomeCard({
   // Sort tiers by value descending
   const TIER_VALUE: Record<string, number> = { "Diamond": 5, "Gold": 4, "ECL Grinder": 3, "Silver": 2, "Bronze": 1 };
   uniqueTiers.sort((a, b) => (TIER_VALUE[b] ?? 0) - (TIER_VALUE[a] ?? 0));
+
+  function renderEntry(entry: SubscriptionBreakdownEntry, key: string, muted: boolean) {
+    const inner = (
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="truncate" style={{ color: "var(--text-secondary)" }}>
+            {entry.name}
+          </span>
+          {entry.tier && (
+            <span
+              className="shrink-0 rounded px-1 py-px leading-none"
+              style={{
+                fontSize: "10px",
+                background: "rgba(255,255,255,0.06)",
+                color: "var(--text-muted)",
+              }}
+            >
+              {entry.tier}
+            </span>
+          )}
+        </div>
+        <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+          &euro;{entry.amount.toFixed(2)}
+        </span>
+      </div>
+    );
+
+    const href = entry.topdeck_uid
+      ? `/players/${entry.topdeck_uid}`
+      : entry.discord_id
+        ? `/subscribers`
+        : null;
+
+    if (href) {
+      return (
+        <Link
+          key={key}
+          href={href}
+          className="block rounded px-1 -mx-1 transition-colors"
+          onMouseEnter={(e) => { e.currentTarget.style.background = muted ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.06)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+        >
+          {inner}
+        </Link>
+      );
+    }
+
+    return <div key={key}>{inner}</div>;
+  }
 
   function renderBreakdownEntries(entries: SubscriptionBreakdownEntry[], color: string, sourceKey: SourceKey) {
     // Sort by amount descending, then name
@@ -151,59 +219,13 @@ export default function SubscriptionIncomeCard({
           </div>
         )}
 
-        <div className="space-y-1 text-sm">
-          {matched.map((entry, i) => (
-            <div key={`m-${i}`} className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="truncate" style={{ color: "var(--text-secondary)" }}>
-                  {entry.name}
-                </span>
-                {entry.tier && (
-                  <span
-                    className="shrink-0 rounded px-1 py-px leading-none"
-                    style={{
-                      fontSize: "10px",
-                      background: "rgba(255,255,255,0.06)",
-                      color: "var(--text-muted)",
-                    }}
-                  >
-                    {entry.tier}
-                  </span>
-                )}
-              </div>
-              <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
-                &euro;{entry.amount.toFixed(2)}
-              </span>
-            </div>
-          ))}
+        <div className="space-y-0.5 text-sm">
+          {matched.map((entry, i) => renderEntry(entry, `m-${i}`, false))}
         </div>
 
         {rest.length > 0 && (
-          <div className="space-y-1 text-sm mt-1" style={{ opacity: 0.4 }}>
-            {rest.map((entry, i) => (
-              <div key={`r-${i}`} className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="truncate" style={{ color: "var(--text-secondary)" }}>
-                    {entry.name}
-                  </span>
-                  {entry.tier && (
-                    <span
-                      className="shrink-0 rounded px-1 py-px leading-none"
-                      style={{
-                        fontSize: "10px",
-                        background: "rgba(255,255,255,0.06)",
-                        color: "var(--text-muted)",
-                      }}
-                    >
-                      {entry.tier}
-                    </span>
-                  )}
-                </div>
-                <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
-                  &euro;{entry.amount.toFixed(2)}
-                </span>
-              </div>
-            ))}
+          <div className="space-y-0.5 text-sm mt-1" style={{ opacity: 0.4 }}>
+            {rest.map((entry, i) => renderEntry(entry, `r-${i}`, true))}
           </div>
         )}
       </div>
@@ -293,7 +315,12 @@ export default function SubscriptionIncomeCard({
               </button>
 
               {isExpanded && (
-                breakdownLoading ? (
+                // Show stale data with opacity while loading new month, spinner only on first load
+                entries.length > 0 ? (
+                  <div style={{ opacity: breakdownLoading ? 0.45 : 1, transition: "opacity 150ms" }}>
+                    {renderBreakdownEntries(entries, src.color, src.key)}
+                  </div>
+                ) : breakdownLoading ? (
                   <div className="flex items-center gap-2 mt-2 ml-6">
                     <div
                       className="w-4 h-4 animate-spin rounded-full border-2"
@@ -306,8 +333,6 @@ export default function SubscriptionIncomeCard({
                       Loading...
                     </span>
                   </div>
-                ) : entries.length > 0 ? (
-                  renderBreakdownEntries(entries, src.color, src.key)
                 ) : (
                   <p className="mt-2 ml-6 text-sm" style={{ color: "var(--text-muted)" }}>
                     No entries found

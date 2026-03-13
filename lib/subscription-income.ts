@@ -1,8 +1,11 @@
 import { getDb } from "./mongodb";
 import { getRatesForMonth } from "./subscription-rates";
 import { fetchGuildMembers } from "./discord";
-import { PATREON_TIER_NET } from "./constants";
+import { fetchPublicPData } from "./topdeck-cache";
+import { getHistoricalMonths } from "./topdeck";
+import { PATREON_TIER_NET, TOPDECK_BRACKET_ID } from "./constants";
 import type { SubscriptionIncome, SubscriptionIncomeBreakdown } from "./types";
+import type { DiscordMember } from "./types";
 
 // Bronze/Silver only count for income in January 2026
 const BRONZE_SILVER_TIERS = new Set(["Bronze", "Silver"]);
@@ -107,7 +110,50 @@ export async function getSubscriptionIncomeBreakdown(
   const db = await getDb();
   const rates = await getRatesForMonth(month);
 
-  // 1. Patreon: individual snapshots with tier + net rate
+  // ─── Build lookup maps from guild members ───
+  let members: DiscordMember[] = [];
+  try {
+    members = await fetchGuildMembers();
+  } catch {
+    // proceed without — links just won't resolve
+  }
+  // discord_id → display_name
+  const idToName = new Map(members.map((m) => [m.id, m.display_name]));
+  // lowercase discord_username → discord_id
+  const usernameToId = new Map(members.map((m) => [m.username.toLowerCase(), m.id]));
+  // lowercase display_name → discord_id (fallback for patreon_name matching)
+  const displayToId = new Map(members.map((m) => [m.display_name.toLowerCase(), m.id]));
+
+  const resolveName = (discordId: string) => idToName.get(discordId) || discordId;
+
+  // ─── Build discord_id → topdeck_uid map from PublicPData ───
+  const discordIdToUid = new Map<string, string>();
+  try {
+    const monthInfos = await getHistoricalMonths();
+    const bracketIds = new Set<string>();
+    if (TOPDECK_BRACKET_ID) bracketIds.add(TOPDECK_BRACKET_ID);
+    for (const m of monthInfos) bracketIds.add(m.bracket_id);
+
+    for (const bracketId of bracketIds) {
+      try {
+        const pdata = await fetchPublicPData(bracketId);
+        for (const [uid, info] of Object.entries(pdata)) {
+          const discord = info.discord?.toLowerCase().trim();
+          if (!discord) continue;
+          const discordId = usernameToId.get(discord);
+          if (discordId && !discordIdToUid.has(discordId)) {
+            discordIdToUid.set(discordId, uid);
+          }
+        }
+      } catch {
+        // skip brackets that fail
+      }
+    }
+  } catch {
+    // proceed without uid mapping
+  }
+
+  // ─── 1. Patreon: individual snapshots with tier + net rate ───
   const patreonSnapshots = await db
     .collection("dashboard_patreon_snapshots")
     .find({ month })
@@ -121,8 +167,30 @@ export async function getSubscriptionIncomeBreakdown(
       }
       const netRate = PATREON_TIER_NET[tier];
       if (netRate === undefined) return null;
+
+      // Resolve discord_id — the field may be a real snowflake (API sync)
+      // or a discord username string (CSV backfill). Detect by checking if it's all digits.
+      let discordId: string | undefined;
+      const rawDiscord = s.discord_id ? s.discord_id.toString().trim() : "";
+      if (rawDiscord) {
+        if (/^\d+$/.test(rawDiscord)) {
+          // Real snowflake from Patreon API sync
+          discordId = rawDiscord;
+        } else {
+          // Username from CSV backfill — look up the actual discord_id
+          discordId = usernameToId.get(rawDiscord.toLowerCase()) || undefined;
+        }
+      }
+      // Fallback: match patreon_name against guild members
+      if (!discordId) {
+        const patreonName = (s.patreon_name as string || "").toLowerCase().trim();
+        discordId = usernameToId.get(patreonName) || displayToId.get(patreonName) || undefined;
+      }
+
       return {
-        name: (s.patreon_name as string) || s.discord_id || "Unknown",
+        name: (s.patreon_name as string) || (discordId ? resolveName(discordId) : "Unknown"),
+        discord_id: discordId,
+        topdeck_uid: discordId ? discordIdToUid.get(discordId) : undefined,
         tier,
         amount: netRate,
       };
@@ -130,31 +198,31 @@ export async function getSubscriptionIncomeBreakdown(
     .filter((e): e is NonNullable<typeof e> => e !== null)
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  // Build discord ID → display name lookup
-  let memberMap: Map<string, string>;
-  try {
-    const members = await fetchGuildMembers();
-    memberMap = new Map(members.map((m) => [m.id, m.display_name]));
-  } catch {
-    memberMap = new Map();
-  }
-  const resolveName = (discordId: string) => memberMap.get(discordId) || discordId;
-
-  // 2. Ko-fi: individual users
+  // ─── 2. Ko-fi: individual users ───
   const kofiFromBot = await db
     .collection("subs_kofi_events")
-    .aggregate<{ _id: number }>([
+    .aggregate<{ _id: unknown }>([
       { $match: { purchase_month: month } },
       { $group: { _id: "$user_id" } },
     ])
     .toArray();
 
-  let kofiEntries: { name: string; amount: number }[];
+  type BreakdownEntry = { name: string; discord_id?: string; topdeck_uid?: string; amount: number };
+  let kofiEntries: BreakdownEntry[];
+
   if (kofiFromBot.length > 0) {
-    kofiEntries = kofiFromBot.map((k) => ({
-      name: resolveName(String(k._id)),
-      amount: rates.kofi_net,
-    }));
+    kofiEntries = kofiFromBot.map((k) => {
+      // user_id may be BSON Long — use .toString() for safe conversion
+      const id = typeof k._id === "object" && k._id !== null && "toString" in k._id
+        ? (k._id as { toString(): string }).toString()
+        : String(k._id);
+      return {
+        name: resolveName(id),
+        discord_id: id,
+        topdeck_uid: discordIdToUid.get(id),
+        amount: rates.kofi_net,
+      };
+    });
   } else {
     const kofiBackfill = await db
       .collection("dashboard_kofi_backfill")
@@ -163,24 +231,35 @@ export async function getSubscriptionIncomeBreakdown(
         { $group: { _id: "$discord_username" } },
       ])
       .toArray();
-    kofiEntries = kofiBackfill.map((k) => ({
-      name: k._id,
-      amount: rates.kofi_net,
-    }));
+    kofiEntries = kofiBackfill.map((k) => {
+      const username = k._id.toLowerCase().trim();
+      const discordId = usernameToId.get(username);
+      return {
+        name: k._id,
+        discord_id: discordId,
+        topdeck_uid: discordId ? discordIdToUid.get(discordId) : undefined,
+        amount: rates.kofi_net,
+      };
+    });
   }
   kofiEntries.sort((a, b) => a.name.localeCompare(b.name));
 
-  // 3. Manual: individual payments
+  // ─── 3. Manual: individual payments ───
   const manualPayments = await db
     .collection("dashboard_manual_payments")
     .find({ month })
     .toArray();
 
   const manualEntries = manualPayments
-    .map((m) => ({
-      name: resolveName(m.discord_id as string),
-      amount: rates.manual_net,
-    }))
+    .map((m) => {
+      const id = (m.discord_id as string);
+      return {
+        name: resolveName(id),
+        discord_id: id,
+        topdeck_uid: discordIdToUid.get(id),
+        amount: rates.manual_net,
+      };
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return {

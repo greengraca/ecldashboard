@@ -154,6 +154,8 @@ export interface SubscriptionIncome {
 
 export interface SubscriptionBreakdownEntry {
   name: string;
+  discord_id?: string;
+  topdeck_uid?: string;
   tier?: string;
   amount: number;
 }
