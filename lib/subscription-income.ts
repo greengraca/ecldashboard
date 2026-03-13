@@ -3,6 +3,7 @@ import { getRatesForMonth } from "./subscription-rates";
 import { fetchGuildMembers } from "./discord";
 import { fetchPublicPData } from "./topdeck-cache";
 import { getHistoricalMonths } from "./topdeck";
+import { getRegisteredDiscordIds } from "./bracket-registration";
 import { PATREON_TIER_NET, TOPDECK_BRACKET_ID } from "./constants";
 import type { SubscriptionIncome, SubscriptionIncomeBreakdown } from "./types";
 import type { DiscordMember } from "./types";
@@ -29,8 +30,12 @@ export async function getSubscriptionIncome(
 
   const db = await getDb();
   const rates = await getRatesForMonth(month);
+  const registeredIds = await getRegisteredDiscordIds(month);
 
-  // 1. Ko-fi: count distinct user_ids from subs_kofi_events for this month
+  // Tiers that require bracket registration to count
+  const REGISTRATION_REQUIRED_TIERS = new Set(["Gold", "Diamond"]);
+
+  // 1. Ko-fi: count distinct user_ids (no registration filter — all Ko-fi counts)
   const kofiFromBot = await db
     .collection("subs_kofi_events")
     .aggregate<{ _id: null; count: number }>([
@@ -56,31 +61,34 @@ export async function getSubscriptionIncome(
     totalKofi = kofiBackfillCount;
   }
 
-  // 2. Patreon: aggregate by tier from snapshots, apply per-tier net rates
-  const tierCounts = await db
+  // 2. Patreon: fetch all snapshots, filter Gold/Diamond by registration
+  const allSnapshots = await db
     .collection("dashboard_patreon_snapshots")
-    .aggregate<{ _id: string; count: number }>([
-      { $match: { month } },
-      {
-        $group: {
-          _id: { $trim: { input: "$tier" } },
-          count: { $sum: 1 },
-        },
-      },
-    ])
+    .find({ month })
     .toArray();
 
   let patreonCount = 0;
   let patreonAmount = 0;
-  for (const { _id: tier, count } of tierCounts) {
+  for (const s of allSnapshots) {
+    const tier = ((s.tier as string) || "").trim();
     // Skip Bronze/Silver unless it's their eligible month
     if (BRONZE_SILVER_TIERS.has(tier) && month !== BRONZE_SILVER_ELIGIBLE_MONTH) {
       continue;
     }
     const netRate = PATREON_TIER_NET[tier];
-    if (netRate === undefined) continue; // unknown tier, skip
-    patreonCount += count;
-    patreonAmount += count * netRate;
+    if (netRate === undefined) continue;
+
+    // Only Gold/Diamond require bracket registration
+    if (REGISTRATION_REQUIRED_TIERS.has(tier) && registeredIds !== null) {
+      const rawDiscord = s.discord_id ? s.discord_id.toString().trim() : "";
+      const isRegistered =
+        (rawDiscord && registeredIds.has(rawDiscord)) ||
+        (rawDiscord && registeredIds.has(rawDiscord.toLowerCase()));
+      if (!isRegistered) continue;
+    }
+
+    patreonCount++;
+    patreonAmount += netRate;
   }
   patreonAmount = Math.round(patreonAmount * 100) / 100;
 
@@ -109,6 +117,10 @@ export async function getSubscriptionIncomeBreakdown(
 
   const db = await getDb();
   const rates = await getRatesForMonth(month);
+  const registeredIds = await getRegisteredDiscordIds(month);
+
+  // Tiers that require bracket registration to count
+  const REGISTRATION_REQUIRED_TIERS = new Set(["Gold", "Diamond"]);
 
   // ─── Build lookup maps from guild members ───
   let members: DiscordMember[] = [];
@@ -185,6 +197,14 @@ export async function getSubscriptionIncomeBreakdown(
       if (!discordId) {
         const patreonName = (s.patreon_name as string || "").toLowerCase().trim();
         discordId = usernameToId.get(patreonName) || displayToId.get(patreonName) || undefined;
+      }
+
+      // Only Gold/Diamond require bracket registration
+      if (REGISTRATION_REQUIRED_TIERS.has(tier) && registeredIds !== null) {
+        const isRegistered =
+          (discordId && registeredIds.has(discordId)) ||
+          (rawDiscord && registeredIds.has(rawDiscord.toLowerCase()));
+        if (!isRegistered) return null;
       }
 
       return {

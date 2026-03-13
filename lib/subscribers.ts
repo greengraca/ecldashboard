@@ -14,6 +14,7 @@ import {
 import { fetchPublicPData } from "./topdeck-cache";
 import { getHistoricalMonths, reassembleMonthDump, computeStandings } from "./topdeck";
 import { getStandings } from "./players";
+import { getRegisteredDiscordUsernames } from "./bracket-registration";
 import type { Subscriber, SubscriberSummary, SubscriptionSource } from "./types";
 
 /**
@@ -260,6 +261,31 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
     return gamesPerDiscordUsername.get(username.toLowerCase().trim()) || 0;
   }
 
+  // Get registered players for this month (null = no filtering)
+  const registeredUsernames = await getRegisteredDiscordUsernames(month);
+
+  // Build discord_id → patreon tier lookup (only Gold/Diamond are filtered by registration)
+  const patreonTierById = new Map<string, string>();
+  if (registeredUsernames !== null) {
+    const snapshots = await db
+      .collection("dashboard_patreon_snapshots")
+      .find({ month }, { projection: { discord_id: 1, tier: 1 } })
+      .toArray();
+    for (const s of snapshots) {
+      const raw = s.discord_id ? s.discord_id.toString().trim() : "";
+      const tier = ((s.tier as string) || "").trim();
+      if (/^\d+$/.test(raw)) {
+        patreonTierById.set(raw, tier);
+      } else if (raw) {
+        // CSV backfill: discord_id is actually a username — look up by username
+        const member = members.find(
+          (m) => m.username.toLowerCase() === raw.toLowerCase()
+        );
+        if (member) patreonTierById.set(member.id, tier);
+      }
+    }
+  }
+
   // Pre-fetch Topcut set for January 2026 so role-less topcut players get included
   const topcutUsernames = month === "2026-01" ? await getDecemberTopcut() : new Set<string>();
 
@@ -274,6 +300,15 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
       source = "free";
     }
     if (!source) continue;
+
+    // Skip Gold/Diamond Patreon subscribers not registered in the month's bracket
+    if (source === "patreon" && registeredUsernames !== null) {
+      const tier = patreonTierById.get(member.id) || "";
+      if ((tier === "Gold" || tier === "Diamond") &&
+          !registeredUsernames.has(member.username.toLowerCase().trim())) {
+        continue;
+      }
+    }
 
     processedIds.add(member.id);
 
