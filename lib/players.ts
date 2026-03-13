@@ -7,7 +7,9 @@ import {
 } from "./topdeck";
 import type { MonthDumpPayload, EntrantStats } from "./topdeck";
 import { fetchPublicPData } from "./topdeck-cache";
+import { fetchLiveStandings } from "./topdeck-live";
 import { fetchGuildMembers } from "./discord";
+import { TOPDECK_BRACKET_ID } from "./constants";
 import type {
   Player,
   PlayerDetail,
@@ -234,14 +236,12 @@ export async function getPlayers(month?: string): Promise<{ players: Player[]; b
  */
 export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null> {
   const months = await getHistoricalMonths();
-  if (months.length === 0) return null;
 
-  // Use latest bracket for name lookups
-  const latestBracketId = months[months.length - 1].bracket_id;
-  const [subscriberLookup, nameLookup] = await Promise.all([
-    getSubscriberLookup(),
-    getUidNameLookup(latestBracketId),
-  ]);
+  const subscriberLookup = await getSubscriberLookup();
+  const latestBracketId = months.length > 0
+    ? months[months.length - 1].bracket_id
+    : TOPDECK_BRACKET_ID;
+  const nameLookup = await getUidNameLookup(latestBracketId);
 
   const monthlyHistory: PlayerMonthStats[] = [];
 
@@ -253,7 +253,7 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
     monthGroups.set(mi.month, existing);
   }
 
-  // Process each month
+  // Process each historical month
   for (const [monthStr, monthInfos] of monthGroups.entries()) {
     let totalPoints = 0;
     let totalGames = 0;
@@ -306,6 +306,39 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
     }
   }
 
+  // Try live standings for current month data
+  try {
+    const liveResult = await fetchLiveStandings();
+    const livePlayer = liveResult.rows.find(
+      (r) => r.uid === uid || r.entrant_id.toString() === uid
+    );
+    if (livePlayer) {
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      // Only add if not already covered by dump data
+      if (!monthlyHistory.some((h) => h.month === currentMonth)) {
+        // Compute rank from all live rows
+        const sorted = [...liveResult.rows].sort((a, b) => b.points - a.points);
+        const liveRank = sorted.findIndex(
+          (r) => r.uid === uid || r.entrant_id.toString() === uid
+        ) + 1;
+
+        monthlyHistory.push({
+          month: currentMonth,
+          games: livePlayer.games,
+          wins: livePlayer.wins,
+          losses: livePlayer.losses,
+          draws: livePlayer.draws,
+          points: livePlayer.points,
+          win_pct: livePlayer.win_pct,
+          rank: liveRank || null,
+        });
+      }
+    }
+  } catch {
+    // live data unavailable
+  }
+
   if (monthlyHistory.length === 0) return null;
 
   // Query bracket results for achievements
@@ -335,17 +368,25 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
 
   const firstMonth = monthlyHistory[0].month;
 
-  // Look up avatar from Discord guild members by matching player name
+  // Look up avatar via discord handle from PublicPData → guild member match
   let avatarUrl: string | null = null;
+  const bracketIdForAvatar = TOPDECK_BRACKET_ID || latestBracketId;
   try {
-    const playerName = (nameLookup.get(uid) || uid).toLowerCase();
-    const guildMembers = await fetchGuildMembers();
-    const match = guildMembers.find(
-      (m) =>
-        m.username.toLowerCase() === playerName ||
-        m.display_name.toLowerCase() === playerName
-    );
-    if (match?.avatar_url) avatarUrl = match.avatar_url;
+    const pdata = await fetchPublicPData(bracketIdForAvatar);
+    const discordHandle = pdata[uid]?.discord?.toLowerCase().trim() || "";
+    if (discordHandle) {
+      const guildMembers = await fetchGuildMembers();
+      for (const m of guildMembers) {
+        if (
+          m.avatar_url &&
+          (m.username.toLowerCase() === discordHandle ||
+            m.display_name.toLowerCase() === discordHandle)
+        ) {
+          avatarUrl = m.avatar_url;
+          break;
+        }
+      }
+    }
   } catch {
     // avatar will be null
   }
