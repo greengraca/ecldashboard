@@ -171,17 +171,21 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
                 Champion {formatMonth(m)}
               </span>
             ))}
-            {player.achievements.top4.map((m) => (
+            {player.achievements.top4
+              .filter((m) => !player.achievements.champion.includes(m))
+              .map((m) => (
               <span
                 key={`top4-${m}`}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                style={{ background: "rgba(148, 163, 184, 0.12)", color: "#94a3b8", border: "1px solid rgba(148, 163, 184, 0.25)" }}
+                style={{ background: "rgba(192, 192, 192, 0.12)", color: "#c0c0c0", border: "1px solid rgba(192, 192, 192, 0.25)" }}
               >
                 <Medal className="w-3.5 h-3.5" />
                 Top 4 {formatMonth(m)}
               </span>
             ))}
-            {player.achievements.top16.map((m) => (
+            {player.achievements.top16
+              .filter((m) => !player.achievements.top4.includes(m) && !player.achievements.champion.includes(m))
+              .map((m) => (
               <span
                 key={`top16-${m}`}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
