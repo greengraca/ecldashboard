@@ -47,6 +47,21 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
   const pointValues = history.map((h) => h.points);
   const maxPoints = Math.max(...pointValues, 1);
 
+  // Build full month range including gaps where player didn't participate
+  const historyByMonth = new Map(history.map((h) => [h.month, h]));
+  const fullMonthRange: { month: string; data: typeof history[number] | null }[] = [];
+  if (history.length > 1) {
+    const [startYear, startMon] = history[0].month.split("-").map(Number);
+    const [endYear, endMon] = history[history.length - 1].month.split("-").map(Number);
+    let y = startYear, m = startMon;
+    while (y < endYear || (y === endYear && m <= endMon)) {
+      const key = `${y}-${String(m).padStart(2, "0")}`;
+      fullMonthRange.push({ month: key, data: historyByMonth.get(key) ?? null });
+      m++;
+      if (m > 12) { m = 1; y++; }
+    }
+  }
+
   return (
     <div className="space-y-8">
       {/* Player Header */}
@@ -214,18 +229,31 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
             }}
           >
             <div className="flex items-end gap-3 min-w-max">
-              {history.map((h) => {
+              {fullMonthRange.map(({ month, data }) => {
+                if (!data) {
+                  return (
+                    <div key={month} className="flex flex-col items-center gap-1">
+                      <span className="text-xs tabular-nums font-medium" style={{ color: "var(--text-muted)", opacity: 0.4 }}>
+                        —
+                      </span>
+                      <div className="w-10" style={{ height: "20px" }} />
+                      <span className="text-xs" style={{ color: "var(--text-muted)", opacity: 0.4 }}>
+                        {month.slice(5)}
+                      </span>
+                    </div>
+                  );
+                }
                 const barHeight = Math.max(
                   20,
-                  (h.points / maxPoints) * 120
+                  (data.points / maxPoints) * 120
                 );
                 return (
-                  <div key={h.month} className="flex flex-col items-center gap-1">
+                  <div key={month} className="flex flex-col items-center gap-1">
                     <span
                       className="text-xs tabular-nums font-medium"
                       style={{ color: "var(--accent)" }}
                     >
-                      {h.points.toFixed(0)}
+                      {data.points.toFixed(0)}
                     </span>
                     <div
                       className="w-10 rounded-t-md transition-all"
@@ -240,7 +268,7 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
                       className="text-xs"
                       style={{ color: "var(--text-muted)" }}
                     >
-                      {h.month.slice(5)}
+                      {month.slice(5)}
                     </span>
                   </div>
                 );
