@@ -3,6 +3,7 @@
 import useSWR from "swr";
 import StatCard from "@/components/dashboard/stat-card";
 import FinanceOverview from "@/components/finance/finance-overview";
+import ProfitSplitTable from "@/components/finance/profit-split-table";
 import { Users, Wallet, Swords, Activity, CheckCircle, Clock } from "lucide-react";
 import type { ActivityEntry, ActivityAction, PendingReimbursement } from "@/lib/types";
 
@@ -216,6 +217,11 @@ export default function HomePage() {
       {/* Treasury Overview */}
       <div className="mb-8">
         <FinanceOverview />
+      </div>
+
+      {/* Group Profit Split */}
+      <div className="mb-8">
+        <ProfitSplitTable />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
