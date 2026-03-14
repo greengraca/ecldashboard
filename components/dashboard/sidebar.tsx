@@ -10,6 +10,7 @@ import {
   Swords,
   Trophy,
   Activity,
+  Image,
   Settings,
   PanelLeftClose,
   PanelLeft,
@@ -31,6 +32,7 @@ const mainNav = [
   { href: "/players", label: "Standings", icon: Swords },
   { href: "/prizes", label: "Prizes", icon: Trophy },
   { href: "/activity", label: "Activity", icon: Activity },
+  { href: "/media", label: "Media", icon: Image },
 ];
 
 const bottomNav = [

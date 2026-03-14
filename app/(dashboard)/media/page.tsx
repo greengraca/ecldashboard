@@ -1,0 +1,210 @@
+"use client";
+
+import { useState, useCallback, useEffect } from "react";
+import useSWR from "swr";
+import MonthPicker from "@/components/dashboard/month-picker";
+import TemplateSelector from "@/components/media/TemplateSelector";
+import TemplatePreview from "@/components/media/TemplatePreview";
+import TemplateEditor from "@/components/media/TemplateEditor";
+import AssetStatus from "@/components/media/AssetStatus";
+import { TEMPLATES } from "@/components/media/template-registry";
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+function getCurrentMonth(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+// Templates that need prize data
+const PRIZE_TEMPLATES = new Set(["prize-announcement", "prize-pool-overview"]);
+// Templates that need bracket data
+const BRACKET_TEMPLATES = new Set(["semi-final-winner", "finals-announcement"]);
+
+export default function MediaPage() {
+  const [month, setMonth] = useState(getCurrentMonth);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [templateData, setTemplateData] = useState<Record<string, any>>({});
+
+  // Auto-fill data sources
+  const needsPrizes = selectedTemplate ? PRIZE_TEMPLATES.has(selectedTemplate) : false;
+  const needsBrackets = selectedTemplate ? BRACKET_TEMPLATES.has(selectedTemplate) : false;
+
+  const { data: prizesRes, isLoading: prizesLoading } = useSWR(
+    needsPrizes ? `/api/prizes?month=${month}` : null,
+    fetcher
+  );
+  const { data: bracketsRes, isLoading: bracketsLoading } = useSWR(
+    needsBrackets ? `/api/players/brackets?month=${month}` : null,
+    fetcher
+  );
+  const { data: membersRes } = useSWR(
+    needsBrackets ? "/api/discord/members" : null,
+    fetcher
+  );
+
+  const isAutoFilling =
+    (needsPrizes && prizesLoading) || (needsBrackets && bracketsLoading);
+
+  // Auto-fill prizes into template data
+  useEffect(() => {
+    if (needsPrizes && prizesRes?.data) {
+      setTemplateData((prev) => ({ ...prev, prizes: prizesRes.data }));
+    }
+  }, [needsPrizes, prizesRes]);
+
+  // Auto-fill bracket data
+  useEffect(() => {
+    if (needsBrackets && bracketsRes?.data) {
+      setTemplateData((prev) => ({
+        ...prev,
+        brackets: bracketsRes.data,
+      }));
+    }
+  }, [needsBrackets, bracketsRes]);
+
+  // Auto-fill members for avatar resolution
+  useEffect(() => {
+    if (needsBrackets && membersRes?.data) {
+      setTemplateData((prev) => ({ ...prev, members: membersRes.data }));
+    }
+  }, [needsBrackets, membersRes]);
+
+  const handleSelectTemplate = useCallback((id: string) => {
+    setSelectedTemplate(id);
+    setTemplateData({});
+  }, []);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleFieldChange = useCallback((key: string, value: any) => {
+    setTemplateData((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const selectedDef = selectedTemplate
+    ? TEMPLATES.find((t) => t.id === selectedTemplate)
+    : null;
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+          <h1
+            className="text-2xl font-bold"
+            style={{ color: "var(--text-primary)" }}
+          >
+            Media
+          </h1>
+          <p
+            className="text-sm mt-1"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            Generate branded ECL visuals
+          </p>
+        </div>
+        <MonthPicker value={month} onChange={setMonth} minMonth="2025-11" />
+      </div>
+
+      {/* Asset status */}
+      <div className="mb-6">
+        <AssetStatus />
+      </div>
+
+      {/* Template selector */}
+      <div className="mb-8">
+        <TemplateSelector
+          selected={selectedTemplate}
+          onSelect={handleSelectTemplate}
+        />
+      </div>
+
+      {/* Preview + Editor */}
+      {selectedTemplate && selectedDef && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Preview */}
+          <div>
+            <h3
+              className="text-sm font-semibold uppercase tracking-wider mb-4"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Preview
+            </h3>
+            {isAutoFilling ? (
+              <div
+                className="flex flex-col items-center justify-center rounded-xl border h-96"
+                style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+              >
+                <div
+                  className="w-6 h-6 border-2 rounded-full animate-spin mb-3"
+                  style={{ borderColor: "var(--border)", borderTopColor: "var(--accent)" }}
+                />
+                <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                  Loading data...
+                </p>
+              </div>
+            ) : (
+              <TemplatePreview
+                templateId={selectedTemplate}
+                data={templateData}
+                month={month}
+              />
+            )}
+          </div>
+
+          {/* Editor */}
+          <div
+            className="p-5 rounded-xl border"
+            style={{
+              background: "var(--bg-card)",
+              borderColor: "var(--border)",
+            }}
+          >
+            <TemplateEditor
+              templateId={selectedTemplate}
+              data={templateData}
+              onChange={handleFieldChange}
+            />
+
+            {/* Auto-fill status */}
+            {needsPrizes && (
+              <div className="mt-4 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  {prizesRes?.data
+                    ? `Auto-filled ${prizesRes.data.length} prizes for ${month}`
+                    : "Loading prize data..."}
+                </p>
+              </div>
+            )}
+            {needsBrackets && (
+              <div className="mt-4 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  {bracketsRes?.data
+                    ? "Bracket data loaded"
+                    : bracketsRes === undefined
+                      ? "Loading bracket data..."
+                      : "No bracket data for this month"}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!selectedTemplate && (
+        <div
+          className="flex items-center justify-center rounded-xl border h-64"
+          style={{
+            background: "var(--bg-card)",
+            borderColor: "var(--border)",
+          }}
+        >
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            Select a template above to get started
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
