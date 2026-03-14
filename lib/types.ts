@@ -18,6 +18,11 @@ export interface Subscriber {
   expires_at: string | null;
 }
 
+export interface DataHealthWarning {
+  source: string;
+  message: string;
+}
+
 export interface SubscriberSummary {
   total: number;
   patreon: number;
@@ -25,6 +30,8 @@ export interface SubscriberSummary {
   free: number;
   paying_not_playing: number;
   churn: ChurnDataPoint[];
+  registered_players: number | null;
+  data_warnings: DataHealthWarning[];
 }
 
 export interface ChurnDataPoint {

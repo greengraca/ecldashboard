@@ -15,7 +15,7 @@ import { fetchPublicPData } from "./topdeck-cache";
 import { getHistoricalMonths, reassembleMonthDump, computeStandings } from "./topdeck";
 import { getStandings } from "./players";
 import { getRegisteredDiscordUsernames } from "./bracket-registration";
-import type { Subscriber, SubscriberSummary, SubscriptionSource } from "./types";
+import type { Subscriber, SubscriberSummary, SubscriptionSource, DataHealthWarning } from "./types";
 
 /**
  * Get game counts per discord username from dump data for a given month.
@@ -264,25 +264,23 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
   // Get registered players for this month (null = no filtering)
   const registeredUsernames = await getRegisteredDiscordUsernames(month);
 
-  // Build discord_id → patreon tier lookup (only Gold/Diamond are filtered by registration)
+  // Build discord_id → patreon tier lookup (always — used for tier display + Gold/Diamond filtering)
   const patreonTierById = new Map<string, string>();
-  if (registeredUsernames !== null) {
-    const snapshots = await db
-      .collection("dashboard_patreon_snapshots")
-      .find({ month }, { projection: { discord_id: 1, tier: 1 } })
-      .toArray();
-    for (const s of snapshots) {
-      const raw = s.discord_id ? s.discord_id.toString().trim() : "";
-      const tier = ((s.tier as string) || "").trim();
-      if (/^\d+$/.test(raw)) {
-        patreonTierById.set(raw, tier);
-      } else if (raw) {
-        // CSV backfill: discord_id is actually a username — look up by username
-        const member = members.find(
-          (m) => m.username.toLowerCase() === raw.toLowerCase()
-        );
-        if (member) patreonTierById.set(member.id, tier);
-      }
+  const patreonSnapshots = await db
+    .collection("dashboard_patreon_snapshots")
+    .find({ month }, { projection: { discord_id: 1, tier: 1 } })
+    .toArray();
+  for (const s of patreonSnapshots) {
+    const raw = s.discord_id ? s.discord_id.toString().trim() : "";
+    const tier = ((s.tier as string) || "").trim();
+    if (/^\d+$/.test(raw)) {
+      patreonTierById.set(raw, tier);
+    } else if (raw) {
+      // CSV backfill: discord_id is actually a username — look up by username
+      const member = members.find(
+        (m) => m.username.toLowerCase() === raw.toLowerCase()
+      );
+      if (member) patreonTierById.set(member.id, tier);
     }
   }
 
@@ -320,13 +318,18 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
       ? await detectFreeEntryReason(member.roles, member.username, month, isPaid)
       : null;
 
+    // Use actual Patreon tier from snapshots when available
+    const tier = source === "patreon"
+      ? (patreonTierById.get(member.id) || determineTier(source, member.roles))
+      : determineTier(source, member.roles);
+
     subscribers.push({
       discord_id: member.id,
       username: member.username,
       display_name: member.display_name,
       avatar_url: member.avatar_url,
       source,
-      tier: determineTier(source, member.roles),
+      tier,
       is_playing: gamesPlayed > 0,
       games_played: gamesPlayed,
       free_entry_reason: freeReason,
@@ -408,6 +411,7 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
 export async function getSubscriberSummary(
   month: string
 ): Promise<SubscriberSummary> {
+  const db = await getDb();
   const subscribers = await getSubscribers(month);
 
   let patreon = 0;
@@ -433,12 +437,81 @@ export async function getSubscriberSummary(
     }
   }
 
+  // ─── Data health checks ───
+  const warnings: DataHealthWarning[] = [];
+
+  // Check Patreon snapshots vs role holders
+  const snapshotCount = await db
+    .collection("dashboard_patreon_snapshots")
+    .countDocuments({ month });
+  if (patreon > 0 && snapshotCount === 0) {
+    warnings.push({
+      source: "patreon",
+      message: `${patreon} Patreon subscribers with roles but no snapshots synced — sync Patreon on Finance page`,
+    });
+  } else if (patreon > 0 && Math.abs(patreon - snapshotCount) > 0) {
+    warnings.push({
+      source: "patreon",
+      message: `${patreon} Patreon role holders vs ${snapshotCount} snapshots (${Math.abs(patreon - snapshotCount)} mismatch)`,
+    });
+  }
+
+  // Check Patreon subscribers without a snapshot tier (still showing generic "Patreon Member")
+  const missingTier = subscribers.filter(
+    (s) => s.source === "patreon" && s.tier === "Patreon Member"
+  ).length;
+  if (missingTier > 0) {
+    warnings.push({
+      source: "patreon",
+      message: `${missingTier} Patreon subscriber${missingTier > 1 ? "s" : ""} without tier info — sync Patreon to resolve`,
+    });
+  }
+
+  // Check Ko-fi role holders vs events
+  const kofiEventCount = await db
+    .collection("subs_kofi_events")
+    .aggregate<{ _id: null; count: number }>([
+      { $match: { purchase_month: month } },
+      { $group: { _id: "$user_id" } },
+      { $count: "count" },
+    ])
+    .toArray()
+    .then((r) => r[0]?.count ?? 0);
+  if (kofi > 0 && kofiEventCount === 0) {
+    const backfillCount = await db
+      .collection("dashboard_kofi_backfill")
+      .aggregate<{ _id: null; count: number }>([
+        { $match: { month } },
+        { $group: { _id: "$discord_username" } },
+        { $count: "count" },
+      ])
+      .toArray()
+      .then((r) => r[0]?.count ?? 0);
+    if (backfillCount === 0) {
+      warnings.push({
+        source: "kofi",
+        message: `${kofi} Ko-fi role holders but no Ko-fi events or backfill for this month`,
+      });
+    }
+  }
+
+  // Get registered player count from bracket
+  let registeredPlayers: number | null = null;
+  try {
+    const regUsernames = await getRegisteredDiscordUsernames(month);
+    registeredPlayers = regUsernames ? regUsernames.size : null;
+  } catch {
+    // ignore
+  }
+
   return {
     total: subscribers.length,
     patreon,
     kofi,
     free,
     paying_not_playing: payingNotPlaying,
-    churn: [], // Churn calculation to be implemented later
+    churn: [],
+    registered_players: registeredPlayers,
+    data_warnings: warnings,
   };
 }

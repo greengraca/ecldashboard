@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { Users, Crown, Coffee, Gift, AlertTriangle, HandCoins } from "lucide-react";
+import { Users, Crown, Coffee, Gift, AlertTriangle, HandCoins, Gamepad2, Info } from "lucide-react";
 import StatCard from "@/components/dashboard/stat-card";
 import MonthPicker from "@/components/dashboard/month-picker";
 import SubscriberTable from "@/components/subscribers/subscriber-table";
@@ -106,7 +106,7 @@ export default function SubscribersPage() {
       )}
 
       {/* Summary Cards */}
-      <div className={`grid grid-cols-2 sm:grid-cols-3 ${manualPaidCount > 0 ? "lg:grid-cols-6" : "lg:grid-cols-5"} gap-3 sm:gap-4 mb-8`}>
+      <div className={`grid grid-cols-2 sm:grid-cols-3 ${manualPaidCount > 0 ? "lg:grid-cols-7" : "lg:grid-cols-6"} gap-3 sm:gap-4 mb-4`}>
         <div className="cursor-pointer" onClick={() => toggleFilter("all")}>
           <StatCard
             title="Total Subscribers"
@@ -120,6 +120,19 @@ export default function SubscribersPage() {
             }
           />
         </div>
+        <StatCard
+          title="In Bracket"
+          value={isLoading ? "--" : (summary?.registered_players ?? "--")}
+          subtitle={!isLoading && summary?.registered_players != null && summary.total > 0
+            ? `${summary.total - (summary.registered_players ?? 0)} not registered`
+            : undefined}
+          icon={
+            <Gamepad2
+              className="w-4 h-4"
+              style={{ color: "var(--accent)" }}
+            />
+          }
+        />
         <div className="cursor-pointer" onClick={() => toggleFilter("patreon")}>
           <StatCard
             title="Patreon"
@@ -188,6 +201,32 @@ export default function SubscribersPage() {
           />
         </div>
       </div>
+
+      {/* Data Health Warnings */}
+      {!isLoading && summary?.data_warnings && summary.data_warnings.length > 0 && (
+        <div className="mb-8 space-y-2">
+          {summary.data_warnings.map((w, i) => (
+            <div
+              key={i}
+              className="flex items-start gap-2 px-4 py-2.5 rounded-lg border text-xs"
+              style={{
+                background: "rgba(251, 191, 36, 0.08)",
+                borderColor: "var(--warning)",
+                color: "var(--warning)",
+              }}
+            >
+              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>
+                <strong className="uppercase">{w.source}:</strong> {w.message}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!isLoading && (!summary?.data_warnings || summary.data_warnings.length === 0) && (
+        <div className="mb-8" />
+      )}
 
       {/* Subscriber Table */}
       {isLoading ? (
