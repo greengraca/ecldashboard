@@ -8,6 +8,7 @@ import {
   Users,
   Wallet,
   Swords,
+  Trophy,
   Activity,
   Settings,
   PanelLeftClose,
@@ -28,6 +29,7 @@ const mainNav = [
   { href: "/subscribers", label: "Subscribers", icon: Users },
   { href: "/finance", label: "Finance", icon: Wallet },
   { href: "/players", label: "Standings", icon: Swords },
+  { href: "/prizes", label: "Prizes", icon: Trophy },
   { href: "/activity", label: "Activity", icon: Activity },
 ];
 

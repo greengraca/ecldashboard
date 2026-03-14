@@ -274,6 +274,73 @@ export interface LiveStanding {
   eligible: boolean;
 }
 
+// ─── Prize Types ───
+
+export type PrizeCategory = "mtg_single" | "sponsor" | "treasure_pod" | "ticket" | "ring" | "other";
+export type RecipientType = "placement" | "most_games" | "treasure_pod" | "top16" | "custom";
+export type ShippingStatus = "not_applicable" | "pending" | "shipped" | "delivered";
+export type PrizeStatus = "planned" | "confirmed" | "awarded";
+
+export interface Prize {
+  _id?: ObjectId | string;
+  month: string;
+  category: PrizeCategory;
+  name: string;
+  description: string;
+  image_url: string | null;
+  value: number;
+  recipient_type: RecipientType;
+  placement: number | null;
+  recipient_uid: string | null;
+  recipient_name: string;
+  recipient_discord_id: string | null;
+  shipping_status: ShippingStatus;
+  tracking_number: string | null;
+  shipping_date: string | null;
+  delivery_date: string | null;
+  shipping_notes: string | null;
+  transaction_id: string | null;
+  status: PrizeStatus;
+  created_by: string;
+  modified_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PrizeBudgetAllocations {
+  placement_1st: number;
+  placement_2nd: number;
+  placement_3rd: number;
+  placement_4th: number;
+  most_games: number;
+  treasure_pods: number;
+  top16: number;
+  ring: number;
+  other: number;
+}
+
+export interface PrizeBudget {
+  _id?: ObjectId | string;
+  month: string;
+  total_budget: number;
+  allocations: PrizeBudgetAllocations;
+  notes: string;
+  created_by: string;
+  modified_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PrizeSummary {
+  total_prizes: number;
+  total_value: number;
+  awarded: number;
+  pending_shipment: number;
+  shipped: number;
+  delivered: number;
+  budget_remaining: number | null;
+}
+
 // ─── Activity Types ───
 
 export type ActivityAction = "create" | "update" | "delete" | "sync";
