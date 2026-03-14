@@ -111,8 +111,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       <button
         onClick={() => signOut({ callbackUrl: "/login" })}
-        className={`mx-2 mb-2 p-2 rounded-lg text-[var(--text-muted)] hover:bg-[var(--error-light)] hover:text-[var(--error)] transition-colors flex items-center gap-3 text-sm ${
-          collapsed && !isMobile ? "justify-center" : ""
+        className={`flex items-center gap-3 px-3 py-2 mx-2 mb-2 rounded-lg text-sm font-medium transition-colors text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] ${
+          collapsed && !isMobile ? "justify-center px-0" : ""
         }`}
         title={collapsed ? "Sign out" : undefined}
       >

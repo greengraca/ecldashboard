@@ -110,142 +110,148 @@ export default function SettingsContent({
         </div>
       </div>
 
-      <div className="grid gap-6 max-w-2xl">
-        {/* User Profile */}
-        <Section
-          icon={<User className="w-4 h-4" style={{ color: "var(--accent)" }} />}
-          title="Your Profile"
-        >
-          <div className="flex items-center gap-4 py-3 mb-1">
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={username}
-                className="w-12 h-12 rounded-full"
-              />
-            ) : (
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold"
-                style={{
-                  background: "var(--accent-light)",
-                  color: "var(--accent)",
-                }}
-              >
-                {(username as string).charAt(0).toUpperCase()}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left column */}
+        <div className="grid gap-6 content-start">
+          {/* User Profile */}
+          <Section
+            icon={<User className="w-4 h-4" style={{ color: "var(--accent)" }} />}
+            title="Your Profile"
+          >
+            <div className="flex items-center gap-4 py-3 mb-1">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={username}
+                  className="w-12 h-12 rounded-full"
+                />
+              ) : (
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold"
+                  style={{
+                    background: "var(--accent-light)",
+                    color: "var(--accent)",
+                  }}
+                >
+                  {(username as string).charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div>
+                <p
+                  className="font-medium"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  {username}
+                </p>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Discord ID: {discordId}
+                </p>
               </div>
-            )}
-            <div>
-              <p
-                className="font-medium"
-                style={{ color: "var(--text-primary)" }}
-              >
-                {username}
-              </p>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                Discord ID: {discordId}
-              </p>
             </div>
-          </div>
-        </Section>
+          </Section>
 
-        {/* Dashboard Info */}
-        <Section
-          icon={
-            <Database
-              className="w-4 h-4"
-              style={{ color: "var(--accent)" }}
+          {/* Subscription Rates */}
+          <Section
+            icon={
+              <DollarSign className="w-4 h-4" style={{ color: "var(--accent)" }} />
+            }
+            title="Subscription Rates"
+          >
+            <SubscriptionRatesManager />
+          </Section>
+
+          {/* Data & Caches */}
+          <Section
+            icon={
+              <Globe className="w-4 h-4" style={{ color: "var(--accent)" }} />
+            }
+            title="Data & Caches"
+          >
+            <SyncDiscordButton />
+            <TopDeckRefreshButton />
+          </Section>
+        </div>
+
+        {/* Right column */}
+        <div className="grid gap-6 content-start">
+          {/* Dashboard Info */}
+          <Section
+            icon={
+              <Database
+                className="w-4 h-4"
+                style={{ color: "var(--accent)" }}
+              />
+            }
+            title="Dashboard Info"
+          >
+            <InfoRow label="Version" value="1.0.0" />
+            <InfoRow label="Framework" value="Next.js 16 (App Router)" />
+            <InfoRow label="Database" value={dbName} />
+            <InfoRow label="Auth Provider" value="Discord OAuth" />
+          </Section>
+
+          {/* Environment */}
+          <Section
+            icon={
+              <Shield className="w-4 h-4" style={{ color: "var(--accent)" }} />
+            }
+            title="Environment"
+          >
+            <InfoRow
+              label="Guild ID"
+              value={
+                <span
+                  className="font-mono text-xs"
+                  style={{ color: "var(--text-tertiary)" }}
+                >
+                  {maskedGuildId}
+                </span>
+              }
             />
-          }
-          title="Dashboard Info"
-        >
-          <InfoRow label="Version" value="1.0.0" />
-          <InfoRow label="Framework" value="Next.js 16 (App Router)" />
-          <InfoRow label="Database" value={dbName} />
-          <InfoRow label="Auth Provider" value="Discord OAuth" />
-        </Section>
-
-        {/* Environment */}
-        <Section
-          icon={
-            <Shield className="w-4 h-4" style={{ color: "var(--accent)" }} />
-          }
-          title="Environment"
-        >
-          <InfoRow
-            label="Guild ID"
-            value={
-              <span
-                className="font-mono text-xs"
-                style={{ color: "var(--text-tertiary)" }}
-              >
-                {maskedGuildId}
-              </span>
-            }
-          />
-          <InfoRow
-            label="Patreon Roles"
-            value={
-              <span
-                className="text-xs px-2 py-0.5 rounded"
-                style={{
-                  background: "var(--status-patreon-light)",
-                  color: "var(--status-patreon)",
-                }}
-              >
-                Configured
-              </span>
-            }
-          />
-          <InfoRow
-            label="Ko-fi Roles"
-            value={
-              <span
-                className="text-xs px-2 py-0.5 rounded"
-                style={{
-                  background: "var(--status-kofi-light)",
-                  color: "var(--status-kofi)",
-                }}
-              >
-                Configured
-              </span>
-            }
-          />
-          <InfoRow
-            label="Free Entry Roles"
-            value={
-              <span
-                className="text-xs px-2 py-0.5 rounded"
-                style={{
-                  background: "var(--status-free-light)",
-                  color: "var(--status-free)",
-                }}
-              >
-                Configured
-              </span>
-            }
-          />
-        </Section>
-
-        {/* Subscription Rates */}
-        <Section
-          icon={
-            <DollarSign className="w-4 h-4" style={{ color: "var(--accent)" }} />
-          }
-          title="Subscription Rates"
-        >
-          <SubscriptionRatesManager />
-        </Section>
-
-        {/* Data & Caches */}
-        <Section
-          icon={
-            <Globe className="w-4 h-4" style={{ color: "var(--accent)" }} />
-          }
-          title="Data & Caches"
-        >
-          <SyncDiscordButton />
-          <TopDeckRefreshButton />
-        </Section>
+            <InfoRow
+              label="Patreon Roles"
+              value={
+                <span
+                  className="text-xs px-2 py-0.5 rounded"
+                  style={{
+                    background: "var(--status-patreon-light)",
+                    color: "var(--status-patreon)",
+                  }}
+                >
+                  Configured
+                </span>
+              }
+            />
+            <InfoRow
+              label="Ko-fi Roles"
+              value={
+                <span
+                  className="text-xs px-2 py-0.5 rounded"
+                  style={{
+                    background: "var(--status-kofi-light)",
+                    color: "var(--status-kofi)",
+                  }}
+                >
+                  Configured
+                </span>
+              }
+            />
+            <InfoRow
+              label="Free Entry Roles"
+              value={
+                <span
+                  className="text-xs px-2 py-0.5 rounded"
+                  style={{
+                    background: "var(--status-free-light)",
+                    color: "var(--status-free)",
+                  }}
+                >
+                  Configured
+                </span>
+              }
+            />
+          </Section>
+        </div>
       </div>
     </div>
   );
