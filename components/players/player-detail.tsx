@@ -103,6 +103,14 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
           >
             {player.name}
           </h2>
+          {(player.discord_username || player.uid) && (
+            <p
+              className="text-xs mt-0.5"
+              style={{ color: "var(--text-muted)" }}
+            >
+              {[player.discord_username, player.uid].filter(Boolean).join(" · ")}
+            </p>
+          )}
           <div className="flex items-center gap-2 mt-0.5">
             {player.rank && (
               <span

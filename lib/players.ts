@@ -378,8 +378,8 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
 
   // Look up avatar via discord handle from PublicPData or live data → guild member match
   let avatarUrl: string | null = null;
+  let discordHandle = "";
   try {
-    let discordHandle = "";
     // Try PublicPData first
     const bracketIdForAvatar = TOPDECK_BRACKET_ID || latestBracketId;
     try {
@@ -416,6 +416,7 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
   return {
     uid,
     name: nameLookup.get(uid) || uid,
+    discord_username: discordHandle || null,
     avatar_url: avatarUrl,
     games: latestMonth.games,
     wins: latestMonth.wins,

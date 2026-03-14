@@ -226,6 +226,7 @@ export interface PlayerAchievements {
 }
 
 export interface PlayerDetail extends Player {
+  discord_username: string | null;
   monthly_history: PlayerMonthStats[];
   first_month: string | null;
   achievements: PlayerAchievements;
