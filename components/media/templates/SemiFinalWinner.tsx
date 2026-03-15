@@ -1,5 +1,6 @@
 import { BRAND, FONTS, DIMENSIONS, ASSETS, onAssetError } from "../shared/brand-constants";
 import BrandFooter from "../shared/BrandFooter";
+import DualCommanderCards from "../shared/DualCommanderCards";
 import type { DiscordMember } from "@/lib/types";
 
 interface BracketData {
@@ -13,6 +14,10 @@ interface SemiFinalWinnerData {
   commanderName: string;
   commanderName_imageUrl?: string;
   commanderName_overrideUrl?: string;
+  hasPartner?: boolean;
+  partnerName?: string;
+  partnerName_imageUrl?: string;
+  partnerName_overrideUrl?: string;
   deckName?: string;
   brackets?: BracketData;
   members?: DiscordMember[];
@@ -205,6 +210,10 @@ export default function SemiFinalWinner({ data }: { data: SemiFinalWinnerData })
 
   const commanderImageUrl =
     data.commanderName_overrideUrl || data.commanderName_imageUrl || null;
+  const partnerImageUrl =
+    data.hasPartner
+      ? data.partnerName_overrideUrl || data.partnerName_imageUrl || null
+      : null;
 
   return (
     <div
@@ -316,7 +325,7 @@ export default function SemiFinalWinner({ data }: { data: SemiFinalWinnerData })
           ))
         )}
 
-        {/* Commander card for winner */}
+        {/* Commander card(s) for winner */}
         {commanderImageUrl && (
           <div style={{ textAlign: "center", marginTop: 16 }}>
             {data.deckName && (
@@ -331,18 +340,13 @@ export default function SemiFinalWinner({ data }: { data: SemiFinalWinnerData })
                 {data.deckName}
               </p>
             )}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={commanderImageUrl}
-              alt={data.commanderName || "Commander"}
-              style={{
-                height: 300,
-                width: "auto",
-                borderRadius: 12,
-                margin: "0 auto",
-                display: "block",
-                boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 20px ${BRAND.goldGlow}`,
-              }}
+            <DualCommanderCards
+              mainUrl={commanderImageUrl}
+              partnerUrl={partnerImageUrl}
+              mainName={data.commanderName}
+              partnerName={data.partnerName}
+              cardHeight={300}
+              glowColor={BRAND.goldGlow}
             />
             <p
               style={{
@@ -353,6 +357,7 @@ export default function SemiFinalWinner({ data }: { data: SemiFinalWinnerData })
               }}
             >
               {data.commanderName}
+              {data.hasPartner && data.partnerName ? ` / ${data.partnerName}` : ""}
             </p>
           </div>
         )}

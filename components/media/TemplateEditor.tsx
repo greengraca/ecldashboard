@@ -25,106 +25,133 @@ export default function TemplateEditor({ templateId, data, onChange }: TemplateE
         {template.label} Settings
       </h3>
 
-      {template.fields.map((field) => (
-        <div key={field.key}>
-          <label
-            className="block text-xs font-medium mb-1.5"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            {field.label}
-          </label>
+      {template.fields.map((field) => {
+        // Conditional visibility
+        if (field.showIf && !data[field.showIf]) return null;
 
-          {field.type === "text" && (
-            <input
-              type="text"
-              value={data[field.key] || ""}
-              onChange={(e) => onChange(field.key, e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
-              style={{
-                background: "var(--bg-page)",
-                borderColor: "var(--border)",
-                color: "var(--text-primary)",
-              }}
-            />
-          )}
+        return (
+          <div key={field.key}>
+            {field.type === "checkbox" ? (
+              <label
+                className="flex items-center gap-2 cursor-pointer select-none py-1"
+              >
+                <input
+                  type="checkbox"
+                  checked={!!data[field.key]}
+                  onChange={(e) => onChange(field.key, e.target.checked)}
+                  className="w-4 h-4 rounded accent-amber-500"
+                  style={{ accentColor: "var(--accent)" }}
+                />
+                <span
+                  className="text-xs font-medium"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  {field.label}
+                </span>
+              </label>
+            ) : (
+              <>
+                <label
+                  className="block text-xs font-medium mb-1.5"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  {field.label}
+                </label>
 
-          {field.type === "url" && (
-            <input
-              type="url"
-              value={data[field.key] || ""}
-              onChange={(e) => onChange(field.key, e.target.value)}
-              placeholder="https://"
-              className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
-              style={{
-                background: "var(--bg-page)",
-                borderColor: "var(--border)",
-                color: "var(--text-primary)",
-              }}
-            />
-          )}
+                {field.type === "text" && (
+                  <input
+                    type="text"
+                    value={data[field.key] || ""}
+                    onChange={(e) => onChange(field.key, e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
+                    style={{
+                      background: "var(--bg-page)",
+                      borderColor: "var(--border)",
+                      color: "var(--text-primary)",
+                    }}
+                  />
+                )}
 
-          {field.type === "textarea" && (
-            <textarea
-              value={data[field.key] || ""}
-              onChange={(e) => onChange(field.key, e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 rounded-lg text-sm border outline-none resize-y"
-              style={{
-                background: "var(--bg-page)",
-                borderColor: "var(--border)",
-                color: "var(--text-primary)",
-              }}
-            />
-          )}
+                {field.type === "url" && (
+                  <input
+                    type="url"
+                    value={data[field.key] || ""}
+                    onChange={(e) => onChange(field.key, e.target.value)}
+                    placeholder="https://"
+                    className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
+                    style={{
+                      background: "var(--bg-page)",
+                      borderColor: "var(--border)",
+                      color: "var(--text-primary)",
+                    }}
+                  />
+                )}
 
-          {field.type === "date" && (
-            <input
-              type="date"
-              value={data[field.key] || ""}
-              onChange={(e) => onChange(field.key, e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
-              style={{
-                background: "var(--bg-page)",
-                borderColor: "var(--border)",
-                color: "var(--text-primary)",
-              }}
-            />
-          )}
+                {field.type === "textarea" && (
+                  <textarea
+                    value={data[field.key] || ""}
+                    onChange={(e) => onChange(field.key, e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-lg text-sm border outline-none resize-y"
+                    style={{
+                      background: "var(--bg-page)",
+                      borderColor: "var(--border)",
+                      color: "var(--text-primary)",
+                    }}
+                  />
+                )}
 
-          {field.type === "select" && field.options && (
-            <select
-              value={data[field.key] || ""}
-              onChange={(e) => onChange(field.key, e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
-              style={{
-                background: "var(--bg-page)",
-                borderColor: "var(--border)",
-                color: "var(--text-primary)",
-              }}
-            >
-              <option value="">Select...</option>
-              {field.options.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          )}
+                {field.type === "date" && (
+                  <input
+                    type="date"
+                    value={data[field.key] || ""}
+                    onChange={(e) => onChange(field.key, e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
+                    style={{
+                      background: "var(--bg-page)",
+                      borderColor: "var(--border)",
+                      color: "var(--text-primary)",
+                    }}
+                  />
+                )}
 
-          {field.type === "card" && (
-            <CardImage
-              value={data[field.key] || ""}
-              imageUrl={data[`${field.key}_imageUrl`] || null}
-              overrideUrl={data[`${field.key}_overrideUrl`] || null}
-              onChange={(name, url) => {
-                onChange(field.key, name);
-                onChange(`${field.key}_imageUrl`, url);
-              }}
-              onOverride={(url) => onChange(`${field.key}_overrideUrl`, url)}
-            />
-          )}
-        </div>
-      ))}
+                {field.type === "select" && field.options && (
+                  <select
+                    value={data[field.key] || ""}
+                    onChange={(e) => onChange(field.key, e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
+                    style={{
+                      background: "var(--bg-page)",
+                      borderColor: "var(--border)",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    <option value="">Select...</option>
+                    {field.options.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {field.type === "card" && (
+                  <CardImage
+                    value={data[field.key] || ""}
+                    imageUrl={data[`${field.key}_imageUrl`] || null}
+                    overrideUrl={data[`${field.key}_overrideUrl`] || null}
+                    onChange={(name, url) => {
+                      onChange(field.key, name);
+                      onChange(`${field.key}_imageUrl`, url);
+                    }}
+                    onOverride={(url) => onChange(`${field.key}_overrideUrl`, url)}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

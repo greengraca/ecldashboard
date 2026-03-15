@@ -7,7 +7,8 @@ export async function proxy(request: NextRequest) {
 
   const isPublic =
     pathname === "/login" ||
-    pathname.startsWith("/api/auth");
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/media-capture");
 
   if (!isPublic) {
     const session = await auth();

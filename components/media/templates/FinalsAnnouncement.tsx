@@ -16,15 +16,31 @@ interface FinalsAnnouncementData {
   commander1?: string;
   commander1_imageUrl?: string;
   commander1_overrideUrl?: string;
+  hasPartner1?: boolean;
+  partner1?: string;
+  partner1_imageUrl?: string;
+  partner1_overrideUrl?: string;
   commander2?: string;
   commander2_imageUrl?: string;
   commander2_overrideUrl?: string;
+  hasPartner2?: boolean;
+  partner2?: string;
+  partner2_imageUrl?: string;
+  partner2_overrideUrl?: string;
   commander3?: string;
   commander3_imageUrl?: string;
   commander3_overrideUrl?: string;
+  hasPartner3?: boolean;
+  partner3?: string;
+  partner3_imageUrl?: string;
+  partner3_overrideUrl?: string;
   commander4?: string;
   commander4_imageUrl?: string;
   commander4_overrideUrl?: string;
+  hasPartner4?: boolean;
+  partner4?: string;
+  partner4_imageUrl?: string;
+  partner4_overrideUrl?: string;
   [key: string]: unknown;
 }
 
@@ -50,6 +66,8 @@ interface FinalistCardProps {
   avatarUrl: string | null;
   commanderName: string;
   commanderImageUrl: string | null;
+  partnerName?: string;
+  partnerImageUrl?: string | null;
   seed: number;
 }
 
@@ -58,8 +76,11 @@ function FinalistCard({
   avatarUrl,
   commanderName,
   commanderImageUrl,
+  partnerName,
+  partnerImageUrl,
   seed,
 }: FinalistCardProps) {
+  const hasPartner = !!partnerImageUrl;
   return (
     <div
       style={{
@@ -144,8 +165,8 @@ function FinalistCard({
         {name}
       </p>
 
-      {/* Commander card */}
-      {commanderImageUrl && (
+      {/* Commander card(s) */}
+      {commanderImageUrl && !hasPartner && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={commanderImageUrl}
@@ -157,6 +178,47 @@ function FinalistCard({
             boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
           }}
         />
+      )}
+      {commanderImageUrl && hasPartner && (
+        <div
+          style={{
+            position: "relative",
+            height: 140,
+            width: 180,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={commanderImageUrl}
+            alt={commanderName}
+            style={{
+              position: "absolute",
+              height: 130,
+              width: "auto",
+              borderRadius: 6,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+              transform: "rotate(-8deg) translateX(-18%)",
+              zIndex: 1,
+            }}
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={partnerImageUrl!}
+            alt={partnerName || "Partner"}
+            style={{
+              position: "absolute",
+              height: 130,
+              width: "auto",
+              borderRadius: 6,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+              transform: "rotate(8deg) translateX(18%)",
+              zIndex: 2,
+            }}
+          />
+        </div>
       )}
 
       {/* Commander name */}
@@ -171,6 +233,7 @@ function FinalistCard({
           }}
         >
           {commanderName}
+          {partnerName ? ` / ${partnerName}` : ""}
         </p>
       )}
     </div>
@@ -204,7 +267,15 @@ export default function FinalsAnnouncement({ data }: { data: FinalsAnnouncementD
       }
     }
 
-    return { name, avatarUrl, commanderName, commanderImageUrl, seed: i + 1 };
+    const hasPartner = !!(data[`hasPartner${i + 1}`]);
+    const partnerName = hasPartner ? (data[`partner${i + 1}`] as string) || "" : "";
+    const partnerImageUrl = hasPartner
+      ? (data[`partner${i + 1}_overrideUrl`] as string) ||
+        (data[`partner${i + 1}_imageUrl`] as string) ||
+        null
+      : null;
+
+    return { name, avatarUrl, commanderName, commanderImageUrl, partnerName, partnerImageUrl, seed: i + 1 };
   });
 
   const streamDateFormatted = data.streamDate

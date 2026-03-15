@@ -9,6 +9,15 @@ import PrizeAnnouncement from "./templates/PrizeAnnouncement";
 import PrizePoolOverview from "./templates/PrizePoolOverview";
 import SemiFinalWinner from "./templates/SemiFinalWinner";
 import FinalsAnnouncement from "./templates/FinalsAnnouncement";
+import MonthlyChampion from "./templates/MonthlyChampion";
+import StandingsLeaderboard from "./templates/StandingsLeaderboard";
+import SeasonRecap from "./templates/SeasonRecap";
+import RegistrationOpen from "./templates/RegistrationOpen";
+import MatchDayModern from "./templates/MatchDayModern";
+import PlayerSpotlight from "./templates/PlayerSpotlight";
+import ResultsDrop from "./templates/ResultsDrop";
+import ResultsDropTop4 from "./templates/ResultsDropTop4";
+import EventHype from "./templates/EventHype";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const COMPONENT_MAP: Record<string, React.ComponentType<{ data: any }>> = {
@@ -17,6 +26,15 @@ const COMPONENT_MAP: Record<string, React.ComponentType<{ data: any }>> = {
   "prize-pool-overview": PrizePoolOverview,
   "semi-final-winner": SemiFinalWinner,
   "finals-announcement": FinalsAnnouncement,
+  "monthly-champion": MonthlyChampion,
+  "standings-leaderboard": StandingsLeaderboard,
+  "season-recap": SeasonRecap,
+  "registration-open": RegistrationOpen,
+  "match-day-modern": MatchDayModern,
+  "player-spotlight": PlayerSpotlight,
+  "results-drop": ResultsDrop,
+  "results-drop-top4": ResultsDropTop4,
+  "event-hype": EventHype,
 };
 
 interface TemplatePreviewProps {
@@ -112,7 +130,7 @@ export default function TemplatePreview({ templateId, data, month }: TemplatePre
         }}
         aria-hidden="true"
       >
-        <div ref={fullSizeRef} style={{ width, height }}>
+        <div ref={fullSizeRef} id="figma-capture-target" style={{ width, height }}>
           <Component data={templateData} />
         </div>
       </div>

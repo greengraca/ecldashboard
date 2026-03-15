@@ -19,7 +19,9 @@ function getCurrentMonth(): string {
 // Templates that need prize data
 const PRIZE_TEMPLATES = new Set(["prize-announcement", "prize-pool-overview"]);
 // Templates that need bracket data
-const BRACKET_TEMPLATES = new Set(["semi-final-winner", "finals-announcement"]);
+const BRACKET_TEMPLATES = new Set(["semi-final-winner", "finals-announcement", "results-drop-top4"]);
+// Templates that need standings data
+const STANDINGS_TEMPLATES = new Set(["results-drop", "results-drop-top4"]);
 
 export default function MediaPage() {
   const [month, setMonth] = useState(getCurrentMonth);
@@ -30,6 +32,7 @@ export default function MediaPage() {
   // Auto-fill data sources
   const needsPrizes = selectedTemplate ? PRIZE_TEMPLATES.has(selectedTemplate) : false;
   const needsBrackets = selectedTemplate ? BRACKET_TEMPLATES.has(selectedTemplate) : false;
+  const needsStandings = selectedTemplate ? STANDINGS_TEMPLATES.has(selectedTemplate) : false;
 
   const { data: prizesRes, isLoading: prizesLoading } = useSWR(
     needsPrizes ? `/api/prizes?month=${month}` : null,
@@ -43,9 +46,13 @@ export default function MediaPage() {
     needsBrackets ? "/api/discord/members" : null,
     fetcher
   );
+  const { data: standingsRes, isLoading: standingsLoading } = useSWR(
+    needsStandings ? `/api/players/standings?month=${month}` : null,
+    fetcher
+  );
 
   const isAutoFilling =
-    (needsPrizes && prizesLoading) || (needsBrackets && bracketsLoading);
+    (needsPrizes && prizesLoading) || (needsBrackets && bracketsLoading) || (needsStandings && standingsLoading);
 
   // Auto-fill prizes into template data
   useEffect(() => {
@@ -70,6 +77,13 @@ export default function MediaPage() {
       setTemplateData((prev) => ({ ...prev, members: membersRes.data }));
     }
   }, [needsBrackets, membersRes]);
+
+  // Auto-fill standings data
+  useEffect(() => {
+    if (needsStandings && standingsRes?.data) {
+      setTemplateData((prev) => ({ ...prev, standings: standingsRes.data }));
+    }
+  }, [needsStandings, standingsRes]);
 
   const handleSelectTemplate = useCallback((id: string) => {
     setSelectedTemplate(id);
@@ -184,6 +198,17 @@ export default function MediaPage() {
                     : bracketsRes === undefined
                       ? "Loading bracket data..."
                       : "No bracket data for this month"}
+                </p>
+              </div>
+            )}
+            {needsStandings && (
+              <div className="mt-4 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  {standingsRes?.data
+                    ? `Standings loaded (${standingsRes.data.standings?.length || 0} players)`
+                    : standingsRes === undefined
+                      ? "Loading standings data..."
+                      : "No standings data for this month"}
                 </p>
               </div>
             )}
