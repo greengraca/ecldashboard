@@ -16,6 +16,7 @@ import RegistrationOpen from "./templates/RegistrationOpen";
 import MatchDayModern from "./templates/MatchDayModern";
 import PlayerSpotlight from "./templates/PlayerSpotlight";
 import ResultsDrop from "./templates/ResultsDrop";
+import ResultsDrop2 from "./templates/ResultsDrop2";
 import ResultsDropTop4 from "./templates/ResultsDropTop4";
 import EventHype from "./templates/EventHype";
 
@@ -33,6 +34,7 @@ const COMPONENT_MAP: Record<string, React.ComponentType<{ data: any }>> = {
   "match-day-modern": MatchDayModern,
   "player-spotlight": PlayerSpotlight,
   "results-drop": ResultsDrop,
+  "results-drop-2": ResultsDrop2,
   "results-drop-top4": ResultsDropTop4,
   "event-hype": EventHype,
 };

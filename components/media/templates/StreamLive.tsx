@@ -141,7 +141,7 @@ export default function StreamLive({ data }: { data: StreamLiveData }) {
         {/* cEDH Championship logo */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={ASSETS.cedhChampionshipLogo}
+          src={ASSETS.cedhPtLogo}
           alt="cEDH European Championship"
           onError={onAssetError}
           style={{ height: 100, width: "auto", objectFit: "contain", opacity: 0.8 }}

@@ -316,7 +316,7 @@ export default function RegistrationOpen({ data }: { data: RegistrationOpenData 
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={ASSETS.cedhChampionshipLogo}
+            src={ASSETS.cedhPtLogo}
             alt="cEDH Championship"
             onError={onAssetError}
             style={{ height: 60, width: "auto", objectFit: "contain", opacity: 0.6 }}

@@ -18,6 +18,8 @@ interface ResultsDropTop4Data {
   month: string;
   winner: string;
   winnerCommander?: string;
+  winnerCommander_imageUrl?: string;
+  winnerCommander_overrideUrl?: string;
   second?: string;
   third?: string;
   fourth?: string;
@@ -48,6 +50,10 @@ export default function ResultsDropTop4({ data }: { data: ResultsDropTop4Data })
   const second = data.second || top4[1]?.name || "";
   const third = data.third || top4[2]?.name || "";
   const fourth = data.fourth || top4[3]?.name || "";
+
+  // Commander image for winner
+  const commanderImageUrl =
+    data.winnerCommander_overrideUrl || data.winnerCommander_imageUrl || null;
 
   // Auto-fill stats from standings
   const standings = data.standings?.standings || [];
@@ -187,7 +193,10 @@ export default function ResultsDropTop4({ data }: { data: ResultsDropTop4Data })
         style={{
           position: "relative",
           zIndex: 1,
-          padding: "48px 64px 0",
+          padding: "56px 64px 0",
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <div
@@ -213,7 +222,7 @@ export default function ResultsDropTop4({ data }: { data: ResultsDropTop4Data })
           <div style={{ flex: 1, paddingTop: 8 }}>
             <p
               style={{
-                fontSize: 10,
+                fontSize: 12,
                 fontWeight: 700,
                 color: NEON,
                 margin: 0,
@@ -225,10 +234,10 @@ export default function ResultsDropTop4({ data }: { data: ResultsDropTop4Data })
             </p>
             <h2
               style={{
-                fontSize: 52,
+                fontSize: 56,
                 fontWeight: 900,
                 color: "#fff",
-                margin: "4px 0 0",
+                margin: "8px 0 0",
                 lineHeight: 1,
                 letterSpacing: "-0.02em",
               }}
@@ -238,10 +247,10 @@ export default function ResultsDropTop4({ data }: { data: ResultsDropTop4Data })
             {data.winnerCommander && (
               <p
                 style={{
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: 500,
                   color: "rgba(163, 230, 53, 0.6)",
-                  margin: "8px 0 0",
+                  margin: "12px 0 0",
                 }}
               >
                 {data.winnerCommander}
@@ -249,6 +258,29 @@ export default function ResultsDropTop4({ data }: { data: ResultsDropTop4Data })
             )}
           </div>
         </div>
+
+        {/* Commander card image */}
+        {commanderImageUrl && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              padding: "32px 0 0",
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={commanderImageUrl}
+              alt={data.winnerCommander || "Commander"}
+              style={{
+                height: 340,
+                width: "auto",
+                borderRadius: 12,
+                boxShadow: `0 8px 40px rgba(0,0,0,0.6), 0 0 60px ${NEON_DIM}`,
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* Divider */}
@@ -256,7 +288,7 @@ export default function ResultsDropTop4({ data }: { data: ResultsDropTop4Data })
         style={{
           position: "relative",
           zIndex: 1,
-          margin: "32px 64px",
+          margin: "40px 64px",
           height: 1,
           background: "linear-gradient(90deg, rgba(255,255,255,0.1), transparent)",
         }}
@@ -270,7 +302,7 @@ export default function ResultsDropTop4({ data }: { data: ResultsDropTop4Data })
           padding: "0 64px",
           display: "flex",
           flexDirection: "column",
-          gap: 24,
+          gap: 36,
         }}
       >
         {[
@@ -285,17 +317,17 @@ export default function ResultsDropTop4({ data }: { data: ResultsDropTop4Data })
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 20,
+                gap: 24,
               }}
             >
               <span
                 style={{
-                  fontSize: 36,
+                  fontSize: 44,
                   fontWeight: 900,
                   color: "rgba(255,255,255,0.12)",
                   lineHeight: 1,
                   letterSpacing: "-0.03em",
-                  width: 70,
+                  width: 80,
                 }}
               >
                 {p.num}
@@ -303,7 +335,7 @@ export default function ResultsDropTop4({ data }: { data: ResultsDropTop4Data })
               <div>
                 <p
                   style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: 600,
                     color: "rgba(255,255,255,0.3)",
                     margin: 0,
@@ -314,10 +346,10 @@ export default function ResultsDropTop4({ data }: { data: ResultsDropTop4Data })
                 </p>
                 <p
                   style={{
-                    fontSize: 28,
+                    fontSize: 34,
                     fontWeight: 700,
                     color: "rgba(255,255,255,0.85)",
-                    margin: "2px 0 0",
+                    margin: "4px 0 0",
                     letterSpacing: "-0.01em",
                   }}
                 >
@@ -334,7 +366,7 @@ export default function ResultsDropTop4({ data }: { data: ResultsDropTop4Data })
           position: "relative",
           zIndex: 1,
           marginTop: "auto",
-          padding: "0 64px 72px",
+          padding: "40px 64px 72px",
         }}
       >
         {(totalGames || totalPlayers) && (

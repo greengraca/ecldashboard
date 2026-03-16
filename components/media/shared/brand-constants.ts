@@ -29,7 +29,7 @@ export const DIMENSIONS = {
 export const ASSETS = {
   eclLogo: "/media/assets/ecl-logo.png",
   commanderArenaLogo: "/media/assets/commander-arena-logo.png",
-  cedhChampionshipLogo: "/media/assets/cedh-championship-logo.png",
+  cedhPtLogo: "/media/assets/cedh-championship-logo.png",
   backgroundSmoke: "/media/assets/background-smoke.jpg",
   championRing: "/media/assets/champion-ring.png",
   championshipTicket: "/media/assets/championship-ticket.png",

@@ -214,6 +214,21 @@ export const TEMPLATES: Omit<TemplateDefinition, "component">[] = [
     dimensions: DIMENSIONS.story,
     fields: [
       { key: "title", label: "Title Override", type: "text" },
+      { key: "totalPlayers", label: "Total Players", type: "text" },
+      { key: "totalGames", label: "Total Games", type: "text" },
+    ],
+    autoFillEndpoints: ["/api/players/standings"],
+  },
+  {
+    id: "results-drop-2",
+    label: "Results Drop Top 16 v2 (Modern)",
+    description: "Brutalist leaderboard with ECL logo footer and sponsor line",
+    dimensions: DIMENSIONS.story,
+    fields: [
+      { key: "title", label: "Title Override", type: "text" },
+      { key: "totalPlayers", label: "Total Players", type: "text" },
+      { key: "totalGames", label: "Total Games", type: "text" },
+      { key: "sponsorText", label: "Sponsor Text", type: "text" },
     ],
     autoFillEndpoints: ["/api/players/standings"],
   },
@@ -224,7 +239,7 @@ export const TEMPLATES: Omit<TemplateDefinition, "component">[] = [
     dimensions: DIMENSIONS.story,
     fields: [
       { key: "winner", label: "1st Place", type: "text" },
-      { key: "winnerCommander", label: "Winner's Commander", type: "text" },
+      { key: "winnerCommander", label: "Winner's Commander", type: "card" },
       { key: "second", label: "2nd Place", type: "text" },
       { key: "third", label: "3rd Place", type: "text" },
       { key: "fourth", label: "4th Place", type: "text" },

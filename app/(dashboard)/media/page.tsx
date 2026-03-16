@@ -21,7 +21,7 @@ const PRIZE_TEMPLATES = new Set(["prize-announcement", "prize-pool-overview"]);
 // Templates that need bracket data
 const BRACKET_TEMPLATES = new Set(["semi-final-winner", "finals-announcement", "results-drop-top4"]);
 // Templates that need standings data
-const STANDINGS_TEMPLATES = new Set(["results-drop", "results-drop-top4"]);
+const STANDINGS_TEMPLATES = new Set(["results-drop", "results-drop-2", "results-drop-top4"]);
 
 export default function MediaPage() {
   const [month, setMonth] = useState(getCurrentMonth);
@@ -59,7 +59,7 @@ export default function MediaPage() {
     if (needsPrizes && prizesRes?.data) {
       setTemplateData((prev) => ({ ...prev, prizes: prizesRes.data }));
     }
-  }, [needsPrizes, prizesRes]);
+  }, [needsPrizes, prizesRes, selectedTemplate]);
 
   // Auto-fill bracket data
   useEffect(() => {
@@ -69,21 +69,21 @@ export default function MediaPage() {
         brackets: bracketsRes.data,
       }));
     }
-  }, [needsBrackets, bracketsRes]);
+  }, [needsBrackets, bracketsRes, selectedTemplate]);
 
   // Auto-fill members for avatar resolution
   useEffect(() => {
     if (needsBrackets && membersRes?.data) {
       setTemplateData((prev) => ({ ...prev, members: membersRes.data }));
     }
-  }, [needsBrackets, membersRes]);
+  }, [needsBrackets, membersRes, selectedTemplate]);
 
   // Auto-fill standings data
   useEffect(() => {
     if (needsStandings && standingsRes?.data) {
       setTemplateData((prev) => ({ ...prev, standings: standingsRes.data }));
     }
-  }, [needsStandings, standingsRes]);
+  }, [needsStandings, standingsRes, selectedTemplate]);
 
   const handleSelectTemplate = useCallback((id: string) => {
     setSelectedTemplate(id);
