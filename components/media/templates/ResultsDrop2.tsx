@@ -15,6 +15,7 @@ interface StandingsEntry {
 
 interface StandingsData {
   standings: StandingsEntry[];
+  totalPlayers?: number;
 }
 
 interface ResultsDrop2Data {
@@ -51,7 +52,7 @@ export default function ResultsDrop2({ data }: { data: ResultsDrop2Data }) {
   const standings = data.standings?.standings || PLACEHOLDER;
   const top16 = standings.slice(0, 16);
 
-  const totalPlayers = data.totalPlayers || (standings.length > 0 ? String(standings.length) : "");
+  const totalPlayers = data.totalPlayers || (data.standings?.totalPlayers ? String(data.standings.totalPlayers) : (standings.length > 0 ? String(standings.length) : ""));
   const totalGames = data.totalGames || (standings.length > 0
     ? String(standings.reduce((sum, s) => sum + s.games, 0))
     : "");

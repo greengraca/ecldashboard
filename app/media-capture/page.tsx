@@ -19,6 +19,8 @@ import PlayerSpotlight from "@/components/media/templates/PlayerSpotlight";
 import ResultsDrop from "@/components/media/templates/ResultsDrop";
 import ResultsDrop2 from "@/components/media/templates/ResultsDrop2";
 import ResultsDropTop4 from "@/components/media/templates/ResultsDropTop4";
+import ResultsDropTop4v2 from "@/components/media/templates/ResultsDropTop4v2";
+import ResultsDropWinner from "@/components/media/templates/ResultsDropWinner";
 import EventHype from "@/components/media/templates/EventHype";
 import { TEMPLATES } from "@/components/media/template-registry";
 
@@ -40,12 +42,14 @@ const COMPONENT_MAP: Record<string, React.ComponentType<{ data: any }>> = {
   "results-drop": ResultsDrop,
   "results-drop-2": ResultsDrop2,
   "results-drop-top4": ResultsDropTop4,
+  "results-drop-top4-v2": ResultsDropTop4v2,
+  "results-drop-winner": ResultsDropWinner,
   "event-hype": EventHype,
 };
 
 const PRIZE_TEMPLATES = new Set(["prize-announcement", "prize-pool-overview"]);
-const BRACKET_TEMPLATES = new Set(["semi-final-winner", "finals-announcement", "results-drop-top4"]);
-const STANDINGS_TEMPLATES = new Set(["results-drop", "results-drop-2", "results-drop-top4"]);
+const BRACKET_TEMPLATES = new Set(["semi-final-winner", "finals-announcement", "results-drop-top4", "results-drop-top4-v2", "results-drop-winner"]);
+const STANDINGS_TEMPLATES = new Set(["results-drop", "results-drop-2", "results-drop-top4", "results-drop-top4-v2", "results-drop-winner"]);
 
 /**
  * Standalone capture page — renders a single template at full resolution
@@ -77,16 +81,17 @@ function CaptureContent() {
     needsPrizes ? `/api/prizes?month=${month}` : null,
     fetcher
   );
+  const { data: standingsRes } = useSWR(
+    needsStandings ? `/api/players/standings?month=${month}` : null,
+    fetcher
+  );
+  const bracketsMonth = (needsStandings && standingsRes?.data?.month) || month;
   const { data: bracketsRes } = useSWR(
-    needsBrackets ? `/api/players/brackets?month=${month}` : null,
+    needsBrackets ? `/api/players/brackets?month=${bracketsMonth}` : null,
     fetcher
   );
   const { data: membersRes } = useSWR(
     needsBrackets ? "/api/discord/members" : null,
-    fetcher
-  );
-  const { data: standingsRes } = useSWR(
-    needsStandings ? `/api/players/standings?month=${month}` : null,
     fetcher
   );
 

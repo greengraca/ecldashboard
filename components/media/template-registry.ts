@@ -8,6 +8,12 @@ export interface TemplateDataField {
   options?: { value: string; label: string }[];
   /** Only show this field when the given data key is truthy */
   showIf?: string;
+  /** Only show the input (keep label visible) when the given data key is truthy */
+  inputShowIf?: string;
+  /** Group fields with the same row value into a grid row in the editor */
+  row?: string;
+  /** Within a row, group fields with the same col value into a flex-col */
+  col?: string;
 }
 
 export interface TemplateDefinition {
@@ -245,6 +251,62 @@ export const TEMPLATES: Omit<TemplateDefinition, "component">[] = [
       { key: "fourth", label: "4th Place", type: "text" },
       { key: "totalPlayers", label: "Total Players", type: "text" },
       { key: "totalGames", label: "Total Games", type: "text" },
+    ],
+    autoFillEndpoints: ["/api/players/brackets", "/api/players/standings"],
+  },
+  {
+    id: "results-drop-top4-v2",
+    label: "Results Drop Top 4 v2 (Modern)",
+    description: "Finals hype with 2×2 commander grid, golden yellow accents",
+    dimensions: DIMENSIONS.story,
+    fields: [
+      { key: "nameOverrides", label: "Name Overrides", type: "checkbox" },
+      { key: "player1", label: "Seat 1", type: "text", inputShowIf: "nameOverrides", row: "row1", col: "s1" },
+      { key: "p1Commander", label: "Commander", type: "card", row: "row1", col: "s1" },
+      { key: "hasP1Partner", label: "Partner", type: "checkbox", row: "row1", col: "s1" },
+      { key: "p1Partner", label: "Partner Commander", type: "card", showIf: "hasP1Partner", row: "row1", col: "s1" },
+      { key: "player2", label: "Seat 2", type: "text", inputShowIf: "nameOverrides", row: "row1", col: "s2" },
+      { key: "p2Commander", label: "Commander", type: "card", row: "row1", col: "s2" },
+      { key: "hasP2Partner", label: "Partner", type: "checkbox", row: "row1", col: "s2" },
+      { key: "p2Partner", label: "Partner Commander", type: "card", showIf: "hasP2Partner", row: "row1", col: "s2" },
+      { key: "player4", label: "Seat 4", type: "text", inputShowIf: "nameOverrides", row: "row2", col: "s4" },
+      { key: "p4Commander", label: "Commander", type: "card", row: "row2", col: "s4" },
+      { key: "hasP4Partner", label: "Partner", type: "checkbox", row: "row2", col: "s4" },
+      { key: "p4Partner", label: "Partner Commander", type: "card", showIf: "hasP4Partner", row: "row2", col: "s4" },
+      { key: "player3", label: "Seat 3", type: "text", inputShowIf: "nameOverrides", row: "row2", col: "s3" },
+      { key: "p3Commander", label: "Commander", type: "card", row: "row2", col: "s3" },
+      { key: "hasP3Partner", label: "Partner", type: "checkbox", row: "row2", col: "s3" },
+      { key: "p3Partner", label: "Partner Commander", type: "card", showIf: "hasP3Partner", row: "row2", col: "s3" },
+      { key: "sponsorText", label: "Sponsor Text", type: "text" },
+    ],
+    autoFillEndpoints: ["/api/players/brackets", "/api/players/standings"],
+  },
+  {
+    id: "results-drop-winner",
+    label: "Results Drop Winner (Modern)",
+    description: "Champion spotlight with large winner commander, golden yellow accents",
+    dimensions: DIMENSIONS.story,
+    fields: [
+      { key: "nameOverrides", label: "Name Overrides", type: "checkbox" },
+      { key: "winner", label: "Winner", type: "text", inputShowIf: "nameOverrides", row: "row1", col: "w1" },
+      { key: "winnerCommander", label: "Commander", type: "card", row: "row1", col: "w1" },
+      { key: "hasWinnerPartner", label: "Partner", type: "checkbox", row: "row1", col: "w1" },
+      { key: "winnerPartner", label: "Partner Commander", type: "card", showIf: "hasWinnerPartner", row: "row1", col: "w1" },
+      { key: "second", label: "2nd Place", type: "text", inputShowIf: "nameOverrides", row: "row1", col: "w2" },
+      { key: "secondCommander", label: "Commander", type: "card", row: "row1", col: "w2" },
+      { key: "hasSecondPartner", label: "Partner", type: "checkbox", row: "row1", col: "w2" },
+      { key: "secondPartner", label: "Partner Commander", type: "card", showIf: "hasSecondPartner", row: "row1", col: "w2" },
+      { key: "third", label: "3rd Place", type: "text", inputShowIf: "nameOverrides", row: "row2", col: "w3" },
+      { key: "thirdCommander", label: "Commander", type: "card", row: "row2", col: "w3" },
+      { key: "hasThirdPartner", label: "Partner", type: "checkbox", row: "row2", col: "w3" },
+      { key: "thirdPartner", label: "Partner Commander", type: "card", showIf: "hasThirdPartner", row: "row2", col: "w3" },
+      { key: "fourth", label: "4th Place", type: "text", inputShowIf: "nameOverrides", row: "row2", col: "w4" },
+      { key: "fourthCommander", label: "Commander", type: "card", row: "row2", col: "w4" },
+      { key: "hasFourthPartner", label: "Partner", type: "checkbox", row: "row2", col: "w4" },
+      { key: "fourthPartner", label: "Partner Commander", type: "card", showIf: "hasFourthPartner", row: "row2", col: "w4" },
+      { key: "totalPlayers", label: "Total Players", type: "text", row: "stats" },
+      { key: "totalGames", label: "Total Games", type: "text", row: "stats" },
+      { key: "sponsorText", label: "Sponsor Text", type: "text" },
     ],
     autoFillEndpoints: ["/api/players/brackets", "/api/players/standings"],
   },

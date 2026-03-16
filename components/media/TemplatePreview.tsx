@@ -18,6 +18,8 @@ import PlayerSpotlight from "./templates/PlayerSpotlight";
 import ResultsDrop from "./templates/ResultsDrop";
 import ResultsDrop2 from "./templates/ResultsDrop2";
 import ResultsDropTop4 from "./templates/ResultsDropTop4";
+import ResultsDropTop4v2 from "./templates/ResultsDropTop4v2";
+import ResultsDropWinner from "./templates/ResultsDropWinner";
 import EventHype from "./templates/EventHype";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,6 +38,8 @@ const COMPONENT_MAP: Record<string, React.ComponentType<{ data: any }>> = {
   "results-drop": ResultsDrop,
   "results-drop-2": ResultsDrop2,
   "results-drop-top4": ResultsDropTop4,
+  "results-drop-top4-v2": ResultsDropTop4v2,
+  "results-drop-winner": ResultsDropWinner,
   "event-hype": EventHype,
 };
 

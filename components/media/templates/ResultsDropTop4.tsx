@@ -12,6 +12,7 @@ interface BracketData {
 
 interface StandingsData {
   standings: Array<{ games: number }>;
+  totalPlayers?: number;
 }
 
 interface ResultsDropTop4Data {
@@ -57,7 +58,7 @@ export default function ResultsDropTop4({ data }: { data: ResultsDropTop4Data })
 
   // Auto-fill stats from standings
   const standings = data.standings?.standings || [];
-  const totalPlayers = data.totalPlayers || (standings.length > 0 ? String(standings.length) : "");
+  const totalPlayers = data.totalPlayers || (data.standings?.totalPlayers ? String(data.standings.totalPlayers) : (standings.length > 0 ? String(standings.length) : ""));
   const totalGames = data.totalGames || (standings.length > 0
     ? String(standings.reduce((sum, s) => sum + s.games, 0))
     : "");

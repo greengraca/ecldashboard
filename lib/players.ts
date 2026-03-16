@@ -437,9 +437,9 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
  * Get Top 16 standings for a given month.
  * Returns the resolved month so callers know which month data came from.
  */
-export async function getStandings(month?: string): Promise<{ standings: Standing[]; resolvedMonth: string | null }> {
+export async function getStandings(month?: string): Promise<{ standings: Standing[]; resolvedMonth: string | null; totalPlayers: number }> {
   const months = await getHistoricalMonths();
-  if (months.length === 0) return { standings: [], resolvedMonth: null };
+  if (months.length === 0) return { standings: [], resolvedMonth: null, totalPlayers: 0 };
 
   // Resolve target month: use requested month if it has data, otherwise latest
   let resolvedMonth: string;
@@ -464,5 +464,5 @@ export async function getStandings(month?: string): Promise<{ standings: Standin
     win_pct: p.win_pct,
   }));
 
-  return { standings, resolvedMonth };
+  return { standings, resolvedMonth, totalPlayers: players.length };
 }

@@ -292,12 +292,14 @@ export default function PlayerSpotlight({ data }: { data: PlayerSpotlightData })
                 alt={data.commanderName || "Commander"}
                 style={{
                   position: "absolute",
-                  height: 340,
+                  height: 320,
                   width: "auto",
+                  maxWidth: "55%",
+                  objectFit: "contain",
                   borderRadius: 12,
                   boxShadow: "0 12px 40px rgba(0,0,0,0.6)",
-                  transform: "rotate(-8deg) translateX(-18%)",
-                  zIndex: 1,
+                  transform: "rotate(-5deg) translateX(-20%)",
+                  zIndex: 2,
                 }}
               />
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -306,12 +308,14 @@ export default function PlayerSpotlight({ data }: { data: PlayerSpotlightData })
                 alt={data.partnerName || "Partner"}
                 style={{
                   position: "absolute",
-                  height: 340,
+                  height: 320,
                   width: "auto",
+                  maxWidth: "55%",
+                  objectFit: "contain",
                   borderRadius: 12,
                   boxShadow: "0 12px 40px rgba(0,0,0,0.6)",
-                  transform: "rotate(8deg) translateX(18%)",
-                  zIndex: 2,
+                  transform: "rotate(5deg) translateX(20%)",
+                  zIndex: 1,
                 }}
               />
             </div>

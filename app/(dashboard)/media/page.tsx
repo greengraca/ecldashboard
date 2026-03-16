@@ -19,9 +19,9 @@ function getCurrentMonth(): string {
 // Templates that need prize data
 const PRIZE_TEMPLATES = new Set(["prize-announcement", "prize-pool-overview"]);
 // Templates that need bracket data
-const BRACKET_TEMPLATES = new Set(["semi-final-winner", "finals-announcement", "results-drop-top4"]);
+const BRACKET_TEMPLATES = new Set(["semi-final-winner", "finals-announcement", "results-drop-top4", "results-drop-top4-v2", "results-drop-winner"]);
 // Templates that need standings data
-const STANDINGS_TEMPLATES = new Set(["results-drop", "results-drop-2", "results-drop-top4"]);
+const STANDINGS_TEMPLATES = new Set(["results-drop", "results-drop-2", "results-drop-top4", "results-drop-top4-v2", "results-drop-winner"]);
 
 export default function MediaPage() {
   const [month, setMonth] = useState(getCurrentMonth);
@@ -38,16 +38,19 @@ export default function MediaPage() {
     needsPrizes ? `/api/prizes?month=${month}` : null,
     fetcher
   );
+  const { data: standingsRes, isLoading: standingsLoading } = useSWR(
+    needsStandings ? `/api/players/standings?month=${month}` : null,
+    fetcher
+  );
+  // Brackets should use the resolved month from standings (standings falls back
+  // to the latest month with data, but brackets does an exact match).
+  const bracketsMonth = (needsStandings && standingsRes?.data?.month) || month;
   const { data: bracketsRes, isLoading: bracketsLoading } = useSWR(
-    needsBrackets ? `/api/players/brackets?month=${month}` : null,
+    needsBrackets ? `/api/players/brackets?month=${bracketsMonth}` : null,
     fetcher
   );
   const { data: membersRes } = useSWR(
     needsBrackets ? "/api/discord/members" : null,
-    fetcher
-  );
-  const { data: standingsRes, isLoading: standingsLoading } = useSWR(
-    needsStandings ? `/api/players/standings?month=${month}` : null,
     fetcher
   );
 
