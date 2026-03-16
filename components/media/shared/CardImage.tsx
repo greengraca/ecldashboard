@@ -57,10 +57,32 @@ export default function CardImage({
     onOverride(url);
   }
 
+  function handleDragOver(e: React.DragEvent) {
+    if (e.dataTransfer.types.includes("application/x-drive-asset")) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    const assetJson = e.dataTransfer.getData("application/x-drive-asset");
+    if (assetJson) {
+      e.preventDefault();
+      try {
+        const asset = JSON.parse(assetJson);
+        if (asset.previewUrl) {
+          onOverride(asset.previewUrl);
+        }
+      } catch {
+        // Ignore malformed data
+      }
+    }
+  }
+
   const displayUrl = overrideUrl || imageUrl;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" onDragOver={handleDragOver} onDrop={handleDrop}>
       <div className="relative">
         <Search
           className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"

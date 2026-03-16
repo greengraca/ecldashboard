@@ -6,7 +6,7 @@ import MonthPicker from "@/components/dashboard/month-picker";
 import TemplateSelector from "@/components/media/TemplateSelector";
 import TemplatePreview from "@/components/media/TemplatePreview";
 import TemplateEditor from "@/components/media/TemplateEditor";
-import AssetStatus from "@/components/media/AssetStatus";
+import AssetDrive from "@/components/media/drive/AssetDrive";
 import { TEMPLATES } from "@/components/media/template-registry";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -123,9 +123,9 @@ export default function MediaPage() {
         <MonthPicker value={month} onChange={setMonth} minMonth="2025-11" />
       </div>
 
-      {/* Asset status */}
+      {/* Asset Drive */}
       <div className="mb-6">
-        <AssetStatus />
+        <AssetDrive />
       </div>
 
       {/* Template selector */}

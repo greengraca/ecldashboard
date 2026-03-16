@@ -380,3 +380,20 @@ export interface ApiError {
 }
 
 export type ApiResult<T> = ApiResponse<T> | ApiError;
+
+// ─── Media Drive Types ───
+
+export interface MediaFile {
+  _id: string;
+  name: string;
+  type: "file" | "folder";
+  mimeType?: string;
+  size?: number;
+  r2Key?: string;
+  parentId: string | null;
+  path: string;
+  previewUrl?: string;
+  uploadedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}

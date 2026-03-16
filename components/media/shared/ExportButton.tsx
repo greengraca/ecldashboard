@@ -45,7 +45,7 @@ export default function ExportButton({ targetRef, filename }: ExportButtonProps)
 
       const { toPng } = await import("html-to-image");
       const opts = {
-        pixelRatio: 1,
+        pixelRatio: 2,
         cacheBust: false,
         skipFonts: true,
         imagePlaceholder: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",

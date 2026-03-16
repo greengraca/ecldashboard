@@ -98,12 +98,15 @@ interface ResultsDropTop4v2Data {
   brackets?: BracketData;
   standings?: StandingsData;
   sponsorText?: string;
+  streamDate?: string;
+  streamTime?: string;
 }
 
 function getMonthLabel(month: string): string {
   if (!month) return "";
   const [y, m] = month.split("-").map(Number);
-  const date = new Date(y, m - 1);
+  // Data is for the previous month relative to the selected month
+  const date = new Date(y, m - 2);
   return date.toLocaleDateString("en-US", { month: "long" }).toUpperCase();
 }
 
@@ -216,7 +219,7 @@ function CommanderCard({
           left: 0,
           right: 0,
           height: "45%",
-          background: "linear-gradient(transparent, rgba(0,0,0,0.9))",
+          background: "linear-gradient(transparent, rgba(0,0,0,0.95))",
           zIndex: 3,
         }}
       />
@@ -267,8 +270,7 @@ function CommanderCard({
             fontWeight: 800,
             color: "#fff",
             margin: 0,
-            lineHeight: 1.2,
-            overflow: "hidden",
+            lineHeight: 1.35,
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
             textShadow: "0 2px 8px rgba(0,0,0,0.7)",
@@ -282,7 +284,7 @@ function CommanderCard({
             fontWeight: 500,
             color: ACCENT,
             margin: "2px 0 0",
-            overflow: "hidden",
+            lineHeight: 1.35,
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
             opacity: 0.8,
@@ -365,6 +367,25 @@ export default function ResultsDropTop4v2({ data }: { data: ResultsDropTop4v2Dat
         fontFamily: FONT,
       }}
     >
+      {/* Background smoke — lowest layer */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={ASSETS.backgroundSmoke}
+        alt=""
+        onError={onAssetError}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          objectPosition: "5% center",
+          zIndex: 0,
+          opacity: 0.3,
+        }}
+      />
+
       {/* Noise texture */}
       <div
         style={{
@@ -374,6 +395,7 @@ export default function ResultsDropTop4v2({ data }: { data: ResultsDropTop4v2Dat
           backgroundImage: NOISE_BG,
           backgroundSize: "200px 200px",
           mixBlendMode: "overlay",
+          zIndex: 1,
         }}
       />
 
@@ -420,12 +442,12 @@ export default function ResultsDropTop4v2({ data }: { data: ResultsDropTop4v2Dat
           <div style={{ display: "flex", alignItems: "flex-end", gap: 16 }}>
             <h1
               style={{
-                fontSize: 120,
+                fontSize: 140,
                 fontWeight: 900,
                 color: "#fff",
                 margin: 0,
                 lineHeight: 1,
-                letterSpacing: "-0.04em",
+                letterSpacing: "-0.03em",
               }}
             >
               FINALS
@@ -461,7 +483,7 @@ export default function ResultsDropTop4v2({ data }: { data: ResultsDropTop4v2Dat
             src={ASSETS.eclLogoOnly}
             alt="ECL"
             onError={onAssetError}
-            style={{ height: 120, width: "auto", opacity: 0.95 }}
+            style={{ height: 140, width: "auto", opacity: 0.95 }}
           />
         </div>
       </div>
@@ -479,6 +501,99 @@ export default function ResultsDropTop4v2({ data }: { data: ResultsDropTop4v2Dat
           marginBottom: 12,
         }}
       />
+
+      {/* Stream CTA — absolute so it doesn't push cards */}
+      <div
+        style={{
+          position: "absolute",
+          top: headerH + 15,
+          left: padX,
+          right: padX,
+          zIndex: 2,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
+        <div
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: "50%",
+            background: "#ef4444",
+            boxShadow: "0 0 8px rgba(239,68,68,0.6)",
+            flexShrink: 0,
+          }}
+        />
+        <span
+          style={{
+            fontSize: 18,
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.5)",
+            letterSpacing: "0.15em",
+            fontFamily: FONT,
+          }}
+        >
+          WATCH LIVE ON YOUTUBE
+        </span>
+        <span
+          style={{
+            fontSize: 18,
+            fontWeight: 700,
+            color: ACCENT,
+            letterSpacing: "0.1em",
+            fontFamily: FONT,
+            opacity: 0.7,
+          }}
+        >
+          /CEDHPT
+        </span>
+        {/* Date & Time badges */}
+        {data.streamDate && (
+          <span
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+              color: "#fff",
+              background: "rgba(255, 255, 255, 0.08)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              borderRadius: 8,
+              padding: "5px 14px",
+              letterSpacing: "0.08em",
+              fontFamily: FONT,
+              marginLeft: "auto",
+            }}
+          >
+            {(() => {
+              const today = new Date();
+              const picked = new Date(data.streamDate + "T00:00:00");
+              if (
+                picked.getFullYear() === today.getFullYear() &&
+                picked.getMonth() === today.getMonth() &&
+                picked.getDate() === today.getDate()
+              ) return "TODAY";
+              return picked.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase();
+            })()}
+          </span>
+        )}
+        {data.streamTime && (
+          <span
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+              color: ACCENT,
+              background: "rgba(255, 213, 20, 0.08)",
+              border: `1px solid rgba(255, 213, 20, 0.2)`,
+              borderRadius: 8,
+              padding: "5px 14px",
+              letterSpacing: "0.08em",
+              fontFamily: FONT,
+            }}
+          >
+            {data.streamTime}
+          </span>
+        )}
+      </div>
 
       {/* 2×2 Commander grid — centered */}
       <div
@@ -551,32 +666,32 @@ export default function ResultsDropTop4v2({ data }: { data: ResultsDropTop4v2Dat
           justifyContent: "space-between",
         }}
       >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 500,
-            color: "rgba(255,255,255,0.2)",
-            letterSpacing: "0.1em",
-          }}
-        >
-          EUROPEAN cEDH LEAGUE - {sponsor}
-        </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={ASSETS.commanderArenaLogo}
             alt="Commander Arena"
             onError={onAssetError}
-            style={{ height: 44, width: "auto", opacity: 0.7 }}
+            style={{ height: 54, width: "auto", opacity: 0.8 }}
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={ASSETS.cedhPtLogo}
             alt="cEDH PT"
             onError={onAssetError}
-            style={{ height: 44, width: "auto", opacity: 0.7 }}
+            style={{ height: 60, width: "auto", opacity: 0.8 }}
           />
         </div>
+        <span
+          style={{
+            fontSize: 16,
+            fontWeight: 400,
+            color: "rgba(255,255,255,0.2)",
+            letterSpacing: "0.1em",
+          }}
+        >
+          EUROPEAN cEDH LEAGUE - {sponsor}
+        </span>
       </div>
     </div>
   );

@@ -2,9 +2,9 @@ import { DIMENSIONS, ASSETS, NOISE_BG, onAssetError } from "../shared/brand-cons
 
 /**
  * RESULTS DROP WINNER — Champion spotlight template.
- * Golden yellow (#ffd514) accents matching ResultsDrop2.
+ * Golden yellow (#ffd514) accents matching ResultsDropTop4v2.
  * Large winner commander card(s) with dramatic golden glow.
- * Supports partner commanders (overlapping cards like PlayerSpotlight).
+ * Supports partner commanders (overlapping cards).
  * Runner-ups shown smaller below. Used AFTER the finals — winner decided.
  */
 
@@ -108,17 +108,19 @@ interface ResultsDropWinnerData {
 function getMonthLabel(month: string): string {
   if (!month) return "";
   const [y, m] = month.split("-").map(Number);
-  const date = new Date(y, m - 1);
+  // Data is for the previous month relative to the selected month
+  const date = new Date(y, m - 2);
   return date.toLocaleDateString("en-US", { month: "long" }).toUpperCase();
 }
 
 const FONT = "'Inter', 'SF Pro Display', system-ui, -apple-system, sans-serif";
 const ACCENT = "#ffd514";
-const ACCENT_DIM = "rgba(255, 213, 20, 0.15)";
 
 export default function ResultsDropWinner({ data }: { data: ResultsDropWinnerData }) {
   const { width, height } = DIMENSIONS.story;
   const monthLabel = getMonthLabel(data.month);
+  const padX = 56;
+  const headerH = 230;
 
   // Derive top 4 finalists using same logic as Players page
   const standings = data.standings?.standings || [];
@@ -199,15 +201,35 @@ export default function ResultsDropWinner({ data }: { data: ResultsDropWinnerDat
         fontFamily: FONT,
       }}
     >
-      {/* Grain/noise texture */}
+      {/* Background smoke — lowest layer */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={ASSETS.backgroundSmoke}
+        alt=""
+        onError={onAssetError}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          objectPosition: "5% center",
+          zIndex: 0,
+          opacity: 0.3,
+        }}
+      />
+
+      {/* Noise texture */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          opacity: 0.05,
+          opacity: 0.04,
           backgroundImage: NOISE_BG,
           backgroundSize: "200px 200px",
           mixBlendMode: "overlay",
+          zIndex: 1,
         }}
       />
 
@@ -225,56 +247,37 @@ export default function ResultsDropWinner({ data }: { data: ResultsDropWinnerDat
         }}
       />
 
-      {/* Geometric accents */}
-      <div
-        style={{
-          position: "absolute",
-          top: 180,
-          right: -40,
-          width: 200,
-          height: 200,
-          border: `2px solid ${ACCENT_DIM}`,
-          borderRadius: "50%",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          bottom: 350,
-          left: -60,
-          width: 160,
-          height: 160,
-          border: `2px solid ${ACCENT_DIM}`,
-          transform: "rotate(45deg)",
-        }}
-      />
-
       {/* Neon stripe — right edge */}
       <div
         style={{
           position: "absolute",
           top: 0,
           right: 0,
-          width: 6,
+          width: 5,
           height: "100%",
           background: `linear-gradient(180deg, transparent 5%, ${ACCENT} 25%, ${ACCENT} 75%, transparent 95%)`,
-          opacity: 0.6,
+          opacity: 0.5,
         }}
       />
 
-      {/* Header — CHAMPION + ECL logo right (matching ResultsDrop2 layout) */}
+      {/* Header — matching Top4v2 layout */}
       <div
         style={{
           position: "relative",
           zIndex: 1,
-          padding: "44px 56px 0",
+          width: "100%",
+          height: headerH,
+          padding: `0 ${padX}px`,
+          display: "flex",
+          alignItems: "flex-end",
+          paddingBottom: 16,
         }}
       >
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", margin: "40px 0 0" }}>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 18 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", width: "100%" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 16 }}>
             <h1
               style={{
-                fontSize: 72,
+                fontSize: 110,
                 fontWeight: 900,
                 color: "#fff",
                 margin: 0,
@@ -284,49 +287,102 @@ export default function ResultsDropWinner({ data }: { data: ResultsDropWinnerDat
             >
               CHAMPION
             </h1>
-            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", marginBottom: 6 }}>
               <span
                 style={{
-                  fontSize: 13,
+                  fontSize: 20,
                   fontWeight: 600,
                   color: "rgba(255,255,255,0.3)",
                   letterSpacing: "0.2em",
-                  lineHeight: 1.2,
+                  lineHeight: 1.3,
                 }}
               >
                 {monthLabel}
               </span>
               <span
                 style={{
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: "rgba(255,255,255,0.25)",
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: ACCENT,
                   letterSpacing: "0.15em",
-                  lineHeight: 1.2,
+                  lineHeight: 1.3,
+                  opacity: 0.7,
                 }}
               >
-                FINALS WINNER
+                WINNER
               </span>
             </div>
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={ASSETS.eclLogo}
+            src={ASSETS.eclLogoOnly}
             alt="ECL"
             onError={onAssetError}
-            style={{ height: 64, width: "auto", opacity: 0.8 }}
+            style={{ height: 140, width: "auto", opacity: 0.95 }}
           />
         </div>
+      </div>
+
+      {/* Accent line */}
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          width: `calc(100% - ${padX * 2}px)`,
+          marginLeft: padX,
+          height: 4,
+          borderRadius: 2,
+          background: `linear-gradient(90deg, ${ACCENT}, transparent 40%)`,
+          boxShadow: `0 0 20px rgba(255, 213, 20, 0.3)`,
+          marginBottom: 12,
+        }}
+      />
+
+      {/* Stream CTA — absolute so it doesn't push content */}
+      <div
+        style={{
+          position: "absolute",
+          top: headerH + 15,
+          left: padX,
+          zIndex: 2,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
         <div
           style={{
-            width: 80,
-            height: 5,
-            background: ACCENT,
-            borderRadius: 3,
-            margin: "12px 0 0",
-            boxShadow: `0 0 16px ${ACCENT}`,
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: "#ef4444",
+            boxShadow: "0 0 8px rgba(239,68,68,0.6)",
+            flexShrink: 0,
           }}
         />
+        <span
+          style={{
+            fontSize: 18,
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.5)",
+            letterSpacing: "0.15em",
+            fontFamily: FONT,
+          }}
+        >
+          WATCH LIVE ON YOUTUBE
+        </span>
+        <span
+          style={{
+            fontSize: 18,
+            fontWeight: 700,
+            color: ACCENT,
+            letterSpacing: "0.1em",
+            fontFamily: FONT,
+            opacity: 0.7,
+          }}
+        >
+          /CEDHPT
+        </span>
       </div>
 
       {/* Winner section — dominant */}
@@ -334,7 +390,7 @@ export default function ResultsDropWinner({ data }: { data: ResultsDropWinnerDat
         style={{
           position: "relative",
           zIndex: 1,
-          padding: "36px 56px 0",
+          padding: `24px ${padX}px 0`,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -513,7 +569,7 @@ export default function ResultsDropWinner({ data }: { data: ResultsDropWinnerDat
         style={{
           position: "relative",
           zIndex: 1,
-          margin: "28px 56px 0",
+          margin: `28px ${padX}px 0`,
           height: 1,
           background: "linear-gradient(90deg, rgba(255,255,255,0.08), transparent 80%)",
         }}
@@ -524,7 +580,7 @@ export default function ResultsDropWinner({ data }: { data: ResultsDropWinnerDat
         style={{
           position: "relative",
           zIndex: 1,
-          padding: "20px 56px 0",
+          padding: `20px ${padX}px 0`,
           display: "flex",
           gap: 16,
           justifyContent: "center",
@@ -683,107 +739,83 @@ export default function ResultsDropWinner({ data }: { data: ResultsDropWinnerDat
         })}
       </div>
 
-      {/* Footer — stats + logos + sponsor (matching ResultsDrop2) */}
+      {/* Footer — matching Top4v2 layout */}
       <div
         style={{
           position: "relative",
           zIndex: 1,
           marginTop: "auto",
-          padding: "0 56px 36px",
+          width: "100%",
+          height: 80,
+          padding: `0 ${padX}px`,
+          paddingBottom: 60,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-            paddingTop: 16,
-          }}
-        >
-          <div style={{ display: "flex", gap: 48 }}>
-            {totalPlayers && (
-              <div>
-                <p style={{ fontSize: 28, fontWeight: 900, color: "#fff", margin: 0 }}>
-                  {totalPlayers}
-                </p>
-                <p
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 600,
-                    color: "rgba(255,255,255,0.3)",
-                    margin: "2px 0 0",
-                    letterSpacing: "0.15em",
-                  }}
-                >
-                  PLAYERS
-                </p>
-              </div>
-            )}
-            {totalGames && (
-              <div>
-                <p style={{ fontSize: 28, fontWeight: 900, color: "#fff", margin: 0 }}>
-                  {totalGames}
-                </p>
-                <p
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 600,
-                    color: "rgba(255,255,255,0.3)",
-                    margin: "2px 0 0",
-                    letterSpacing: "0.15em",
-                  }}
-                >
-                  GAMES
-                </p>
-              </div>
-            )}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={ASSETS.commanderArenaLogo}
-              alt="Commander Arena"
-              onError={onAssetError}
-              style={{ height: 60, width: "auto", opacity: 0.8 }}
-            />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={ASSETS.cedhPtLogo}
-              alt="cEDH PT"
-              onError={onAssetError}
-              style={{ height: 60, width: "auto", opacity: 0.8 }}
-            />
-          </div>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginTop: 8,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 500,
-              color: "rgba(255,255,255,0.2)",
-              letterSpacing: "0.1em",
-            }}
-          >
-            EUROPEAN cEDH LEAGUE - {sponsor}
-          </span>
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              border: `2px solid ${ACCENT}`,
-              borderRadius: 4,
-              opacity: 0.3,
-            }}
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={ASSETS.commanderArenaLogo}
+            alt="Commander Arena"
+            onError={onAssetError}
+            style={{ height: 54, width: "auto", opacity: 0.8 }}
           />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={ASSETS.cedhPtLogo}
+            alt="cEDH PT"
+            onError={onAssetError}
+            style={{ height: 60, width: "auto", opacity: 0.8 }}
+          />
+          {totalPlayers && (
+            <div style={{ marginLeft: 20 }}>
+              <p style={{ fontSize: 24, fontWeight: 900, color: "#fff", margin: 0 }}>
+                {totalPlayers}
+              </p>
+              <p
+                style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: "rgba(255,255,255,0.3)",
+                  margin: "2px 0 0",
+                  letterSpacing: "0.15em",
+                }}
+              >
+                PLAYERS
+              </p>
+            </div>
+          )}
+          {totalGames && (
+            <div>
+              <p style={{ fontSize: 24, fontWeight: 900, color: "#fff", margin: 0 }}>
+                {totalGames}
+              </p>
+              <p
+                style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: "rgba(255,255,255,0.3)",
+                  margin: "2px 0 0",
+                  letterSpacing: "0.15em",
+                }}
+              >
+                GAMES
+              </p>
+            </div>
+          )}
         </div>
+        <span
+          style={{
+            fontSize: 16,
+            fontWeight: 400,
+            color: "rgba(255,255,255,0.2)",
+            letterSpacing: "0.1em",
+          }}
+        >
+          EUROPEAN cEDH LEAGUE - {sponsor}
+        </span>
       </div>
     </div>
   );

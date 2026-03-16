@@ -277,6 +277,8 @@ export const TEMPLATES: Omit<TemplateDefinition, "component">[] = [
       { key: "p3Commander", label: "Commander", type: "card", row: "row2", col: "s3" },
       { key: "hasP3Partner", label: "Partner", type: "checkbox", row: "row2", col: "s3" },
       { key: "p3Partner", label: "Partner Commander", type: "card", showIf: "hasP3Partner", row: "row2", col: "s3" },
+      { key: "streamDate", label: "Stream Date", type: "date" },
+      { key: "streamTime", label: "Stream Time", type: "text" },
       { key: "sponsorText", label: "Sponsor Text", type: "text" },
     ],
     autoFillEndpoints: ["/api/players/brackets", "/api/players/standings"],
