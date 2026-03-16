@@ -46,31 +46,49 @@ A Google Drive-like file manager embedded in the media tab, replacing the curren
 
 Breadcrumbs and move operations need the full path without recursive parent lookups. On move/rename, batch-update the item's path and all descendants using regex prefix replacement.
 
+**Concurrency note:** With a ~5-person team, concurrent move/rename conflicts on the same subtree are extremely unlikely. Accepted risk — no transactions needed for v1.
+
 ## API Routes
 
 | Route | Methods | Purpose |
 |-------|---------|---------|
-| `/api/media/drive` | GET | List folder contents (`?parentId=` or root). Folders first, then alphabetical |
+| `/api/media/drive` | GET | List folder contents (`?parentId=` or root). Folders first, then alphabetical. Returns `previewUrl` (presigned, 1hr TTL) for image files in the response to avoid per-file preview requests |
 | `/api/media/drive` | POST | Create folder (`{ name, parentId }`) |
-| `/api/media/drive/upload` | POST | Upload file — multipart form (file + parentId), streams to R2, creates metadata |
+| `/api/media/drive/upload` | POST | Small files (<4MB) — multipart form (file + parentId), streams to R2, creates metadata |
+| `/api/media/drive/upload-url` | POST | Large files — returns presigned PUT URL + r2Key for direct-to-R2 upload |
+| `/api/media/drive/upload-confirm` | POST | Confirms direct upload succeeded, creates metadata document (`{ r2Key, name, parentId, size, mimeType }`) |
 | `/api/media/drive/[id]` | GET | Single item metadata |
 | `/api/media/drive/[id]` | PATCH | Rename (`{ name }`) or move (`{ parentId }`) — updates path for item + descendants |
-| `/api/media/drive/[id]` | DELETE | Delete file (R2 + DB) or folder (recursive) |
+| `/api/media/drive/[id]` | DELETE | Delete file or folder (recursive). Deletes R2 objects first, then DB docs — partial R2 failure leaves recoverable metadata, not orphaned blobs |
 | `/api/media/drive/[id]/download` | GET | Presigned R2 URL redirect for full-quality download |
-| `/api/media/drive/[id]/preview` | GET | Presigned URL for inline preview |
+| `/api/media/drive/[id]/preview` | GET | Presigned URL for inline preview (1hr TTL, cached client-side) |
 | `/api/media/drive/asset-status` | GET | Check which REQUIRED_ASSETS paths exist in the drive |
 
-### Upload flow
+### Upload flow (dual-path)
 
-1. Client sends multipart POST with file + parentId
-2. API generates R2 key: `media/{parentId}/{uuid}-{filename}`
+**Small files (<4MB) — server-side proxy:**
+1. Client sends multipart POST with file + parentId to `/upload`
+2. API generates R2 key: `media/{uuid}-{filename}` (flat key, no parentId)
 3. Streams file body to R2 via `PutObjectCommand`
 4. Creates metadata document in MongoDB
 5. Returns metadata with preview URL
 
+**Large files (>=4MB) — direct-to-R2:**
+1. Client POSTs `{ name, parentId, size, mimeType }` to `/upload-url`
+2. API generates R2 key, returns presigned PUT URL (15min TTL) + r2Key
+3. Client uploads directly to R2 using the presigned URL (bypasses Vercel 4.5MB body limit)
+4. Client POSTs `{ r2Key, name, parentId, size, mimeType }` to `/upload-confirm`
+5. API verifies the R2 object exists via `HeadObjectCommand`, creates metadata document
+
+**R2 key format:** `media/{uuid}-{filename}` — flat namespace, no folder embedding. Keys are immutable and don't change on file move (only MongoDB path/parentId update).
+
 ### Size limit
 
-100MB per file (Vercel serverless body size limit). Chunked upload can be added later for larger videos if needed.
+100MB per file via presigned URL upload. Small file proxy path limited to 4MB by Vercel serverless body limit.
+
+### Name collision handling
+
+If a file/folder with the same name exists in the target folder, auto-rename by appending a counter suffix: `ecl-logo (1).png`, `ecl-logo (2).png`, etc. Matches Google Drive behavior.
 
 ### Auth
 
@@ -113,6 +131,10 @@ AssetDrive (replaces AssetStatus)
 └── DrivePreviewModal        — full preview (image/video), file info, download button
 ```
 
+### Empty state
+
+When no files/folders exist (first use): centered illustration area with upload icon, "Drop files here or click to upload" text, and a "Create Folder" button. Uses `--text-muted` for the prompt text, `--accent` for the upload icon.
+
 ### Layout
 
 - Replaces AssetStatus collapsible panel, **defaults to expanded**
@@ -152,6 +174,8 @@ Visual feedback: target folder highlights with accent border. Uses HTML5 drag-an
 
 `DriveFileCard` sets `dataTransfer` with a `application/x-drive-asset` type containing `{ id, previewUrl, name }`. Template editor image fields (`CardImage`, `ImagePreview`) accept this drop type — populates the field with the drive asset's preview URL, replacing the Scryfall/manual upload flow.
 
+**Note:** HTML5 drag-and-drop only works within the same browser tab. Since the drive and template editor are on the same page, this is not a limitation in practice.
+
 ## Preview Modal
 
 - **Images:** Full resolution render, click to zoom
@@ -188,7 +212,9 @@ The existing `REQUIRED_ASSETS` from `brand-constants.ts` are checked against dri
 - `lib/r2.ts` — R2 client singleton + helpers
 - `lib/media-drive.ts` — MongoDB CRUD for `dashboard_media_files`
 - `app/api/media/drive/route.ts` — list + create folder
-- `app/api/media/drive/upload/route.ts` — file upload
+- `app/api/media/drive/upload/route.ts` — small file upload (multipart, <4MB)
+- `app/api/media/drive/upload-url/route.ts` — presigned URL for direct-to-R2 upload
+- `app/api/media/drive/upload-confirm/route.ts` — confirm direct upload, create metadata
 - `app/api/media/drive/[id]/route.ts` — get, rename, move, delete
 - `app/api/media/drive/[id]/download/route.ts` — presigned download redirect
 - `app/api/media/drive/[id]/preview/route.ts` — presigned preview URL
@@ -208,4 +234,21 @@ The existing `REQUIRED_ASSETS` from `brand-constants.ts` are checked against dri
 - `components/media/shared/CardImage.tsx` — accept drive asset drops
 - `components/media/TemplateEditor.tsx` — accept drive asset drops on image fields
 - `components/media/shared/brand-constants.ts` — update REQUIRED_ASSETS to check drive
-- `lib/types.ts` — add MediaFile interface
+- `lib/types.ts` — add MediaFile interface:
+
+```typescript
+export interface MediaFile {
+  _id: string;
+  name: string;
+  type: "file" | "folder";
+  mimeType?: string;
+  size?: number;
+  r2Key?: string;
+  parentId: string | null;
+  path: string;
+  previewUrl?: string;  // presigned URL, included in list responses for images
+  uploadedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+```
