@@ -1,9 +1,7 @@
 import { getDb } from "./mongodb";
 import { logActivity } from "./activity";
-import {
-  PATREON_CREATOR_TOKEN,
-  ECL_ELIGIBLE_PATREON_TIERS,
-} from "./constants";
+import { ECL_ELIGIBLE_PATREON_TIERS } from "./constants";
+import { getAccessToken, refreshAccessToken } from "./patreon-token";
 import type { PatreonSnapshot } from "./types";
 
 const PATREON_API = "https://www.patreon.com/api/oauth2/v2";
@@ -39,17 +37,17 @@ interface PatreonUser {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function patreonFetch(url: string): Promise<any> {
+async function patreonFetch(url: string, isRetry = false): Promise<any> {
+  const token = await getAccessToken();
   const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${PATREON_CREATOR_TOKEN}` },
+    headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
-    const text = await res.text();
-    if (res.status === 401) {
-      throw new Error(
-        "Patreon Creator Access Token is invalid or expired. Regenerate it at patreon.com/portal/registration/register-clients"
-      );
+    if (res.status === 401 && !isRetry) {
+      await refreshAccessToken();
+      return patreonFetch(url, true);
     }
+    const text = await res.text();
     throw new Error(`Patreon API ${res.status}: ${text}`);
   }
   return res.json();
@@ -68,7 +66,8 @@ export async function syncPatreonForMonth(
   userId: string,
   userName: string
 ): Promise<{ synced: number; skipped: number; warnings: string[] }> {
-  if (!PATREON_CREATOR_TOKEN) {
+  const token = await getAccessToken();
+  if (!token) {
     throw new Error("PATREON_CREATOR_TOKEN not configured");
   }
 

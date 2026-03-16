@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
+import { Upload, X } from "lucide-react";
 import { TEMPLATES, type TemplateDataField } from "./template-registry";
 import CardImage from "./shared/CardImage";
 
@@ -116,6 +117,204 @@ function renderField(field: TemplateDataField, data: Record<string, any>, onChan
           onOverride={(url) => onChange(`${field.key}_overrideUrl`, url)}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * Detect commander-partner groups (card → checkbox → card) in a field list
+ * and render them as a combined layout: inputs stacked, images side-by-side.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderColumnFields(fields: TemplateDataField[], data: Record<string, any>, onChange: (key: string, value: any) => void) {
+  const elements: React.ReactNode[] = [];
+  let i = 0;
+
+  while (i < fields.length) {
+    const f = fields[i];
+    // Detect pattern: card, checkbox, card (commander-partner group)
+    if (
+      f.type === "card" &&
+      i + 1 < fields.length && fields[i + 1].type === "checkbox" &&
+      i + 2 < fields.length && fields[i + 2].type === "card" && fields[i + 2].showIf === fields[i + 1].key
+    ) {
+      const cmdField = f;
+      const toggleField = fields[i + 1];
+      const partnerField = fields[i + 2];
+      const hasPartner = !!data[toggleField.key];
+      const partnerVisible = !partnerField.showIf || data[partnerField.showIf];
+
+      elements.push(
+        <CardPartnerGroup
+          key={cmdField.key}
+          cmdField={cmdField}
+          toggleField={toggleField}
+          partnerField={partnerField}
+          hasPartner={hasPartner}
+          partnerVisible={partnerVisible}
+          data={data}
+          onChange={onChange}
+        />
+      );
+      i += 3;
+    } else {
+      elements.push(
+        <React.Fragment key={f.key}>
+          {renderField(f, data, onChange)}
+        </React.Fragment>
+      );
+      i++;
+    }
+  }
+
+  return elements;
+}
+
+/**
+ * Combined commander + partner card group.
+ * Inputs stack vertically; images display side-by-side.
+ */
+function CardPartnerGroup({
+  cmdField,
+  toggleField,
+  partnerField,
+  hasPartner,
+  partnerVisible,
+  data,
+  onChange,
+}: {
+  cmdField: TemplateDataField;
+  toggleField: TemplateDataField;
+  partnerField: TemplateDataField;
+  hasPartner: boolean;
+  partnerVisible: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: Record<string, any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onChange: (key: string, value: any) => void;
+}) {
+  const cmdDisplayUrl = data[`${cmdField.key}_overrideUrl`] || data[`${cmdField.key}_imageUrl`] || null;
+  const partnerDisplayUrl = hasPartner
+    ? (data[`${partnerField.key}_overrideUrl`] || data[`${partnerField.key}_imageUrl`] || null)
+    : null;
+
+  return (
+    <div className="space-y-2">
+      {/* Commander input */}
+      <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>
+        {cmdField.label}
+      </label>
+      <CardImage
+        value={data[cmdField.key] || ""}
+        imageUrl={data[`${cmdField.key}_imageUrl`] || null}
+        overrideUrl={data[`${cmdField.key}_overrideUrl`] || null}
+        onChange={(name, url) => {
+          onChange(cmdField.key, name);
+          onChange(`${cmdField.key}_imageUrl`, url);
+        }}
+        onOverride={(url) => onChange(`${cmdField.key}_overrideUrl`, url)}
+        hidePreview
+      />
+
+      {/* Partner toggle */}
+      {renderField(toggleField, data, onChange)}
+
+      {/* Partner input (shown when toggled) */}
+      {hasPartner && partnerVisible && (
+        <>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>
+            {partnerField.label}
+          </label>
+          <CardImage
+            value={data[partnerField.key] || ""}
+            imageUrl={data[`${partnerField.key}_imageUrl`] || null}
+            overrideUrl={data[`${partnerField.key}_overrideUrl`] || null}
+            onChange={(name, url) => {
+              onChange(partnerField.key, name);
+              onChange(`${partnerField.key}_imageUrl`, url);
+            }}
+            onOverride={(url) => onChange(`${partnerField.key}_overrideUrl`, url)}
+            hidePreview
+          />
+        </>
+      )}
+
+      {/* Images side-by-side */}
+      <div className="flex gap-2">
+        <ImagePreview
+          url={cmdDisplayUrl}
+          alt={data[cmdField.key] || "Commander"}
+          hasOverride={!!data[`${cmdField.key}_overrideUrl`]}
+          onClearOverride={() => onChange(`${cmdField.key}_overrideUrl`, null)}
+          onUpload={(url) => onChange(`${cmdField.key}_overrideUrl`, url)}
+        />
+        {hasPartner && partnerVisible && (
+          <ImagePreview
+            url={partnerDisplayUrl}
+            alt={data[partnerField.key] || "Partner"}
+            hasOverride={!!data[`${partnerField.key}_overrideUrl`]}
+            onClearOverride={() => onChange(`${partnerField.key}_overrideUrl`, null)}
+            onUpload={(url) => onChange(`${partnerField.key}_overrideUrl`, url)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ImagePreview({
+  url,
+  alt,
+  hasOverride,
+  onClearOverride,
+  onUpload,
+}: {
+  url: string | null;
+  alt: string;
+  hasOverride: boolean;
+  onClearOverride: () => void;
+  onUpload: (url: string) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    onUpload(URL.createObjectURL(file));
+  }
+
+  return (
+    <div className="flex flex-col items-start gap-1">
+      {url && (
+        <div className="relative inline-block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={url}
+            alt={alt}
+            className="rounded-lg"
+            style={{ maxHeight: 120, width: "auto" }}
+          />
+          {hasOverride && (
+            <button
+              onClick={onClearOverride}
+              className="absolute -top-2 -right-2 p-1 rounded-full"
+              style={{ background: "var(--error)", color: "#fff" }}
+              title="Remove override"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      )}
+      <button
+        onClick={() => fileRef.current?.click()}
+        className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] transition-colors"
+        style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+      >
+        <Upload className="w-2.5 h-2.5" />
+        Upload image
+      </button>
+      <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
     </div>
   );
 }
@@ -240,7 +439,7 @@ export default function TemplateEditor({ templateId, data, onChange }: TemplateE
             {group.cols.length === 1 ? (
               // Single col — just render fields inline (e.g. stats with 2 fields but no col split)
               <div className="grid grid-cols-2 gap-3">
-                {group.cols[0].fields.map((f) => renderField(f, data, onChange))}
+                {renderColumnFields(group.cols[0].fields, data, onChange)}
               </div>
             ) : (
               // Multi-col — two columns with a vertical divider
@@ -254,7 +453,7 @@ export default function TemplateEditor({ templateId, data, onChange }: TemplateE
                       />
                     )}
                     <div className="flex-1 flex flex-col gap-2 min-w-0">
-                      {col.fields.map((f) => renderField(f, data, onChange))}
+                      {renderColumnFields(col.fields, data, onChange)}
                     </div>
                   </React.Fragment>
                 ))}

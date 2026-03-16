@@ -11,6 +11,7 @@ interface CardImageProps {
   onChange: (name: string, imageUrl: string | null) => void;
   onOverride: (url: string | null) => void;
   placeholder?: string;
+  hidePreview?: boolean; // hide the image preview + upload (rendered externally)
 }
 
 export default function CardImage({
@@ -20,6 +21,7 @@ export default function CardImage({
   onChange,
   onOverride,
   placeholder = "Search for a card...",
+  hidePreview = false,
 }: CardImageProps) {
   const [query, setQuery] = useState(value);
   const [searching, setSearching] = useState(false);
@@ -84,7 +86,7 @@ export default function CardImage({
         )}
       </div>
 
-      {displayUrl && (
+      {!hidePreview && displayUrl && (
         <div className="relative inline-block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -106,26 +108,28 @@ export default function CardImage({
         </div>
       )}
 
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => fileRef.current?.click()}
-          className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors"
-          style={{
-            background: "var(--bg-hover)",
-            color: "var(--text-secondary)",
-          }}
-        >
-          <Upload className="w-3 h-3" />
-          Upload image
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFileUpload}
-          className="hidden"
-        />
-      </div>
+      {!hidePreview && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors"
+            style={{
+              background: "var(--bg-hover)",
+              color: "var(--text-secondary)",
+            }}
+          >
+            <Upload className="w-3 h-3" />
+            Upload image
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+        </div>
+      )}
     </div>
   );
 }

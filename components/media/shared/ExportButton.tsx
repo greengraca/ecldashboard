@@ -18,10 +18,46 @@ export default function ExportButton({ targetRef, filename }: ExportButtonProps)
     setExporting(true);
     setError(null);
     try {
+      // Pre-convert all images to inline base64 to avoid html-to-image
+      // caching/CORS issues that cause all images to render as the first one
+      const imgs = targetRef.current.querySelectorAll("img");
+      const originalSrcs = new Map<HTMLImageElement, string>();
+
+      await Promise.all(
+        Array.from(imgs).map(async (img) => {
+          const src = img.src;
+          if (!src || src.startsWith("data:")) return;
+          try {
+            const resp = await fetch(src);
+            const blob = await resp.blob();
+            const dataUrl = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(blob);
+            });
+            originalSrcs.set(img, src);
+            img.src = dataUrl;
+          } catch {
+            // Leave original src if fetch fails
+          }
+        }),
+      );
+
       const { toPng } = await import("html-to-image");
+      const opts = {
+        pixelRatio: 1,
+        cacheBust: false,
+        skipFonts: true,
+        imagePlaceholder: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+      };
       // Double-render: first call warms up font/image loading, second captures clean
-      await toPng(targetRef.current, { pixelRatio: 1, cacheBust: true });
-      const dataUrl = await toPng(targetRef.current, { pixelRatio: 1, cacheBust: true });
+      await toPng(targetRef.current, opts);
+      const dataUrl = await toPng(targetRef.current, opts);
+
+      // Restore original srcs
+      for (const [img, src] of originalSrcs) {
+        img.src = src;
+      }
 
       const link = document.createElement("a");
       link.download = `${filename}.png`;

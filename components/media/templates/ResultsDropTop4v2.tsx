@@ -1,4 +1,4 @@
-import { DIMENSIONS, ASSETS, onAssetError } from "../shared/brand-constants";
+import { DIMENSIONS, ASSETS, NOISE_BG, onAssetError } from "../shared/brand-constants";
 
 /**
  * RESULTS DROP TOP 4 v2 — Finals hype template.
@@ -263,7 +263,7 @@ function CommanderCard({
       >
         <p
           style={{
-            fontSize: 22,
+            fontSize: 28,
             fontWeight: 800,
             color: "#fff",
             margin: 0,
@@ -276,23 +276,21 @@ function CommanderCard({
         >
           {playerName}
         </p>
-        {commanderLabel && (
-          <p
-            style={{
-              fontSize: 11,
-              fontWeight: 500,
-              color: ACCENT,
-              margin: "2px 0 0",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              opacity: 0.8,
-              textShadow: "0 1px 4px rgba(0,0,0,0.7)",
-            }}
-          >
-            {commanderLabel}
-          </p>
-        )}
+        <p
+          style={{
+            fontSize: 18,
+            fontWeight: 500,
+            color: ACCENT,
+            margin: "2px 0 0",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            opacity: 0.8,
+            textShadow: "0 1px 4px rgba(0,0,0,0.7)",
+          }}
+        >
+          {commanderLabel || "Commander(s)"}
+        </p>
       </div>
     </div>
   );
@@ -338,7 +336,7 @@ export default function ResultsDropTop4v2({ data }: { data: ResultsDropTop4v2Dat
   const padX = 56;
   const padY = 44;
   const gap = 36;
-  const headerH = 200;
+  const headerH = 230;
   const footerH = 80;
   const availW = width - padX * 2 - gap;
   const availH = height - headerH - footerH - gap;
@@ -373,7 +371,7 @@ export default function ResultsDropTop4v2({ data }: { data: ResultsDropTop4v2Dat
           position: "absolute",
           inset: 0,
           opacity: 0.04,
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E")`,
+          backgroundImage: NOISE_BG,
           backgroundSize: "200px 200px",
           mixBlendMode: "overlay",
         }}
@@ -419,10 +417,10 @@ export default function ResultsDropTop4v2({ data }: { data: ResultsDropTop4v2Dat
         }}
       >
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", width: "100%" }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 16 }}>
             <h1
               style={{
-                fontSize: 80,
+                fontSize: 120,
                 fontWeight: 900,
                 color: "#fff",
                 margin: 0,
@@ -435,7 +433,7 @@ export default function ResultsDropTop4v2({ data }: { data: ResultsDropTop4v2Dat
             <div style={{ display: "flex", flexDirection: "column", marginBottom: 6 }}>
               <span
                 style={{
-                  fontSize: 14,
+                  fontSize: 20,
                   fontWeight: 600,
                   color: "rgba(255,255,255,0.3)",
                   letterSpacing: "0.2em",
@@ -446,7 +444,7 @@ export default function ResultsDropTop4v2({ data }: { data: ResultsDropTop4v2Dat
               </span>
               <span
                 style={{
-                  fontSize: 15,
+                  fontSize: 20,
                   fontWeight: 700,
                   color: ACCENT,
                   letterSpacing: "0.15em",
@@ -460,10 +458,10 @@ export default function ResultsDropTop4v2({ data }: { data: ResultsDropTop4v2Dat
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={ASSETS.eclLogo}
+            src={ASSETS.eclLogoOnly}
             alt="ECL"
             onError={onAssetError}
-            style={{ height: 56, width: "auto", opacity: 0.8, marginBottom: 4 }}
+            style={{ height: 120, width: "auto", opacity: 0.95 }}
           />
         </div>
       </div>

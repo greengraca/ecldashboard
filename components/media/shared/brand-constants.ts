@@ -28,6 +28,7 @@ export const DIMENSIONS = {
 // Asset paths — all brand assets expected in public/media/assets/
 export const ASSETS = {
   eclLogo: "/media/assets/ecl-logo.png",
+  eclLogoOnly: "/media/assets/ecl-logo-only.png",
   commanderArenaLogo: "/media/assets/commander-arena-logo.png",
   cedhPtLogo: "/media/assets/cedh-championship-logo.png",
   backgroundSmoke: "/media/assets/background-smoke.jpg",
@@ -44,6 +45,10 @@ export const REQUIRED_ASSETS = Object.entries(ASSETS).map(([key, path]) => ({
     .replace(/^./, (s) => s.toUpperCase())
     .trim(),
 }));
+
+// Noise texture SVGs as base64 — avoids html-to-image parsing url(#id) inside data URIs
+export const NOISE_BG = `url("data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjU2IDI1NiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZmlsdGVyIGlkPSJuIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC45IiBudW1PY3RhdmVzPSI0IiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI24pIiBvcGFjaXR5PSIxIi8+PC9zdmc+")`;
+export const NOISE_BG_FINE = `url("data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjU2IDI1NiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZmlsdGVyIGlkPSJuIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC44NSIgbnVtT2N0YXZlcz0iNCIgc3RpdGNoVGlsZXM9InN0aXRjaCIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNuKSIgb3BhY2l0eT0iMSIvPjwvc3ZnPg==")`;
 
 /** Hide broken images gracefully in both preview and export */
 export function onAssetError(e: React.SyntheticEvent<HTMLImageElement>) {

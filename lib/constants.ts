@@ -56,6 +56,9 @@ export const DEFAULT_KOFI_NET = 5.63;
 export const DEFAULT_MANUAL_NET = 6.50;
 
 export const PATREON_CREATOR_TOKEN = process.env.PATREON_CREATOR_TOKEN || "";
+export const PATREON_CLIENT_ID = process.env.PATREON_CLIENT_ID || "";
+export const PATREON_CLIENT_SECRET = process.env.PATREON_CLIENT_SECRET || "";
+export const PATREON_REFRESH_TOKEN = process.env.PATREON_REFRESH_TOKEN || "";
 
 // ─── Team Members & Groups ───
 
