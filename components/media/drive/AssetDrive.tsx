@@ -8,6 +8,7 @@ import DriveToolbar from "./DriveToolbar";
 import DriveDropZone from "./DriveDropZone";
 import DriveFileGrid from "./DriveFileGrid";
 import DrivePreviewModal from "./DrivePreviewModal";
+import DriveConfirmModal from "./DriveConfirmModal";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -16,6 +17,12 @@ export default function AssetDrive() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [previewItem, setPreviewItem] = useState<MediaFile | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const queryParam = currentFolderId ? `?parentId=${currentFolderId}` : "";
@@ -29,9 +36,11 @@ export default function AssetDrive() {
     data?.breadcrumbs || [];
   const files = items.filter((i) => i.type === "file");
 
-  // Navigation — breadcrumbs auto-update via SWR when currentFolderId changes
+  // Navigation
   const handleNavigate = useCallback((folderId: string | null) => {
     setCurrentFolderId(folderId);
+    setCreatingFolder(false);
+    setEditingId(null);
   }, []);
 
   // Upload files (handles both small and large)
@@ -41,7 +50,6 @@ export default function AssetDrive() {
       try {
         for (const file of Array.from(fileList)) {
           if (file.size < 4 * 1024 * 1024) {
-            // Small file: direct upload
             const formData = new FormData();
             formData.append("file", file);
             if (currentFolderId) formData.append("parentId", currentFolderId);
@@ -50,7 +58,6 @@ export default function AssetDrive() {
               body: formData,
             });
           } else {
-            // Large file: presigned URL flow
             const urlRes = await fetch("/api/media/drive/upload-url", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -63,7 +70,6 @@ export default function AssetDrive() {
             const { data: urlData } = await urlRes.json();
             if (!urlData?.uploadUrl) continue;
 
-            // Upload directly to R2
             await fetch(urlData.uploadUrl, {
               method: "PUT",
               headers: {
@@ -72,7 +78,6 @@ export default function AssetDrive() {
               body: file,
             });
 
-            // Confirm upload
             await fetch("/api/media/drive/upload-confirm", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -94,17 +99,27 @@ export default function AssetDrive() {
     [currentFolderId, mutate]
   );
 
-  // Create folder
-  const handleCreateFolder = useCallback(async () => {
-    const name = prompt("Folder name:");
-    if (!name?.trim()) return;
-    await fetch("/api/media/drive", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), parentId: currentFolderId }),
-    });
-    mutate();
-  }, [currentFolderId, mutate]);
+  // Create folder — show inline placeholder
+  const handleCreateFolder = useCallback(() => {
+    setCreatingFolder(true);
+  }, []);
+
+  const confirmCreateFolder = useCallback(
+    async (name: string) => {
+      setCreatingFolder(false);
+      await fetch("/api/media/drive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, parentId: currentFolderId }),
+      });
+      mutate();
+    },
+    [currentFolderId, mutate]
+  );
+
+  const cancelCreateFolder = useCallback(() => {
+    setCreatingFolder(false);
+  }, []);
 
   // Move item to folder
   const handleMoveToFolder = useCallback(
@@ -119,30 +134,40 @@ export default function AssetDrive() {
     [mutate]
   );
 
-  // Rename
-  const handleRename = useCallback(
-    async (id: string, currentName: string) => {
-      const newName = prompt("New name:", currentName);
-      if (!newName?.trim() || newName.trim() === currentName) return;
+  // Rename — switch to inline editing
+  const handleRename = useCallback((id: string, _currentName: string) => {
+    setEditingId(id);
+  }, []);
+
+  const confirmRename = useCallback(
+    async (id: string, newName: string) => {
+      setEditingId(null);
       await fetch(`/api/media/drive/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim() }),
+        body: JSON.stringify({ name: newName }),
       });
       mutate();
     },
     [mutate]
   );
 
-  // Delete
-  const handleDelete = useCallback(
-    async (id: string, name: string) => {
-      if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
-      await fetch(`/api/media/drive/${id}`, { method: "DELETE" });
-      mutate();
-    },
-    [mutate]
-  );
+  const cancelRename = useCallback(() => {
+    setEditingId(null);
+  }, []);
+
+  // Delete — show confirm modal
+  const handleDelete = useCallback((id: string, name: string) => {
+    setDeleteTarget({ id, name });
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+    const { id } = deleteTarget;
+    setDeleteTarget(null);
+    await fetch(`/api/media/drive/${id}`, { method: "DELETE" });
+    mutate();
+  }, [deleteTarget, mutate]);
 
   // Preview
   const handleFileClick = useCallback((item: MediaFile) => {
@@ -203,19 +228,25 @@ export default function AssetDrive() {
               items={items}
               viewMode={viewMode}
               loading={isLoading}
+              creatingFolder={creatingFolder}
+              editingId={editingId}
               onNavigateFolder={(id) => handleNavigate(id)}
               onFileClick={handleFileClick}
               onMoveToFolder={handleMoveToFolder}
               onRename={handleRename}
+              onConfirmRename={confirmRename}
+              onCancelRename={cancelRename}
               onDelete={handleDelete}
               onUploadClick={() => fileInputRef.current?.click()}
               onCreateFolder={handleCreateFolder}
+              onConfirmCreateFolder={confirmCreateFolder}
+              onCancelCreateFolder={cancelCreateFolder}
             />
           </div>
         </DriveDropZone>
       </div>
 
-      {/* Hidden file input for empty state upload button */}
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -226,6 +257,17 @@ export default function AssetDrive() {
           if (e.target) e.target.value = "";
         }}
       />
+
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <DriveConfirmModal
+          title="Delete"
+          message={`Are you sure you want to delete "${deleteTarget.name}"? This cannot be undone.`}
+          confirmLabel="Delete"
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
 
       {/* Preview modal */}
       {previewItem && (

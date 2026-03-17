@@ -1,30 +1,91 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Folder, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import type { MediaFile } from "@/lib/types";
 
 interface DriveFolderCardProps {
   item: MediaFile;
   viewMode: "grid" | "list";
+  editing: boolean;
   onNavigate: (folderId: string) => void;
   onDrop: (itemId: string, targetFolderId: string) => void;
   onRename: (id: string, currentName: string) => void;
+  onConfirmRename: (id: string, newName: string) => void;
+  onCancelRename: () => void;
   onDelete: (id: string, name: string) => void;
+}
+
+function InlineRenameInput({
+  defaultValue,
+  onConfirm,
+  onCancel,
+  viewMode,
+}: {
+  defaultValue: string;
+  onConfirm: (name: string) => void;
+  onCancel: () => void;
+  viewMode: "grid" | "list";
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus();
+    input.select();
+  }, []);
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const val = inputRef.current?.value.trim();
+      if (val && val !== defaultValue) onConfirm(val);
+      else onCancel();
+    }
+    if (e.key === "Escape") onCancel();
+  }
+
+  function handleBlur() {
+    const val = inputRef.current?.value.trim();
+    if (val && val !== defaultValue) onConfirm(val);
+    else onCancel();
+  }
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      defaultValue={defaultValue}
+      onKeyDown={handleKeyDown}
+      onBlur={handleBlur}
+      onClick={(e) => e.stopPropagation()}
+      className={`border outline-none rounded ${viewMode === "grid" ? "text-xs text-center w-full px-1 py-0.5" : "text-sm px-2 py-1 flex-1"}`}
+      style={{
+        background: "var(--bg-page)",
+        borderColor: "var(--accent)",
+        color: "var(--text-primary)",
+      }}
+    />
+  );
 }
 
 export default function DriveFolderCard({
   item,
   viewMode,
+  editing,
   onNavigate,
   onDrop,
   onRename,
+  onConfirmRename,
+  onCancelRename,
   onDelete,
 }: DriveFolderCardProps) {
   const [dragOver, setDragOver] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
   function handleDragStart(e: React.DragEvent) {
+    if (editing) return;
     e.dataTransfer.setData("application/x-drive-move", item._id);
     e.dataTransfer.effectAllowed = "move";
   }
@@ -52,12 +113,12 @@ export default function DriveFolderCard({
   if (viewMode === "list") {
     return (
       <div
-        draggable
+        draggable={!editing}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDropOnFolder}
-        onClick={() => onNavigate(item._id)}
+        onClick={() => !editing && onNavigate(item._id)}
         className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors group"
         style={{
           background: dragOver ? "var(--accent-light)" : "transparent",
@@ -67,56 +128,71 @@ export default function DriveFolderCard({
           className="w-5 h-5 flex-shrink-0"
           style={{ color: "var(--accent)" }}
         />
-        <span
-          className="flex-1 text-sm truncate"
-          style={{ color: "var(--text-primary)" }}
-        >
-          {item.name}
-        </span>
+        {editing ? (
+          <InlineRenameInput
+            defaultValue={item.name}
+            onConfirm={(name) => onConfirmRename(item._id, name)}
+            onCancel={onCancelRename}
+            viewMode="list"
+          />
+        ) : (
+          <span
+            className="flex-1 text-sm truncate"
+            style={{ color: "var(--text-primary)" }}
+          >
+            {item.name}
+          </span>
+        )}
         <span className="text-xs" style={{ color: "var(--text-muted)" }}>
           Folder
         </span>
-        <div className="relative">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowMenu(!showMenu);
-            }}
-            className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
-          {showMenu && (
-            <ContextMenu
-              onRename={() => {
-                setShowMenu(false);
-                onRename(item._id, item.name);
+        {!editing && (
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMenu(!showMenu);
               }}
-              onDelete={() => {
-                setShowMenu(false);
-                onDelete(item._id, item.name);
-              }}
-              onClose={() => setShowMenu(false)}
-            />
-          )}
-        </div>
+              className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            {showMenu && (
+              <ContextMenu
+                onRename={() => {
+                  setShowMenu(false);
+                  onRename(item._id, item.name);
+                }}
+                onDelete={() => {
+                  setShowMenu(false);
+                  onDelete(item._id, item.name);
+                }}
+                onClose={() => setShowMenu(false)}
+              />
+            )}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div
-      draggable
+      draggable={!editing}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDropOnFolder}
-      onDoubleClick={() => onNavigate(item._id)}
+      onDoubleClick={() => !editing && onNavigate(item._id)}
       className="flex flex-col items-center justify-center p-4 rounded-xl border cursor-pointer transition-all group relative"
       style={{
         background: dragOver ? "var(--accent-light)" : "var(--bg-card)",
-        borderColor: dragOver ? "var(--accent)" : "var(--border)",
+        borderColor: dragOver
+          ? "var(--accent)"
+          : editing
+            ? "var(--accent)"
+            : "var(--border)",
         minHeight: 120,
       }}
     >
@@ -124,39 +200,50 @@ export default function DriveFolderCard({
         className="w-10 h-10 mb-2"
         style={{ color: "var(--accent)" }}
       />
-      <span
-        className="text-xs text-center truncate w-full"
-        style={{ color: "var(--text-primary)" }}
-      >
-        {item.name}
-      </span>
-      <div className="absolute top-2 right-2">
-        <div className="relative">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowMenu(!showMenu);
-            }}
-            className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <MoreVertical className="w-3.5 h-3.5" />
-          </button>
-          {showMenu && (
-            <ContextMenu
-              onRename={() => {
-                setShowMenu(false);
-                onRename(item._id, item.name);
+      {editing ? (
+        <InlineRenameInput
+          defaultValue={item.name}
+          onConfirm={(name) => onConfirmRename(item._id, name)}
+          onCancel={onCancelRename}
+          viewMode="grid"
+        />
+      ) : (
+        <span
+          className="text-xs text-center truncate w-full"
+          style={{ color: "var(--text-primary)" }}
+        >
+          {item.name}
+        </span>
+      )}
+      {!editing && (
+        <div className="absolute top-2 right-2">
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMenu(!showMenu);
               }}
-              onDelete={() => {
-                setShowMenu(false);
-                onDelete(item._id, item.name);
-              }}
-              onClose={() => setShowMenu(false)}
-            />
-          )}
+              className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <MoreVertical className="w-3.5 h-3.5" />
+            </button>
+            {showMenu && (
+              <ContextMenu
+                onRename={() => {
+                  setShowMenu(false);
+                  onRename(item._id, item.name);
+                }}
+                onDelete={() => {
+                  setShowMenu(false);
+                  onDelete(item._id, item.name);
+                }}
+                onClose={() => setShowMenu(false)}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
