@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   Download,
@@ -72,7 +73,9 @@ export default function DrivePreviewModal({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
       style={{ background: "rgba(0, 0, 0, 0.9)" }}
@@ -284,6 +287,7 @@ export default function DrivePreviewModal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

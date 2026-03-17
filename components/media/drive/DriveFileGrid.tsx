@@ -6,7 +6,7 @@ import { Upload, Folder, FileImage, FileVideo, File as FileIcon } from "lucide-r
 import type { MediaFile } from "@/lib/types";
 import DriveFolderCard from "./DriveFolderCard";
 import DriveFileCard from "./DriveFileCard";
-import { ghostWrapperStyle, GHOST_CARD_STYLE } from "./drag-utils";
+import { ghostWrapperStyle, GHOST_CARD_STYLE, setCurrentDragId } from "./drag-utils";
 
 interface DriveFileGridProps {
   items: MediaFile[];
@@ -313,13 +313,17 @@ export default function DriveFileGrid({
   const ghostSizeRef = useRef({ w: 120, h: 120 });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Move ghost via DOM — no React re-renders
-  const handleContainerDragOver = useCallback((e: React.DragEvent) => {
-    if (ghostRef.current) {
-      const { w, h } = ghostSizeRef.current;
-      ghostRef.current.style.left = `${e.clientX - w / 2}px`;
-      ghostRef.current.style.top = `${e.clientY - h / 2}px`;
+  // Move ghost via DOM on document-level dragover — follows cursor everywhere
+  useEffect(() => {
+    function moveGhost(e: DragEvent) {
+      if (ghostRef.current) {
+        const { w, h } = ghostSizeRef.current;
+        ghostRef.current.style.left = `${e.clientX - w / 2}px`;
+        ghostRef.current.style.top = `${e.clientY - h / 2}px`;
+      }
     }
+    document.addEventListener("dragover", moveGhost);
+    return () => document.removeEventListener("dragover", moveGhost);
   }, []);
 
   // Listen for dragstart on container to identify which item is being dragged
@@ -335,7 +339,11 @@ export default function DriveFileGrid({
   }, []);
 
   // Clear drag state on any dragend or drop — covers all edge cases
-  const clearDrag = useCallback(() => setDraggingId(null), []);
+  const clearDrag = useCallback(() => {
+    setDraggingId(null);
+    setActiveDrop(null);
+    setCurrentDragId(null); // safety net — ensures module-level ID never lingers
+  }, []);
 
   useEffect(() => {
     document.addEventListener("dragend", clearDrag);
@@ -358,7 +366,10 @@ export default function DriveFileGrid({
     afterId: string | null,
     groupType: "folder" | "file"
   ) {
-    setActiveDrop({ afterId, groupType });
+    setActiveDrop((prev) => {
+      if (prev && prev.afterId === afterId && prev.groupType === groupType) return prev;
+      return { afterId, groupType };
+    });
   }
 
   function handleGapDragLeave() {
@@ -377,6 +388,11 @@ export default function DriveFileGrid({
     const { id, type } = JSON.parse(data);
     if (type !== groupType) return;
     if (id === afterId) return;
+    // Skip if dropping right before itself (no actual position change)
+    const group = groupType === "folder" ? folders : files;
+    const idx = group.findIndex((i) => i._id === id);
+    if (afterId === null && idx === 0) return;
+    if (idx > 0 && group[idx - 1]._id === afterId) return;
     onReorder(id, afterId);
   }
 
@@ -452,6 +468,7 @@ export default function DriveFileGrid({
   // Ghost element rendered via portal — matches original card dimensions
   const isGhostImage = draggingItem?.mimeType?.startsWith("image/");
   const isGhostFolder = draggingItem?.type === "folder";
+  const ghostThumb = isGhostImage ? (draggingItem?.previewUrl ?? null) : null;
   const isGhostGrid = viewMode === "grid";
   const { w: gw, h: gh } = ghostSizeRef.current;
 
@@ -459,16 +476,20 @@ export default function DriveFileGrid({
     <div ref={ghostRef} style={ghostWrapperStyle(-9999, -9999, gw, gh)}>
       <div style={{ ...GHOST_CARD_STYLE, height: "100%", display: "flex", flexDirection: "column", padding: 0 }}>
         {isGhostGrid && !isGhostFolder && (
-          /* Thumbnail placeholder area */
+          /* Thumbnail area — flex to fill space above name */
           <div style={{
-            height: 96,
+            flex: 1,
+            minHeight: 0,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             background: "rgba(255, 255, 255, 0.03)",
             borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
           }}>
-            {isGhostImage ? (
+            {isGhostImage && ghostThumb ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={ghostThumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : isGhostImage ? (
               <FileImage className="w-6 h-6" style={{ color: "var(--accent)", opacity: 0.6 }} />
             ) : draggingItem.mimeType?.startsWith("video/") ? (
               <FileVideo className="w-6 h-6" style={{ color: "#a78bfa", opacity: 0.6 }} />
@@ -527,7 +548,7 @@ export default function DriveFileGrid({
 
   if (viewMode === "list") {
     return (
-      <div ref={containerRef} onDragStartCapture={handleContainerDragStart} onDragOver={handleContainerDragOver}>
+      <div ref={containerRef} onDragStartCapture={handleContainerDragStart}>
         {ghostElement}
         {creatingFolder && (
           <NewFolderPlaceholder
@@ -624,11 +645,11 @@ export default function DriveFileGrid({
 
   // Grid view
   return (
-    <div ref={containerRef} onDragStartCapture={handleContainerDragStart} onDragOver={handleContainerDragOver}>
+    <div ref={containerRef} onDragStartCapture={handleContainerDragStart}>
       {ghostElement}
       {/* Folders */}
       {(folders.length > 0 || creatingFolder) && (
-        <div className="flex flex-wrap items-stretch">
+        <div className="flex flex-wrap items-stretch gap-y-3">
           {creatingFolder && (
             <NewFolderPlaceholder
               viewMode="grid"
@@ -695,7 +716,7 @@ export default function DriveFileGrid({
       )}
       {/* Files */}
       {files.length > 0 && (
-        <div className="flex flex-wrap items-stretch">
+        <div className="flex flex-wrap items-stretch gap-y-3">
           <GapDropZone
             afterId={null}
             groupType="file"

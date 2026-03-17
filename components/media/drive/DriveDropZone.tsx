@@ -19,7 +19,12 @@ export default function DriveDropZone({
     e.preventDefault();
     dragCounter.current++;
     // Only show the upload overlay for file drops from OS, not internal moves
-    if (e.dataTransfer.types.includes("Files")) {
+    const types = e.dataTransfer.types;
+    if (
+      types.includes("Files") &&
+      !types.includes("application/x-drive-move") &&
+      !types.includes("application/x-drive-reorder")
+    ) {
       setIsDragging(true);
     }
   }
@@ -41,7 +46,11 @@ export default function DriveDropZone({
     dragCounter.current = 0;
     setIsDragging(false);
 
-    if (e.dataTransfer.files.length > 0) {
+    const types = e.dataTransfer.types;
+    const isInternal =
+      types.includes("application/x-drive-move") ||
+      types.includes("application/x-drive-reorder");
+    if (!isInternal && e.dataTransfer.files.length > 0) {
       onDropFiles(e.dataTransfer.files);
     }
   }

@@ -10,10 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { MediaFile } from "@/lib/types";
-import { DRAG_PLACEHOLDER_STYLE } from "./drag-utils";
-
-// Track which item is currently being dragged (module-level so all cards can read it)
-let currentDragId: string | null = null;
+import { DRAG_PLACEHOLDER_STYLE, getCurrentDragId, setCurrentDragId } from "./drag-utils";
 
 interface DriveFolderCardProps {
   item: MediaFile;
@@ -101,13 +98,14 @@ export default function DriveFolderCard({
   const [dragOver, setDragOver] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [ghostOver, setGhostOver] = useState(false);
   const previews = item.folderPreviews || [];
   const dragTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragCounterRef = useRef(0);
 
   function handleDragStart(e: React.DragEvent) {
     if (editing) return;
-    currentDragId = item._id;
+    setCurrentDragId(item._id);
     e.dataTransfer.setData("application/x-drive-move", item._id);
     e.dataTransfer.setData(
       "application/x-drive-reorder",
@@ -124,9 +122,26 @@ export default function DriveFolderCard({
     requestAnimationFrame(() => blank.remove());
   }
 
+  function handleDragEnd() {
+    // Reset all drag state — prevents stale highlights and ghost overlays
+    setCurrentDragId(null);
+    dragCounterRef.current = 0;
+    if (dragTimerRef.current) {
+      clearTimeout(dragTimerRef.current);
+      dragTimerRef.current = null;
+    }
+    setDragOver(false);
+    setGhostOver(false);
+    onDragEndProp?.();
+  }
+
   function handleDragEnter(e: React.DragEvent) {
     if (!e.dataTransfer.types.includes("application/x-drive-move")) return;
-    if (currentDragId === item._id) return;
+    if (getCurrentDragId() === item._id) {
+      // Ghost hovering over own skeleton — increase opacity feedback
+      setGhostOver(true);
+      return;
+    }
     e.preventDefault();
     dragCounterRef.current++;
     // Start delay timer on first enter
@@ -140,11 +155,12 @@ export default function DriveFolderCard({
 
   function handleDragOver(e: React.DragEvent) {
     if (!e.dataTransfer.types.includes("application/x-drive-move")) return;
-    if (currentDragId === item._id) return;
+    if (getCurrentDragId() === item._id) return;
     e.preventDefault();
   }
 
   function handleDragLeave() {
+    if (isDragging) setGhostOver(false);
     dragCounterRef.current--;
     if (dragCounterRef.current <= 0) {
       dragCounterRef.current = 0;
@@ -175,7 +191,7 @@ export default function DriveFolderCard({
       <div
         draggable={!editing}
         onDragStart={handleDragStart}
-        onDragEnd={onDragEndProp}
+        onDragEnd={handleDragEnd}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -184,6 +200,7 @@ export default function DriveFolderCard({
         className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer group relative"
         style={isDragging ? {
           ...DRAG_PLACEHOLDER_STYLE,
+          opacity: ghostOver ? 0.7 : 0.4,
           transition: "opacity 0.15s, border 0.15s, background 0.15s",
         } : {
           background: dragOver ? "var(--accent-light)" : "transparent",
@@ -284,7 +301,7 @@ export default function DriveFolderCard({
     <div
       draggable={!editing}
       onDragStart={handleDragStart}
-      onDragEnd={onDragEndProp}
+      onDragEnd={handleDragEnd}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -293,28 +310,35 @@ export default function DriveFolderCard({
       className="flex flex-col rounded-xl cursor-pointer group relative"
       style={isDragging ? {
         ...DRAG_PLACEHOLDER_STYLE,
+        opacity: ghostOver ? 0.7 : 0.4,
         width: 120,
         height: 120,
         transition: "opacity 0.15s, border 0.15s, background 0.15s",
       } : {
-        background: dragOver ? "var(--accent-light)" : "rgba(255, 255, 255, 0.02)",
-        border: `1px solid ${dragOver ? "var(--accent)" : editing ? "var(--accent)" : "var(--border-subtle)"}`,
+        background: dragOver ? "var(--accent-light)" : "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))",
+        backdropFilter: dragOver ? undefined : "blur(6px)",
+        border: `1px solid ${dragOver ? "var(--accent)" : editing ? "var(--accent)" : "rgba(255,255,255,0.06)"}`,
+        boxShadow: "0 1px 6px rgba(0,0,0,0.2)",
         width: 120,
         height: 120,
         transition:
-          "border-color 0.2s, transform 0.15s, background 0.2s",
+          "border-color 0.2s, box-shadow 0.2s, transform 0.15s, background 0.2s",
       }}
       onMouseEnter={(e) => {
         setHovered(true);
         if (!isDragging && !dragOver && !editing) {
           e.currentTarget.style.borderColor = "var(--accent-border)";
+          e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05))";
+          e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.3)";
           e.currentTarget.style.transform = "translateY(-2px)";
         }
       }}
       onMouseLeave={(e) => {
         setHovered(false);
         if (!isDragging && !dragOver && !editing) {
-          e.currentTarget.style.borderColor = "var(--border-subtle)";
+          e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
+          e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))";
+          e.currentTarget.style.boxShadow = "0 1px 6px rgba(0,0,0,0.2)";
           e.currentTarget.style.transform = "translateY(0)";
         }
       }}
@@ -397,7 +421,7 @@ export default function DriveFolderCard({
       </div>
 
       {/* Invisible overlay during drag — prevents children from stealing dragLeave */}
-      {currentDragId && currentDragId !== item._id && (
+      {getCurrentDragId() && getCurrentDragId() !== item._id && (
         <div className="absolute inset-0 z-20" />
       )}
 
@@ -457,58 +481,64 @@ function ContextMenu({
   onDelete: () => void;
   onClose: () => void;
 }) {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
+
   return (
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div
-        className="absolute right-0 top-full mt-1 z-50 rounded-lg border py-1 min-w-[140px]"
+    <div
+      ref={menuRef}
+      className="absolute right-0 top-full mt-1 z-50 rounded-md border py-0.5 min-w-[110px]"
+      onClick={(e) => e.stopPropagation()}
         style={{
-          background: "var(--surface-gradient)",
-          border: "1.5px solid rgba(255, 255, 255, 0.10)",
-          boxShadow: "var(--surface-shadow)",
-          backdropFilter: "blur(12px)",
+          background: "rgba(12, 14, 18, 0.95)",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04)",
           animation: "menuSlideIn 0.15s ease-out",
         }}
       >
         <button
           onClick={onRename}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left rounded-md"
+          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-left rounded"
           style={{
             color: "var(--text-primary)",
-            transition: "background 0.12s, padding-left 0.12s",
+            transition: "background 0.12s",
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "var(--bg-hover)";
-            e.currentTarget.style.paddingLeft = "14px";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.paddingLeft = "12px";
           }}
         >
-          <Pencil className="w-3.5 h-3.5" />
+          <Pencil className="w-3 h-3" />
           Rename
         </button>
         <button
           onClick={onDelete}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left rounded-md"
+          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-left rounded"
           style={{
             color: "var(--error)",
-            transition: "background 0.12s, padding-left 0.12s",
+            transition: "background 0.12s",
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "var(--error-light)";
-            e.currentTarget.style.paddingLeft = "14px";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.paddingLeft = "12px";
           }}
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash2 className="w-3 h-3" />
           Delete
         </button>
       </div>
-    </>
   );
 }
