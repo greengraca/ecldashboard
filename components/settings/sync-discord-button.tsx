@@ -31,8 +31,10 @@ export default function SyncDiscordButton() {
           disabled={loading}
           className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
           style={{
-            background: "var(--accent)",
-            color: "var(--accent-text)",
+            background: "rgba(251, 191, 36, 0.15)",
+            color: "var(--accent)",
+            border: "1px solid rgba(251, 191, 36, 0.35)",
+            backdropFilter: "blur(8px)",
           }}
         >
           <RefreshCw

@@ -77,10 +77,12 @@ export default function SubscriptionIncomeCard({
   if (isLoading) {
     return (
       <div
-        className="rounded-xl border p-6 h-full"
+        className="rounded-xl p-6 h-full"
         style={{
-          background: "var(--bg-card)",
-          borderColor: "var(--border)",
+          background: "var(--surface-gradient)",
+          backdropFilter: "var(--surface-blur)",
+          border: "1.5px solid rgba(255, 255, 255, 0.10)",
+          boxShadow: "var(--surface-shadow)",
         }}
       >
         <div className="flex items-center justify-center py-8">
@@ -234,10 +236,12 @@ export default function SubscriptionIncomeCard({
 
   return (
     <div
-      className="rounded-xl border p-6 h-full"
+      className="rounded-xl p-6 h-full"
       style={{
-        background: "var(--bg-card)",
-        borderColor: "var(--border)",
+        background: "var(--surface-gradient)",
+        backdropFilter: "var(--surface-blur)",
+        border: "1.5px solid rgba(255, 255, 255, 0.10)",
+        boxShadow: "var(--surface-shadow)",
       }}
     >
       <div className="mb-4 flex items-center justify-between">
@@ -253,10 +257,14 @@ export default function SubscriptionIncomeCard({
             disabled={isSyncing}
             className="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
             style={{
-              background: "var(--accent)",
-              color: "var(--accent-text)",
+              background: "rgba(251, 191, 36, 0.15)",
+              color: "var(--accent)",
+              border: "1px solid rgba(251, 191, 36, 0.35)",
+              backdropFilter: "blur(8px)",
               opacity: isSyncing ? 0.6 : 1,
             }}
+            onMouseEnter={(e) => { if (!isSyncing) { e.currentTarget.style.background = "rgba(251, 191, 36, 0.25)"; e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.5)"; } }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(251, 191, 36, 0.15)"; e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.35)"; }}
           >
             {isSyncing ? "Syncing..." : "Sync Patreon"}
           </button>

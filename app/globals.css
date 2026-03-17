@@ -40,7 +40,7 @@ button, [role="button"], summary {
   --bg-card: rgba(255, 255, 255, 0.015);
   --bg-card-hover: rgba(255, 255, 255, 0.035);
   --bg-hover: rgba(255, 255, 255, 0.06);
-  --bg-active: rgba(99, 102, 241, 0.08);
+  --bg-active: rgba(251, 191, 36, 0.08);
   --header-bg: rgba(10, 15, 20, 0.85);
   --bg-modal: rgba(10, 15, 20, 0.85);
   --card-inner-bg: #0c1117;
@@ -51,9 +51,9 @@ button, [role="button"], summary {
   --border: rgba(255, 255, 255, 0.06);
   --border-hover: rgba(255, 255, 255, 0.12);
   --border-subtle: rgba(255, 255, 255, 0.04);
-  --accent: #D4A017;
-  --accent-hover: #C4920F;
-  --accent-light: rgba(212, 160, 23, 0.08);
+  --accent: #fbbf24;
+  --accent-hover: #e5ac20;
+  --accent-light: rgba(251, 191, 36, 0.08);
   --nav-text: #94a3b8;
   --nav-text-hover: #f1f5f9;
   --nav-hover-bg: rgba(255, 255, 255, 0.06);
@@ -67,18 +67,32 @@ button, [role="button"], summary {
   --accent-text: #0a0f14;
   --status-active: #3b82f6;
   --status-active-light: rgba(59, 130, 246, 0.08);
-  --status-patreon: #D4A017;
-  --status-patreon-light: rgba(212, 160, 23, 0.1);
+  --status-patreon: #fbbf24;
+  --status-patreon-light: rgba(251, 191, 36, 0.1);
   --status-kofi: #29abe0;
   --status-kofi-light: rgba(41, 171, 224, 0.1);
   --status-free: #94a3b8;
   --status-free-light: rgba(255, 255, 255, 0.06);
   --overlay-bg: rgba(0, 0, 0, 0.75);
-  --accent-border: rgba(212, 160, 23, 0.2);
-  --accent-border-strong: rgba(212, 160, 23, 0.4);
-  --accent-dim: #A07B0A;
+  --accent-border: rgba(251, 191, 36, 0.2);
+  --accent-border-strong: rgba(251, 191, 36, 0.4);
+  --accent-dim: #c99a1a;
   --scrollbar-thumb: #1e293b;
   --scrollbar-thumb-hover: #334155;
+  --scrollbar-track: #0a0f14;
+  --card-border: rgba(255, 255, 255, 0.06);
+  --card-border-hover: rgba(255, 255, 255, 0.12);
+  --card-shadow: none;
+  --card-shadow-hover: 0 8px 40px rgba(0, 0, 0, 0.3);
+  --error-bg: rgba(252, 165, 165, 0.06);
+  --info: #60a5fa;
+
+  /* Glassmorphism surface tokens */
+  --surface-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
+  --surface-border: 1.5px solid rgba(255, 255, 255, 0.10);
+  --surface-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+  --surface-blur: blur(8px);
+
   --radius: 10px;
   --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --font-display: 'Instrument Serif', Georgia, serif;
@@ -100,7 +114,7 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
 ::selection {
-  background: rgba(99, 102, 241, 0.2);
+  background: rgba(251, 191, 36, 0.2);
   color: var(--text-primary);
 }
 
@@ -161,8 +175,8 @@ body {
 }
 
 @keyframes dropZonePulse {
-  0%, 100% { border-color: var(--accent); box-shadow: inset 0 0 40px rgba(212, 160, 23, 0.12); }
-  50% { border-color: var(--accent-hover); box-shadow: inset 0 0 60px rgba(212, 160, 23, 0.2); }
+  0%, 100% { border-color: var(--accent); box-shadow: inset 0 0 40px rgba(251, 191, 36, 0.12); }
+  50% { border-color: var(--accent-hover); box-shadow: inset 0 0 60px rgba(251, 191, 36, 0.2); }
 }
 
 @keyframes dropZoneBounce {

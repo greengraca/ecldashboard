@@ -133,10 +133,12 @@ export default function FinanceOverview() {
 
   return (
     <div
-      className="rounded-xl border p-4 sm:p-6 mb-8"
+      className="rounded-xl p-4 sm:p-6 mb-8"
       style={{
-        background: "var(--bg-card)",
-        borderColor: "var(--border)",
+        background: "var(--surface-gradient)",
+        backdropFilter: "var(--surface-blur)",
+        border: "1.5px solid rgba(255, 255, 255, 0.10)",
+        boxShadow: "var(--surface-shadow)",
       }}
     >
       {/* Top row: rolling balance + chart tabs */}

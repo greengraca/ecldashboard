@@ -112,10 +112,10 @@ export default function FixedCostManager({
 
   return (
     <div
-      className="rounded-xl border p-5"
+      className="rounded-xl p-5"
       style={{
-        background: "var(--bg-card)",
-        borderColor: "var(--border)",
+        background: "rgba(255, 255, 255, 0.015)",
+        border: "1px solid var(--border)",
       }}
     >
       <div className="flex items-center justify-between mb-4">
@@ -137,9 +137,13 @@ export default function FixedCostManager({
           onClick={() => setAdding(!adding)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
           style={{
-            background: "var(--accent-light)",
+            background: "rgba(251, 191, 36, 0.15)",
             color: "var(--accent)",
+            border: "1px solid rgba(251, 191, 36, 0.35)",
+            backdropFilter: "blur(8px)",
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(251, 191, 36, 0.25)"; e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.5)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(251, 191, 36, 0.15)"; e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.35)"; }}
         >
           <Plus className="w-3.5 h-3.5" />
           Add
@@ -224,9 +228,13 @@ export default function FixedCostManager({
               onClick={handleAdd}
               className="px-3 py-1.5 rounded-lg text-xs font-medium"
               style={{
-                background: "var(--accent)",
-                color: "var(--accent-text)",
+                background: "rgba(251, 191, 36, 0.15)",
+                color: "var(--accent)",
+                border: "1px solid rgba(251, 191, 36, 0.35)",
+                backdropFilter: "blur(8px)",
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(251, 191, 36, 0.25)"; e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.5)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(251, 191, 36, 0.15)"; e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.35)"; }}
             >
               Save
             </button>

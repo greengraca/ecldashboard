@@ -30,10 +30,12 @@ function StatBox({
 }) {
   return (
     <div
-      className="p-2.5 sm:p-4 rounded-xl border text-center"
+      className="p-2.5 sm:p-4 rounded-xl text-center"
       style={{
-        background: "var(--bg-card)",
-        borderColor: "var(--border)",
+        background: "var(--surface-gradient)",
+        backdropFilter: "var(--surface-blur)",
+        border: "1.5px solid rgba(255, 255, 255, 0.10)",
+        boxShadow: "var(--surface-shadow)",
       }}
     >
       <p
@@ -209,8 +211,13 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
 
       {/* Prizes Placeholder */}
       <div
-        className="rounded-xl border p-6 text-center"
-        style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+        className="rounded-xl p-6 text-center"
+        style={{
+          background: "var(--surface-gradient)",
+          backdropFilter: "var(--surface-blur)",
+          border: "1.5px solid rgba(255, 255, 255, 0.10)",
+          boxShadow: "var(--surface-shadow)",
+        }}
       >
         <Gift className="w-6 h-6 mx-auto mb-2" style={{ color: "var(--text-muted)" }} />
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -246,10 +253,12 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
             Points Progression
           </h3>
           <div
-            className="p-4 rounded-xl border overflow-x-auto"
+            className="p-4 rounded-xl overflow-x-auto"
             style={{
-              background: "var(--bg-card)",
-              borderColor: "var(--border)",
+              background: "var(--surface-gradient)",
+              backdropFilter: "var(--surface-blur)",
+              border: "1.5px solid rgba(255, 255, 255, 0.10)",
+              boxShadow: "var(--surface-shadow)",
             }}
           >
             <div className="flex items-end gap-3 min-w-max">
@@ -311,10 +320,10 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
           Monthly History
         </h3>
         <div
-          className="rounded-xl border overflow-hidden"
+          className="rounded-xl overflow-hidden"
           style={{
-            background: "var(--bg-card)",
-            borderColor: "var(--border)",
+            background: "rgba(255, 255, 255, 0.015)",
+            border: "1px solid var(--border)",
           }}
         >
           {/* Mobile card view */}
@@ -357,7 +366,14 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
                         className={`px-4 py-3 font-medium text-xs uppercase tracking-wider ${
                           h === "Month" ? "text-left" : "text-right"
                         }`}
-                        style={{ color: "var(--text-muted)" }}
+                        style={{
+                          color: "var(--text-muted)",
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          letterSpacing: "0.05em",
+                          background: "rgba(255, 255, 255, 0.02)",
+                        }}
                       >
                         {h}
                       </th>

@@ -311,9 +311,13 @@ export default function TransactionForm({
           disabled={loading}
           className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
           style={{
-            background: "var(--accent)",
-            color: "var(--accent-text)",
+            background: "rgba(251, 191, 36, 0.15)",
+            color: "var(--accent)",
+            border: "1px solid rgba(251, 191, 36, 0.35)",
+            backdropFilter: "blur(8px)",
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(251, 191, 36, 0.25)"; e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.5)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(251, 191, 36, 0.15)"; e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.35)"; }}
         >
           {loading
             ? "Saving..."

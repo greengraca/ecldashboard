@@ -10,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { MediaFile } from "@/lib/types";
+import { DRAG_PLACEHOLDER_STYLE } from "./drag-utils";
 
 // Track which item is currently being dragged (module-level so all cards can read it)
 let currentDragId: string | null = null;
@@ -18,6 +19,8 @@ interface DriveFolderCardProps {
   item: MediaFile;
   viewMode: "grid" | "list";
   editing: boolean;
+  isDragging?: boolean;
+  onDragEnd?: () => void;
   onNavigate: (folderId: string) => void;
   onDrop: (itemId: string, targetFolderId: string) => void;
   onRename: (id: string, currentName: string) => void;
@@ -86,6 +89,8 @@ export default function DriveFolderCard({
   item,
   viewMode,
   editing,
+  isDragging = false,
+  onDragEnd: onDragEndProp,
   onNavigate,
   onDrop,
   onRename,
@@ -109,6 +114,14 @@ export default function DriveFolderCard({
       JSON.stringify({ id: item._id, type: "folder" })
     );
     e.dataTransfer.effectAllowed = "move";
+    // Hide native ghost — we render our own via DriveFileGrid
+    const blank = document.createElement("div");
+    blank.style.width = "1px";
+    blank.style.height = "1px";
+    blank.style.opacity = "0.01";
+    document.body.appendChild(blank);
+    e.dataTransfer.setDragImage(blank, 0, 0);
+    requestAnimationFrame(() => blank.remove());
   }
 
   function handleDragEnter(e: React.DragEvent) {
@@ -162,13 +175,17 @@ export default function DriveFolderCard({
       <div
         draggable={!editing}
         onDragStart={handleDragStart}
+        onDragEnd={onDragEndProp}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDropOnFolder}
         onClick={() => !editing && onNavigate(item._id)}
         className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer group relative"
-        style={{
+        style={isDragging ? {
+          ...DRAG_PLACEHOLDER_STYLE,
+          transition: "opacity 0.15s, border 0.15s, background 0.15s",
+        } : {
           background: dragOver ? "var(--accent-light)" : "transparent",
           transition: "background 0.15s, padding-left 0.15s",
         }}
@@ -267,38 +284,37 @@ export default function DriveFolderCard({
     <div
       draggable={!editing}
       onDragStart={handleDragStart}
+      onDragEnd={onDragEndProp}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDropOnFolder}
       onClick={() => !editing && onNavigate(item._id)}
-      className="flex flex-col rounded-xl border cursor-pointer group relative"
-      style={{
-        background: dragOver ? "var(--accent-light)" : "var(--bg-card)",
-        borderColor: dragOver
-          ? "var(--accent)"
-          : editing
-            ? "var(--accent)"
-            : "var(--border)",
+      className="flex flex-col rounded-xl cursor-pointer group relative"
+      style={isDragging ? {
+        ...DRAG_PLACEHOLDER_STYLE,
+        width: 120,
+        height: 120,
+        transition: "opacity 0.15s, border 0.15s, background 0.15s",
+      } : {
+        background: dragOver ? "var(--accent-light)" : "rgba(255, 255, 255, 0.02)",
+        border: `1px solid ${dragOver ? "var(--accent)" : editing ? "var(--accent)" : "var(--border-subtle)"}`,
         width: 120,
         height: 120,
         transition:
-          "border-color 0.2s, box-shadow 0.2s, transform 0.15s, background 0.2s",
+          "border-color 0.2s, transform 0.15s, background 0.2s",
       }}
       onMouseEnter={(e) => {
         setHovered(true);
-        if (!dragOver && !editing) {
+        if (!isDragging && !dragOver && !editing) {
           e.currentTarget.style.borderColor = "var(--accent-border)";
-          e.currentTarget.style.boxShadow =
-            "0 4px 20px rgba(212, 160, 23, 0.08)";
           e.currentTarget.style.transform = "translateY(-2px)";
         }
       }}
       onMouseLeave={(e) => {
         setHovered(false);
-        if (!dragOver && !editing) {
-          e.currentTarget.style.borderColor = "var(--border)";
-          e.currentTarget.style.boxShadow = "none";
+        if (!isDragging && !dragOver && !editing) {
+          e.currentTarget.style.borderColor = "var(--border-subtle)";
           e.currentTarget.style.transform = "translateY(0)";
         }
       }}
@@ -447,9 +463,9 @@ function ContextMenu({
       <div
         className="absolute right-0 top-full mt-1 z-50 rounded-lg border py-1 min-w-[140px]"
         style={{
-          background: "var(--bg-card)",
-          borderColor: "var(--border)",
-          boxShadow: "0 8px 30px rgba(0, 0, 0, 0.4)",
+          background: "var(--surface-gradient)",
+          border: "1.5px solid rgba(255, 255, 255, 0.10)",
+          boxShadow: "var(--surface-shadow)",
           backdropFilter: "blur(12px)",
           animation: "menuSlideIn 0.15s ease-out",
         }}

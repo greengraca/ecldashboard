@@ -52,31 +52,45 @@ export default function MonthPicker({
   const canNext = !maxMonth || value < maxMonth;
 
   return (
-    <div className="flex items-center gap-2">
+    <div
+      className="flex items-center gap-2"
+      style={{
+        background: "var(--surface-gradient)",
+        backdropFilter: "var(--surface-blur)",
+        border: "var(--surface-border)",
+        borderRadius: "20px",
+        padding: "4px",
+      }}
+    >
       <button
         onClick={prev}
         disabled={!canPrev}
-        className="p-1.5 rounded-lg transition-colors disabled:opacity-30"
+        className="p-1.5 transition-colors disabled:opacity-30"
         style={{
           color: "var(--text-secondary)",
           background: "transparent",
+          borderRadius: "16px",
         }}
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
       <span
-        className="text-sm font-medium min-w-[140px] text-center"
-        style={{ color: "var(--text-primary)" }}
+        className="text-sm font-medium min-w-[140px] text-center px-3 py-1"
+        style={{
+          color: "var(--text-primary)",
+          borderRadius: "16px",
+        }}
       >
         {displayMonth(value)}
       </span>
       <button
         onClick={next}
         disabled={!canNext}
-        className="p-1.5 rounded-lg transition-colors disabled:opacity-30"
+        className="p-1.5 transition-colors disabled:opacity-30"
         style={{
           color: "var(--text-secondary)",
           background: "transparent",
+          borderRadius: "16px",
         }}
       >
         <ChevronRight className="w-4 h-4" />

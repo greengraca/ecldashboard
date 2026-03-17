@@ -41,11 +41,13 @@ export default function Modal({
       }}
     >
       <div
-        className={`modal-body w-full ${maxWidth} rounded-xl border p-6`}
+        className={`modal-body w-full ${maxWidth} p-6`}
         style={{
-          background: "var(--card-inner-bg)",
-          borderColor: "var(--border)",
-          animation: "slideUp 0.2s ease",
+          background: "linear-gradient(135deg, #0f1419, #1a2030)",
+          border: "1.5px solid rgba(255, 255, 255, 0.10)",
+          borderRadius: "24px",
+          boxShadow: "0 40px 120px rgba(0, 0, 0, 0.6)",
+          animation: "slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
         <div className="flex items-center justify-between mb-4">

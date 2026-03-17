@@ -230,8 +230,8 @@ export default function PrizesPage() {
           </div>
           {isLoading ? (
             <div
-              className="rounded-xl border p-12 text-center"
-              style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+              className="rounded-xl p-12 text-center"
+              style={{ background: "var(--surface-gradient)", backdropFilter: "var(--surface-blur)", border: "1.5px solid rgba(255, 255, 255, 0.10)", boxShadow: "var(--surface-shadow)" }}
             >
               <div
                 className="inline-block w-6 h-6 border-2 rounded-full animate-spin"

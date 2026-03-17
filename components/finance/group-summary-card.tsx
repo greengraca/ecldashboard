@@ -113,8 +113,8 @@ export default function GroupSummaryCard({ summary, isLoading, onReimburse }: Gr
   if (isLoading) {
     return (
       <div
-        className="rounded-xl border p-8 text-center"
-        style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+        className="rounded-xl p-8 text-center"
+        style={{ background: "var(--surface-gradient)", backdropFilter: "var(--surface-blur)", border: "1.5px solid rgba(255, 255, 255, 0.10)", boxShadow: "var(--surface-shadow)" }}
       >
         <div
           className="inline-block w-6 h-6 border-2 rounded-full animate-spin"
@@ -128,8 +128,8 @@ export default function GroupSummaryCard({ summary, isLoading, onReimburse }: Gr
 
   return (
     <div
-      className="rounded-xl border p-5"
-      style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+      className="rounded-xl p-5"
+      style={{ background: "var(--surface-gradient)", backdropFilter: "var(--surface-blur)", border: "1.5px solid rgba(255, 255, 255, 0.10)", boxShadow: "var(--surface-shadow)" }}
     >
       <div className="mb-4">
         <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>

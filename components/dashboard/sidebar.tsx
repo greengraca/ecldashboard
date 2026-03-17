@@ -65,12 +65,31 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         key={item.href}
         href={item.href}
         onClick={() => setMobileOpen(false)}
-        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-          active
-            ? "bg-[var(--accent-light)] text-[var(--accent)]"
-            : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-        } ${collapsed ? "justify-center px-0" : ""}`}
+        className={`flex items-center gap-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+          collapsed ? "justify-center px-0" : "px-3"
+        }`}
+        style={{
+          borderLeft: collapsed
+            ? "none"
+            : active
+              ? "3px solid var(--accent)"
+              : "3px solid transparent",
+          background: active ? "rgba(255, 255, 255, 0.03)" : "transparent",
+          color: active ? "var(--text-primary)" : "var(--text-secondary)",
+        }}
         title={collapsed ? item.label : undefined}
+        onMouseEnter={(e) => {
+          if (!active) {
+            e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
+            e.currentTarget.style.color = "var(--text-primary)";
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!active) {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = "var(--text-secondary)";
+          }
+        }}
       >
         <Icon className="w-5 h-5 flex-shrink-0" />
         {!collapsed && <span>{item.label}</span>}

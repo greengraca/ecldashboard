@@ -78,7 +78,12 @@ export default function ShippingTracker({ prizes, onUpdateShipping }: ShippingTr
             <div
               key={String(prize._id)}
               className="rounded-lg border p-4 flex items-center gap-4"
-              style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+              style={{
+                background: "var(--surface-gradient)",
+                backdropFilter: "var(--surface-blur)",
+                border: "1.5px solid rgba(255, 255, 255, 0.10)",
+                boxShadow: "var(--surface-shadow)",
+              }}
             >
               <div
                 className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"

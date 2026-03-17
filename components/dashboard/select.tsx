@@ -144,8 +144,9 @@ export default function Select({
         onKeyDown={handleKeyDown}
         className={`flex items-center justify-between gap-1 rounded-lg border text-sm outline-none transition-colors ${pad} ${className}`}
         style={{
-          background: "var(--bg-card)",
-          borderColor: open ? "var(--accent)" : "var(--border)",
+          background: "var(--surface-gradient)",
+          backdropFilter: "var(--surface-blur)",
+          borderColor: open ? "var(--accent)" : "rgba(255, 255, 255, 0.10)",
           color: selectedOption ? "var(--text-primary)" : "var(--text-muted)",
           minWidth: 0,
         }}
@@ -170,10 +171,11 @@ export default function Select({
               width: pos.width,
               maxHeight: 240,
               zIndex: 9999,
-              background: "var(--card-inner-bg)",
-              borderColor: "var(--border-hover)",
+              background: "linear-gradient(135deg, rgba(15, 20, 25, 0.95), rgba(26, 32, 48, 0.95))",
+              borderColor: "rgba(255, 255, 255, 0.10)",
               backdropFilter: "blur(12px)",
               boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
+              animation: "menuSlideIn 0.15s ease",
             }}
           >
             {options.map((opt, i) => (

@@ -257,7 +257,7 @@ export default function DrivePreviewModal({
         ) : (
           <div
             className="flex flex-col items-center gap-3 p-8 rounded-xl"
-            style={{ background: "var(--bg-card)" }}
+            style={{ background: "var(--surface-gradient)", backdropFilter: "var(--surface-blur)", border: "1.5px solid rgba(255, 255, 255, 0.10)", boxShadow: "var(--surface-shadow)" }}
           >
             <p
               className="text-lg font-medium"
@@ -272,8 +272,10 @@ export default function DrivePreviewModal({
               href={`/api/media/drive/${item._id}/download`}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm mt-2"
               style={{
-                background: "var(--accent)",
-                color: "var(--accent-text)",
+                background: "rgba(251, 191, 36, 0.15)",
+                color: "var(--accent)",
+                border: "1px solid rgba(251, 191, 36, 0.35)",
+                backdropFilter: "blur(8px)",
               }}
             >
               <Download className="w-4 h-4" />

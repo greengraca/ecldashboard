@@ -56,7 +56,12 @@ export default function SubscriptionRatesManager() {
     <div className="space-y-4">
       {/* Rate history table */}
       {rates.length > 0 && (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" style={{
+          background: "rgba(255, 255, 255, 0.015)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius)",
+          overflow: "hidden",
+        }}>
           <table className="w-full text-sm">
             <thead>
               <tr
@@ -195,8 +200,10 @@ export default function SubscriptionRatesManager() {
           disabled={saving || !effectiveFrom}
           className="rounded-lg px-4 py-2 text-sm font-medium transition-colors"
           style={{
-            background: "var(--accent)",
-            color: "var(--accent-text)",
+            background: "rgba(251, 191, 36, 0.15)",
+            color: "var(--accent)",
+            border: "1px solid rgba(251, 191, 36, 0.35)",
+            backdropFilter: "blur(8px)",
             opacity: saving || !effectiveFrom ? 0.6 : 1,
           }}
         >

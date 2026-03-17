@@ -171,8 +171,8 @@ function BracketEditor({
     if (top16Winners.length < 4) {
       return (
         <div
-          className="rounded-xl border p-8 text-center"
-          style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+          className="rounded-xl p-8 text-center"
+          style={{ background: "var(--surface-gradient)", backdropFilter: "var(--surface-blur)", border: "1.5px solid rgba(255, 255, 255, 0.10)", boxShadow: "var(--surface-shadow)" }}
         >
           <Trophy className="w-8 h-8 mx-auto mb-3" style={{ color: "var(--text-muted)" }} />
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -226,8 +226,8 @@ function BracketEditor({
             Drag to reorder &middot; Tap name to set winner
           </p>
           <div
-            className="rounded-xl border overflow-hidden"
-            style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+            className="rounded-xl overflow-hidden"
+            style={{ background: "var(--surface-gradient)", backdropFilter: "var(--surface-blur)", border: "1.5px solid rgba(255, 255, 255, 0.10)", boxShadow: "var(--surface-shadow)" }}
             onPointerMove={handleDragMove}
             onPointerUp={handleDragEnd}
             onPointerCancel={handleDragEnd}
@@ -321,8 +321,8 @@ function BracketEditor({
           return (
             <div
               key={podIdx}
-              className="rounded-xl border overflow-hidden"
-              style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+              className="rounded-xl overflow-hidden"
+              style={{ background: "var(--surface-gradient)", backdropFilter: "var(--surface-blur)", border: "1.5px solid rgba(255, 255, 255, 0.10)", boxShadow: "var(--surface-shadow)" }}
             >
               <div
                 className="px-4 py-2.5 text-center font-semibold text-sm border-b flex items-center justify-center gap-2"
@@ -719,10 +719,12 @@ export default function PlayersPage() {
 
           {liveLoading ? (
             <div
-              className="rounded-xl border p-12 text-center"
+              className="rounded-xl p-12 text-center"
               style={{
-                background: "var(--bg-card)",
-                borderColor: "var(--border)",
+                background: "var(--surface-gradient)",
+                backdropFilter: "var(--surface-blur)",
+                border: "1.5px solid rgba(255, 255, 255, 0.10)",
+                boxShadow: "var(--surface-shadow)",
               }}
             >
               <div
@@ -899,10 +901,12 @@ export default function PlayersPage() {
 
           {playersLoading ? (
             <div
-              className="rounded-xl border p-12 text-center"
+              className="rounded-xl p-12 text-center"
               style={{
-                background: "var(--bg-card)",
-                borderColor: "var(--border)",
+                background: "var(--surface-gradient)",
+                backdropFilter: "var(--surface-blur)",
+                border: "1.5px solid rgba(255, 255, 255, 0.10)",
+                boxShadow: "var(--surface-shadow)",
               }}
             >
               <div

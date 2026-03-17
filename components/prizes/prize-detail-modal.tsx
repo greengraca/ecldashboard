@@ -139,8 +139,10 @@ export default function PrizeDetailModal({
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
             style={{
-              background: "var(--accent-light)",
+              background: "rgba(251, 191, 36, 0.15)",
               color: "var(--accent)",
+              border: "1px solid rgba(251, 191, 36, 0.35)",
+              backdropFilter: "blur(8px)",
             }}
           >
             <Pencil className="w-3.5 h-3.5" />

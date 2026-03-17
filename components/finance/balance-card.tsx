@@ -43,10 +43,12 @@ export default function BalanceCard({ summary, isLoading }: BalanceCardProps) {
       {items.map((item) => (
         <div
           key={item.label}
-          className="p-3 sm:p-5 rounded-xl border transition-colors"
+          className="p-3 sm:p-5 rounded-xl transition-colors"
           style={{
-            background: "var(--bg-card)",
-            borderColor: "var(--border)",
+            background: "var(--surface-gradient)",
+            backdropFilter: "var(--surface-blur)",
+            border: "1.5px solid rgba(255, 255, 255, 0.10)",
+            boxShadow: "var(--surface-shadow)",
           }}
         >
           <div className="flex items-start justify-between mb-1.5 sm:mb-3">
@@ -70,10 +72,12 @@ export default function BalanceCard({ summary, isLoading }: BalanceCardProps) {
 
       {/* Net Balance */}
       <div
-        className="p-3 sm:p-5 rounded-xl border transition-colors"
+        className="p-3 sm:p-5 rounded-xl transition-colors"
         style={{
-          background: "var(--bg-card)",
-          borderColor: net >= 0 ? "var(--success)" : "var(--error)",
+          background: "var(--surface-gradient)",
+          backdropFilter: "var(--surface-blur)",
+          border: `1.5px solid ${net >= 0 ? "var(--success)" : "var(--error)"}`,
+          boxShadow: "var(--surface-shadow)",
         }}
       >
         <div className="flex items-start justify-between mb-1.5 sm:mb-3">

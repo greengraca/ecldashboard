@@ -121,13 +121,20 @@ export default function LiveStandingsTable({
     "px-4 py-3 font-medium text-xs uppercase tracking-wider";
   const thSortable =
     `${thBase} select-none cursor-pointer transition-colors hover:text-[var(--accent)]`;
+  const thHeaderStyle = {
+    fontFamily: "var(--font-mono)",
+    fontSize: "11px",
+    fontWeight: 600,
+    letterSpacing: "0.05em",
+    background: "rgba(255, 255, 255, 0.02)",
+  };
 
   return (
     <div
-      className="rounded-xl border overflow-hidden"
+      className="rounded-xl overflow-hidden"
       style={{
-        background: "var(--bg-card)",
-        borderColor: "var(--border)",
+        background: "rgba(255, 255, 255, 0.015)",
+        border: "1px solid var(--border)",
       }}
     >
       <div className="px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
@@ -246,6 +253,7 @@ export default function LiveStandingsTable({
                   key={i}
                   className={`${col.key ? thSortable : thBase} text-${col.align} ${i === 0 ? "w-24" : ""}`}
                   style={{
+                    ...thHeaderStyle,
                     color: col.key && sortKey === col.key ? "var(--accent)" : "var(--text-muted)",
                   }}
                   onClick={col.key ? () => handleSort(col.key!) : undefined}

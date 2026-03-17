@@ -118,8 +118,10 @@ export default function DriveInputModal({
               disabled={!value.trim()}
               className="px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-40"
               style={{
-                background: isDanger ? "var(--error)" : "var(--accent)",
-                color: isDanger ? "#fff" : "var(--accent-text)",
+                background: isDanger ? "var(--error)" : "rgba(251, 191, 36, 0.15)",
+                color: isDanger ? "#fff" : "var(--accent)",
+                border: isDanger ? undefined : "1px solid rgba(251, 191, 36, 0.35)",
+                backdropFilter: isDanger ? undefined : "blur(8px)",
               }}
             >
               {confirmLabel}

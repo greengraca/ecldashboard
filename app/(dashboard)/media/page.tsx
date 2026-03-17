@@ -149,8 +149,8 @@ export default function MediaPage() {
             </h3>
             {isAutoFilling ? (
               <div
-                className="flex flex-col items-center justify-center rounded-xl border h-96"
-                style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+                className="flex flex-col items-center justify-center rounded-xl h-96"
+                style={{ background: "var(--surface-gradient)", backdropFilter: "var(--surface-blur)", border: "1.5px solid rgba(255, 255, 255, 0.10)", boxShadow: "var(--surface-shadow)" }}
               >
                 <div
                   className="w-6 h-6 border-2 rounded-full animate-spin mb-3"
@@ -171,10 +171,12 @@ export default function MediaPage() {
 
           {/* Editor */}
           <div
-            className="p-5 rounded-xl border"
+            className="p-5 rounded-xl"
             style={{
-              background: "var(--bg-card)",
-              borderColor: "var(--border)",
+              background: "var(--surface-gradient)",
+              backdropFilter: "var(--surface-blur)",
+              border: "1.5px solid rgba(255, 255, 255, 0.10)",
+              boxShadow: "var(--surface-shadow)",
             }}
           >
             <TemplateEditor
@@ -222,10 +224,12 @@ export default function MediaPage() {
       {/* Empty state */}
       {!selectedTemplate && (
         <div
-          className="flex items-center justify-center rounded-xl border h-64"
+          className="flex items-center justify-center rounded-xl h-64"
           style={{
-            background: "var(--bg-card)",
-            borderColor: "var(--border)",
+            background: "var(--surface-gradient)",
+            backdropFilter: "var(--surface-blur)",
+            border: "1.5px solid rgba(255, 255, 255, 0.10)",
+            boxShadow: "var(--surface-shadow)",
           }}
         >
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>

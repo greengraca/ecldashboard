@@ -90,10 +90,12 @@ export default function MonthlyBreakdownChart({
 
   return (
     <div
-      className="rounded-xl border p-4 sm:p-6 h-full"
+      className="rounded-xl p-4 sm:p-6 h-full"
       style={{
-        background: "var(--bg-card)",
-        borderColor: "var(--border)",
+        background: "var(--surface-gradient)",
+        backdropFilter: "var(--surface-blur)",
+        border: "1.5px solid rgba(255, 255, 255, 0.10)",
+        boxShadow: "var(--surface-shadow)",
       }}
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">

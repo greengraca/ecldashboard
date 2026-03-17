@@ -1,10 +1,12 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
-import { Upload, Folder } from "lucide-react";
+import { useRef, useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { Upload, Folder, FileImage, FileVideo, File as FileIcon } from "lucide-react";
 import type { MediaFile } from "@/lib/types";
 import DriveFolderCard from "./DriveFolderCard";
 import DriveFileCard from "./DriveFileCard";
+import { ghostWrapperStyle, GHOST_CARD_STYLE } from "./drag-utils";
 
 interface DriveFileGridProps {
   items: MediaFile[];
@@ -113,7 +115,10 @@ function NewFolderPlaceholder({
     <div
       className="flex flex-col items-center justify-center p-4 rounded-xl border"
       style={{
-        background: "var(--bg-card)",
+        background: "var(--surface-gradient)",
+        backdropFilter: "var(--surface-blur)",
+        border: "1.5px solid rgba(255, 255, 255, 0.10)",
+        boxShadow: "var(--surface-shadow)",
         borderColor: "var(--accent)",
         width: 120,
         height: 120,
@@ -302,6 +307,47 @@ export default function DriveFileGrid({
   onConfirmCreateFolder,
   onCancelCreateFolder,
 }: DriveFileGridProps) {
+  // --- Drag ghost state ---
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const ghostRef = useRef<HTMLDivElement>(null);
+  const ghostSizeRef = useRef({ w: 120, h: 120 });
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Move ghost via DOM — no React re-renders
+  const handleContainerDragOver = useCallback((e: React.DragEvent) => {
+    if (ghostRef.current) {
+      const { w, h } = ghostSizeRef.current;
+      ghostRef.current.style.left = `${e.clientX - w / 2}px`;
+      ghostRef.current.style.top = `${e.clientY - h / 2}px`;
+    }
+  }, []);
+
+  // Listen for dragstart on container to identify which item is being dragged
+  const handleContainerDragStart = useCallback((e: React.DragEvent) => {
+    const target = e.target as HTMLElement;
+    const card = target.closest("[data-drive-id]") as HTMLElement | null;
+    if (card?.dataset.driveId) {
+      const id = card.dataset.driveId;
+      const rect = card.getBoundingClientRect();
+      ghostSizeRef.current = { w: rect.width, h: rect.height };
+      requestAnimationFrame(() => setDraggingId(id));
+    }
+  }, []);
+
+  // Clear drag state on any dragend or drop — covers all edge cases
+  const clearDrag = useCallback(() => setDraggingId(null), []);
+
+  useEffect(() => {
+    document.addEventListener("dragend", clearDrag);
+    document.addEventListener("drop", clearDrag);
+    return () => {
+      document.removeEventListener("dragend", clearDrag);
+      document.removeEventListener("drop", clearDrag);
+    };
+  }, [clearDrag]);
+
+  const draggingItem = draggingId ? items.find(i => i._id === draggingId) : null;
+
   // Single active drop zone — only one indicator visible at a time
   const [activeDrop, setActiveDrop] = useState<{
     afterId: string | null;
@@ -325,6 +371,7 @@ export default function DriveFileGrid({
     groupType: "folder" | "file"
   ) {
     setActiveDrop(null);
+    setDraggingId(null);
     const data = e.dataTransfer.getData("application/x-drive-reorder");
     if (!data) return;
     const { id, type } = JSON.parse(data);
@@ -376,8 +423,10 @@ export default function DriveFileGrid({
             onClick={onUploadClick}
             className="px-3 py-1.5 rounded-lg text-xs transition-colors"
             style={{
-              background: "var(--accent)",
-              color: "var(--accent-text)",
+              background: "rgba(251, 191, 36, 0.15)",
+              color: "var(--accent)",
+              border: "1px solid rgba(251, 191, 36, 0.35)",
+              backdropFilter: "blur(8px)",
             }}
           >
             Upload Files
@@ -400,9 +449,86 @@ export default function DriveFileGrid({
   const folders = items.filter((i) => i.type === "folder");
   const files = items.filter((i) => i.type === "file");
 
+  // Ghost element rendered via portal — matches original card dimensions
+  const isGhostImage = draggingItem?.mimeType?.startsWith("image/");
+  const isGhostFolder = draggingItem?.type === "folder";
+  const isGhostGrid = viewMode === "grid";
+  const { w: gw, h: gh } = ghostSizeRef.current;
+
+  const ghostElement = draggingItem && typeof document !== "undefined" ? createPortal(
+    <div ref={ghostRef} style={ghostWrapperStyle(-9999, -9999, gw, gh)}>
+      <div style={{ ...GHOST_CARD_STYLE, height: "100%", display: "flex", flexDirection: "column", padding: 0 }}>
+        {isGhostGrid && !isGhostFolder && (
+          /* Thumbnail placeholder area */
+          <div style={{
+            height: 96,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(255, 255, 255, 0.03)",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
+          }}>
+            {isGhostImage ? (
+              <FileImage className="w-6 h-6" style={{ color: "var(--accent)", opacity: 0.6 }} />
+            ) : draggingItem.mimeType?.startsWith("video/") ? (
+              <FileVideo className="w-6 h-6" style={{ color: "#a78bfa", opacity: 0.6 }} />
+            ) : (
+              <FileIcon className="w-6 h-6" style={{ color: "var(--text-muted)", opacity: 0.6 }} />
+            )}
+          </div>
+        )}
+        {isGhostGrid && isGhostFolder && (
+          /* Folder icon area */
+          <div style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}>
+            <Folder className="w-10 h-10" style={{ color: "var(--accent)", opacity: 0.7 }} />
+          </div>
+        )}
+        {/* Name area */}
+        <div style={{
+          padding: isGhostGrid ? "8px" : "8px 12px",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}>
+          {!isGhostGrid && (
+            isGhostFolder ? (
+              <Folder className="w-5 h-5" style={{ color: "var(--accent)" }} />
+            ) : isGhostImage ? (
+              <FileImage className="w-5 h-5" style={{ color: "var(--accent)" }} />
+            ) : draggingItem.mimeType?.startsWith("video/") ? (
+              <FileVideo className="w-5 h-5" style={{ color: "#a78bfa" }} />
+            ) : (
+              <FileIcon className="w-5 h-5" style={{ color: "var(--text-muted)" }} />
+            )
+          )}
+          <span style={{
+            fontSize: isGhostGrid ? 12 : 13,
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.92)",
+            lineHeight: 1.4,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            textAlign: isGhostGrid ? "center" : undefined,
+            width: isGhostGrid ? "100%" : undefined,
+          }}>
+            {draggingItem.name}
+          </span>
+        </div>
+      </div>
+    </div>,
+    document.body
+  ) : null;
+
   if (viewMode === "list") {
     return (
-      <div>
+      <div ref={containerRef} onDragStartCapture={handleContainerDragStart} onDragOver={handleContainerDragOver}>
+        {ghostElement}
         {creatingFolder && (
           <NewFolderPlaceholder
             viewMode="list"
@@ -423,11 +549,13 @@ export default function DriveFileGrid({
               onDrop={handleGapDrop}
             />
             {folders.map((item) => (
-              <div key={item._id}>
+              <div key={item._id} data-drive-id={item._id}>
                 <DriveFolderCard
                   item={item}
                   viewMode="list"
                   editing={editingId === item._id}
+                  isDragging={draggingId === item._id}
+                  onDragEnd={clearDrag}
                   onNavigate={onNavigateFolder}
                   onDrop={onMoveToFolder}
                   onRename={onRename}
@@ -467,10 +595,12 @@ export default function DriveFileGrid({
               onDrop={handleGapDrop}
             />
             {files.map((item) => (
-              <div key={item._id}>
+              <div key={item._id} data-drive-id={item._id}>
                 <DriveFileCard
                   item={item}
                   viewMode="list"
+                  isDragging={draggingId === item._id}
+                  onDragEnd={clearDrag}
                   onClick={onFileClick}
                   onRename={onRename}
                   onDelete={onDelete}
@@ -494,7 +624,8 @@ export default function DriveFileGrid({
 
   // Grid view
   return (
-    <div>
+    <div ref={containerRef} onDragStartCapture={handleContainerDragStart} onDragOver={handleContainerDragOver}>
+      {ghostElement}
       {/* Folders */}
       {(folders.length > 0 || creatingFolder) && (
         <div className="flex flex-wrap items-stretch">
@@ -516,11 +647,13 @@ export default function DriveFileGrid({
             onDrop={handleGapDrop}
           />
           {folders.map((item) => (
-            <div key={item._id} className="flex items-stretch">
+            <div key={item._id} className="flex items-stretch" data-drive-id={item._id}>
               <DriveFolderCard
                 item={item}
                 viewMode="grid"
                 editing={editingId === item._id}
+                isDragging={draggingId === item._id}
+                onDragEnd={clearDrag}
                 onNavigate={onNavigateFolder}
                 onDrop={onMoveToFolder}
                 onRename={onRename}
@@ -573,10 +706,12 @@ export default function DriveFileGrid({
             onDrop={handleGapDrop}
           />
           {files.map((item) => (
-            <div key={item._id} className="flex items-stretch">
+            <div key={item._id} className="flex items-stretch" data-drive-id={item._id}>
               <DriveFileCard
                 item={item}
                 viewMode="grid"
+                isDragging={draggingId === item._id}
+                onDragEnd={clearDrag}
                 onClick={onFileClick}
                 onRename={onRename}
                 onDelete={onDelete}

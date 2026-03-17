@@ -100,13 +100,20 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
 
   const thClass =
     "px-4 py-3 font-medium text-xs uppercase tracking-wider select-none cursor-pointer transition-colors hover:text-[var(--accent)]";
+  const thHeaderStyle = {
+    fontFamily: "var(--font-mono)",
+    fontSize: "11px",
+    fontWeight: 600,
+    letterSpacing: "0.05em",
+    background: "rgba(255, 255, 255, 0.02)",
+  };
 
   return (
     <div
-      className="rounded-xl border overflow-hidden"
+      className="rounded-xl overflow-hidden"
       style={{
-        background: "var(--bg-card)",
-        borderColor: "var(--border)",
+        background: "rgba(255, 255, 255, 0.015)",
+        border: "1px solid var(--border)",
       }}
     >
       <div className="px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
@@ -192,7 +199,7 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
             <tr className="border-b border-[var(--border)]">
               <th
                 className={`${thClass} text-left w-24`}
-                style={{ color: sortKey === "rank" ? "var(--accent)" : "var(--text-muted)" }}
+                style={{ ...thHeaderStyle, color: sortKey === "rank" ? "var(--accent)" : "var(--text-muted)" }}
                 onClick={() => handleSort("rank")}
               >
                 <span className="inline-flex items-center gap-1">
@@ -202,13 +209,13 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
               </th>
               <th
                 className="px-4 py-3 text-left font-medium text-xs uppercase tracking-wider"
-                style={{ color: "var(--text-muted)" }}
+                style={{ ...thHeaderStyle, color: "var(--text-muted)" }}
               >
                 Player
               </th>
               <th
                 className={`${thClass} text-right`}
-                style={{ color: sortKey === "points" ? "var(--accent)" : "var(--text-muted)" }}
+                style={{ ...thHeaderStyle, color: sortKey === "points" ? "var(--accent)" : "var(--text-muted)" }}
                 onClick={() => handleSort("points")}
               >
                 <span className="inline-flex items-center gap-1 justify-end">
@@ -218,7 +225,7 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
               </th>
               <th
                 className={`${thClass} text-right`}
-                style={{ color: sortKey === "wins" ? "var(--accent)" : "var(--text-muted)" }}
+                style={{ ...thHeaderStyle, color: sortKey === "wins" ? "var(--accent)" : "var(--text-muted)" }}
                 onClick={() => handleSort("wins")}
               >
                 <span className="inline-flex items-center gap-1 justify-end">
@@ -228,7 +235,7 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
               </th>
               <th
                 className={`${thClass} text-right`}
-                style={{ color: sortKey === "games" ? "var(--accent)" : "var(--text-muted)" }}
+                style={{ ...thHeaderStyle, color: sortKey === "games" ? "var(--accent)" : "var(--text-muted)" }}
                 onClick={() => handleSort("games")}
               >
                 <span className="inline-flex items-center gap-1 justify-end">
@@ -238,7 +245,7 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
               </th>
               <th
                 className={`${thClass} text-right`}
-                style={{ color: sortKey === "win_pct" ? "var(--accent)" : "var(--text-muted)" }}
+                style={{ ...thHeaderStyle, color: sortKey === "win_pct" ? "var(--accent)" : "var(--text-muted)" }}
                 onClick={() => handleSort("win_pct")}
               >
                 <span className="inline-flex items-center gap-1 justify-end">

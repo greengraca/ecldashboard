@@ -22,17 +22,43 @@ export default function StatCard({
 }: StatCardProps) {
   return (
     <div
-      className="h-full p-3 sm:p-5 rounded-xl border transition-colors"
+      className="h-full p-3 sm:p-5 rounded-xl transition-all duration-200 group"
       style={{
-        background: "var(--bg-card)",
-        borderColor: active ? "var(--accent)" : "var(--border)",
-        boxShadow: active ? "0 0 0 1px var(--accent)" : "none",
+        background: "var(--surface-gradient)",
+        backdropFilter: "var(--surface-blur)",
+        border: active
+          ? "1px solid var(--accent)"
+          : "1px solid rgba(255, 255, 255, 0.10)",
+        boxShadow: "var(--surface-shadow)",
+      }}
+      onMouseEnter={(e) => {
+        const el = e.currentTarget;
+        el.style.transform = "translateY(-2px)";
+        el.style.borderColor = active
+          ? "var(--accent)"
+          : "rgba(255, 255, 255, 0.12)";
+        el.style.boxShadow = active
+          ? "0 0 0 1px var(--accent), var(--card-shadow-hover)"
+          : "var(--card-shadow-hover)";
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget;
+        el.style.transform = "";
+        el.style.borderColor = active
+          ? "var(--accent)"
+          : "rgba(255, 255, 255, 0.10)";
+        el.style.boxShadow = active
+          ? "0 0 0 1px var(--accent), var(--surface-shadow)"
+          : "var(--surface-shadow)";
       }}
     >
       <div className="flex items-start justify-between mb-1.5 sm:mb-3">
         <p
           className="text-[10px] sm:text-xs font-medium uppercase tracking-wider"
-          style={{ color: "var(--text-muted)" }}
+          style={{
+            color: "var(--text-muted)",
+            fontFamily: "var(--font-mono)",
+          }}
         >
           {title}
         </p>
@@ -47,7 +73,10 @@ export default function StatCard({
       </div>
       <p
         className="text-lg sm:text-2xl font-bold"
-        style={{ color: "var(--text-primary)" }}
+        style={{
+          color: "var(--text-primary)",
+          fontFamily: "var(--font-mono)",
+        }}
       >
         {value}
       </p>

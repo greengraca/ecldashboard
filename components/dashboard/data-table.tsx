@@ -90,64 +90,85 @@ export default function DataTable<T extends Record<string, unknown>>({
       )}
 
       {/* Desktop table view */}
-      <div className={`overflow-x-auto ${renderMobileCard ? "hidden sm:block" : ""}`}>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-[var(--border)]">
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  className={`px-4 py-3 text-left font-medium text-xs uppercase tracking-wider ${
-                    col.sortable ? "cursor-pointer select-none" : ""
-                  } ${col.className || ""}`}
-                  style={{ color: "var(--text-muted)" }}
-                  onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                >
-                  <div className={`flex items-center gap-1 ${
-                    col.className?.includes("text-center") ? "justify-center" :
-                    col.className?.includes("text-right") ? "justify-end" : ""
-                  }`}>
-                    {col.label}
-                    {col.sortable && sortKey === col.key && (
-                      sortDir === "asc" ? (
-                        <ChevronUp className="w-3 h-3" />
-                      ) : (
-                        <ChevronDown className="w-3 h-3" />
-                      )
-                    )}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((row) => (
-              <tr
-                key={String(row[keyField])}
-                className={`border-b border-[var(--border-subtle)] transition-colors ${
-                  onRowClick
-                    ? "cursor-pointer hover:bg-[var(--bg-hover)]"
-                    : rowHover
-                      ? "hover:bg-[var(--bg-hover)]"
-                      : ""
-                }`}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
-              >
+      <div
+        className={`overflow-hidden rounded-[var(--radius)] ${renderMobileCard ? "hidden sm:block" : ""}`}
+        style={{
+          background: "rgba(255, 255, 255, 0.015)",
+          border: "1px solid var(--border)",
+        }}
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ borderBottom: "1px solid var(--border)" }}>
                 {columns.map((col) => (
-                  <td
+                  <th
                     key={col.key}
-                    className={`px-4 py-3 ${col.className || ""}`}
-                    style={{ color: "var(--text-primary)" }}
+                    className={`px-4 py-3 text-left ${
+                      col.sortable ? "cursor-pointer select-none" : ""
+                    } ${col.className || ""}`}
+                    style={{
+                      color: "var(--text-muted)",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      textTransform: "uppercase" as const,
+                      letterSpacing: "0.05em",
+                    }}
+                    onClick={col.sortable ? () => handleSort(col.key) : undefined}
                   >
-                    {col.render
-                      ? col.render(row)
-                      : String(row[col.key] ?? "")}
-                  </td>
+                    <div className={`flex items-center gap-1 ${
+                      col.className?.includes("text-center") ? "justify-center" :
+                      col.className?.includes("text-right") ? "justify-end" : ""
+                    }`}>
+                      {col.label}
+                      {col.sortable && sortKey === col.key && (
+                        sortDir === "asc" ? (
+                          <ChevronUp className="w-3 h-3" />
+                        ) : (
+                          <ChevronDown className="w-3 h-3" />
+                        )
+                      )}
+                    </div>
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {sorted.map((row, rowIndex) => (
+                <tr
+                  key={String(row[keyField])}
+                  className={`transition-colors ${
+                    onRowClick
+                      ? "cursor-pointer hover:bg-[var(--bg-hover)]"
+                      : rowHover
+                        ? "hover:bg-[var(--bg-hover)]"
+                        : ""
+                  }`}
+                  style={{
+                    borderBottom:
+                      rowIndex < sorted.length - 1
+                        ? "1px solid var(--border-subtle)"
+                        : "none",
+                  }}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                >
+                  {columns.map((col) => (
+                    <td
+                      key={col.key}
+                      className={`px-4 py-3 ${col.className || ""}`}
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      {col.render
+                        ? col.render(row)
+                        : String(row[col.key] ?? "")}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </>
   );

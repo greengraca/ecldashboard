@@ -275,8 +275,8 @@ export default function ProfitSplitTable() {
   if (isLoading) {
     return (
       <div
-        className="rounded-xl border p-8 text-center"
-        style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+        className="rounded-xl p-8 text-center"
+        style={{ background: "var(--surface-gradient)", backdropFilter: "var(--surface-blur)", border: "1.5px solid rgba(255, 255, 255, 0.10)", boxShadow: "var(--surface-shadow)" }}
       >
         <div
           className="inline-block w-6 h-6 border-2 rounded-full animate-spin"
@@ -290,8 +290,8 @@ export default function ProfitSplitTable() {
 
   return (
     <div
-      className="rounded-xl border p-4 sm:p-6"
-      style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+      className="rounded-xl p-4 sm:p-6"
+      style={{ background: "var(--surface-gradient)", backdropFilter: "var(--surface-blur)", border: "1.5px solid rgba(255, 255, 255, 0.10)", boxShadow: "var(--surface-shadow)" }}
     >
       {/* Header + tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">

@@ -200,17 +200,19 @@ export default function DriveToolbar({
           onClick={() => fileInputRef.current?.click()}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm"
           style={{
-            background: "var(--accent)",
-            color: "var(--accent-text)",
+            background: "rgba(251, 191, 36, 0.15)",
+            color: "var(--accent)",
+            border: "1px solid rgba(251, 191, 36, 0.35)",
+            backdropFilter: "blur(8px)",
             transition: "background 0.15s, box-shadow 0.2s, transform 0.1s",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "var(--accent-hover)";
+            e.currentTarget.style.background = "rgba(251, 191, 36, 0.25)";
             e.currentTarget.style.boxShadow =
               "0 2px 12px rgba(212, 160, 23, 0.3)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "var(--accent)";
+            e.currentTarget.style.background = "rgba(251, 191, 36, 0.15)";
             e.currentTarget.style.boxShadow = "none";
           }}
           onMouseDown={(e) => {

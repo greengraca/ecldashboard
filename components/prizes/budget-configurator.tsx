@@ -98,7 +98,12 @@ export default function BudgetConfigurator({
   return (
     <div
       className="rounded-xl border p-5"
-      style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+      style={{
+        background: "var(--surface-gradient)",
+        backdropFilter: "var(--surface-blur)",
+        border: "1.5px solid rgba(255, 255, 255, 0.10)",
+        boxShadow: "var(--surface-shadow)",
+      }}
     >
       <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "var(--text-muted)" }}>
         Budget
@@ -203,8 +208,10 @@ export default function BudgetConfigurator({
         disabled={saving}
         className="w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
         style={{
-          background: "var(--accent)",
-          color: "var(--accent-text)",
+          background: "rgba(251, 191, 36, 0.15)",
+          color: "var(--accent)",
+          border: "1px solid rgba(251, 191, 36, 0.35)",
+          backdropFilter: "blur(8px)",
         }}
       >
         {saving ? "Saving..." : "Save Budget"}

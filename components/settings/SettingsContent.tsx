@@ -47,8 +47,10 @@ function Section({
     <div
       className="rounded-xl border overflow-hidden"
       style={{
-        background: "var(--bg-card)",
-        borderColor: "var(--border)",
+        background: "var(--surface-gradient)",
+        backdropFilter: "var(--surface-blur)",
+        border: "1.5px solid rgba(255, 255, 255, 0.10)",
+        boxShadow: "var(--surface-shadow)",
       }}
     >
       <div

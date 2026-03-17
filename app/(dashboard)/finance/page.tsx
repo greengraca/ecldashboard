@@ -287,10 +287,12 @@ export default function FinancePage() {
         </div>
         {isLoading ? (
           <div
-            className="rounded-xl border p-12 text-center"
+            className="rounded-xl p-12 text-center"
             style={{
-              background: "var(--bg-card)",
-              borderColor: "var(--border)",
+              background: "var(--surface-gradient)",
+              backdropFilter: "var(--surface-blur)",
+              border: "1.5px solid rgba(255, 255, 255, 0.10)",
+              boxShadow: "var(--surface-shadow)",
             }}
           >
             <div
@@ -327,10 +329,12 @@ export default function FinancePage() {
         </h2>
         {fcLoading ? (
           <div
-            className="rounded-xl border p-12 text-center"
+            className="rounded-xl p-12 text-center"
             style={{
-              background: "var(--bg-card)",
-              borderColor: "var(--border)",
+              background: "var(--surface-gradient)",
+              backdropFilter: "var(--surface-blur)",
+              border: "1.5px solid rgba(255, 255, 255, 0.10)",
+              boxShadow: "var(--surface-shadow)",
             }}
           >
             <div

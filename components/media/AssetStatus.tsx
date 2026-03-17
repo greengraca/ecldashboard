@@ -41,7 +41,10 @@ export default function AssetStatus() {
     <div
       className="rounded-xl border overflow-hidden"
       style={{
-        background: "var(--bg-card)",
+        background: "var(--surface-gradient)",
+        backdropFilter: "var(--surface-blur)",
+        border: "1.5px solid rgba(255, 255, 255, 0.10)",
+        boxShadow: "var(--surface-shadow)",
         borderColor: allGood ? "rgba(34, 197, 94, 0.3)" : "rgba(234, 179, 8, 0.3)",
       }}
     >

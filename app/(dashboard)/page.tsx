@@ -42,10 +42,12 @@ const actionColors: Record<ActivityAction, string> = {
 function StatSkeleton() {
   return (
     <div
-      className="h-full p-3 sm:p-5 rounded-xl border"
+      className="h-full p-3 sm:p-5 rounded-xl"
       style={{
-        background: "var(--bg-card)",
-        borderColor: "var(--border)",
+        background: "var(--surface-gradient)",
+        backdropFilter: "var(--surface-blur)",
+        border: "1.5px solid rgba(255, 255, 255, 0.10)",
+        boxShadow: "var(--surface-shadow)",
       }}
     >
       <div className="flex items-start justify-between mb-1.5 sm:mb-3">
@@ -226,10 +228,12 @@ export default function HomePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div
-          className="p-4 sm:p-6 rounded-xl border"
+          className="p-4 sm:p-6 rounded-xl"
           style={{
-            background: "var(--bg-card)",
-            borderColor: "var(--border)",
+            background: "var(--surface-gradient)",
+            backdropFilter: "var(--surface-blur)",
+            border: "1.5px solid rgba(255, 255, 255, 0.10)",
+            boxShadow: "var(--surface-shadow)",
           }}
         >
           <h2
@@ -296,10 +300,12 @@ export default function HomePage() {
         </div>
 
         <div
-          className="p-4 sm:p-6 rounded-xl border"
+          className="p-4 sm:p-6 rounded-xl"
           style={{
-            background: "var(--bg-card)",
-            borderColor: "var(--border)",
+            background: "var(--surface-gradient)",
+            backdropFilter: "var(--surface-blur)",
+            border: "1.5px solid rgba(255, 255, 255, 0.10)",
+            boxShadow: "var(--surface-shadow)",
           }}
         >
           <h2

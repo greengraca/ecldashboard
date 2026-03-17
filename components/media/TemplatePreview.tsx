@@ -62,7 +62,7 @@ export default function TemplatePreview({ templateId, data, month }: TemplatePre
     return (
       <div
         className="flex items-center justify-center rounded-xl border h-96"
-        style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+        style={{ background: "var(--surface-gradient)", backdropFilter: "var(--surface-blur)", border: "1.5px solid rgba(255, 255, 255, 0.10)", boxShadow: "var(--surface-shadow)" }}
       >
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
           Select a template to preview

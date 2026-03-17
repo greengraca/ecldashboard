@@ -152,7 +152,10 @@ export default function PrizeTable({ prizes, onRowClick }: PrizeTableProps) {
   return (
     <div
       className="rounded-xl border overflow-hidden"
-      style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+      style={{
+        background: "rgba(255, 255, 255, 0.015)",
+        border: "1px solid var(--border)",
+      }}
     >
       <DataTable<Prize & Record<string, unknown>>
         columns={columns as Column<Prize & Record<string, unknown>>[]}

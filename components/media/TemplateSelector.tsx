@@ -19,10 +19,12 @@ export default function TemplateSelector({ selected, onSelect }: TemplateSelecto
           <button
             key={t.id}
             onClick={() => onSelect(t.id)}
-            className="p-4 rounded-xl border text-left transition-all"
+            className="p-4 rounded-xl text-left transition-all"
             style={{
-              background: isActive ? "var(--accent-light)" : "var(--bg-card)",
-              borderColor: isActive ? "var(--accent)" : "var(--border)",
+              background: isActive ? "var(--accent-light)" : "var(--surface-gradient)",
+              backdropFilter: isActive ? undefined : "var(--surface-blur)",
+              border: isActive ? "1px solid var(--accent)" : "1px solid var(--border)",
+              boxShadow: isActive ? undefined : "var(--surface-shadow)",
             }}
           >
             <div className="flex items-center justify-between mb-2">

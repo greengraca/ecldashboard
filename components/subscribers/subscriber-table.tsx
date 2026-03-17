@@ -211,10 +211,10 @@ export default function SubscriberTable({
 
   return (
     <div
-      className="rounded-xl border overflow-hidden"
+      className="rounded-xl overflow-hidden"
       style={{
-        background: "var(--bg-card)",
-        borderColor: "var(--border)",
+        background: "rgba(255, 255, 255, 0.015)",
+        border: "1px solid var(--border)",
       }}
     >
       <div className="px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
