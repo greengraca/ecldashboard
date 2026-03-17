@@ -4,6 +4,7 @@ import {
   getItem,
   renameItem,
   moveItem,
+  reorderItem,
   collectR2Keys,
   deleteItemFromDb,
 } from "@/lib/media-drive";
@@ -38,6 +39,12 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
+
+    // Reorder operation (within same folder)
+    if ("afterId" in body) {
+      await reorderItem(id, body.afterId);
+      return NextResponse.json({ data: { reordered: true } });
+    }
 
     // Move operation
     if ("parentId" in body) {

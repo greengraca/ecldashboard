@@ -134,6 +134,19 @@ export default function AssetDrive() {
     [mutate]
   );
 
+  // Reorder item within same folder
+  const handleReorder = useCallback(
+    async (itemId: string, afterId: string | null) => {
+      await fetch(`/api/media/drive/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ afterId }),
+      });
+      mutate();
+    },
+    [mutate]
+  );
+
   // Rename — switch to inline editing
   const handleRename = useCallback((id: string, _currentName: string) => {
     setEditingId(id);
@@ -205,25 +218,35 @@ export default function AssetDrive() {
 
         {uploading && (
           <div
-            className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg text-xs"
+            className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg text-xs overflow-hidden relative"
             style={{
               background: "var(--accent-light)",
               color: "var(--accent)",
+              border: "1px solid var(--accent-border)",
             }}
           >
             <div
-              className="w-3 h-3 border-2 rounded-full animate-spin"
+              className="absolute inset-0 opacity-20"
               style={{
-                borderColor: "var(--border)",
+                background:
+                  "linear-gradient(90deg, transparent, var(--accent), transparent)",
+                animation: "shimmer 1.5s ease-in-out infinite",
+                backgroundSize: "200% 100%",
+              }}
+            />
+            <div
+              className="w-3 h-3 border-2 rounded-full animate-spin relative"
+              style={{
+                borderColor: "var(--accent-border)",
                 borderTopColor: "var(--accent)",
               }}
             />
-            Uploading...
+            <span className="relative">Uploading...</span>
           </div>
         )}
 
         <DriveDropZone onDropFiles={handleUploadFiles}>
-          <div className="overflow-y-auto" style={{ maxHeight: 360 }}>
+          <div className="overflow-y-auto pt-1 pb-1" style={{ maxHeight: 360 }}>
             <DriveFileGrid
               items={items}
               viewMode={viewMode}
@@ -233,6 +256,7 @@ export default function AssetDrive() {
               onNavigateFolder={(id) => handleNavigate(id)}
               onFileClick={handleFileClick}
               onMoveToFolder={handleMoveToFolder}
+              onReorder={handleReorder}
               onRename={handleRename}
               onConfirmRename={confirmRename}
               onCancelRename={cancelRename}

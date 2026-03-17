@@ -67,12 +67,24 @@ export default function DriveToolbar({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={(e) => handleDrop(e, null)}
-          className="flex items-center gap-1 px-2 py-1 rounded hover:opacity-80 transition-opacity flex-shrink-0"
+          className="flex items-center gap-1 px-2 py-1 rounded flex-shrink-0"
           style={{
             color:
               breadcrumbs.length === 0
                 ? "var(--text-primary)"
                 : "var(--text-secondary)",
+            transition: "background 0.15s, color 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--bg-hover)";
+            e.currentTarget.style.color = "var(--text-primary)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color =
+              breadcrumbs.length === 0
+                ? "var(--text-primary)"
+                : "var(--text-secondary)";
           }}
         >
           <Home className="w-3.5 h-3.5" />
@@ -93,13 +105,25 @@ export default function DriveToolbar({
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, crumb._id)}
-              className="px-2 py-1 rounded hover:opacity-80 transition-opacity"
+              className="px-2 py-1 rounded"
               style={{
                 color:
                   i === breadcrumbs.length - 1
                     ? "var(--text-primary)"
                     : "var(--text-secondary)",
                 fontWeight: i === breadcrumbs.length - 1 ? 500 : 400,
+                transition: "background 0.15s, color 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--bg-hover)";
+                e.currentTarget.style.color = "var(--text-primary)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color =
+                  i === breadcrumbs.length - 1
+                    ? "var(--text-primary)"
+                    : "var(--text-secondary)";
               }}
             >
               {crumb.name}
@@ -114,14 +138,29 @@ export default function DriveToolbar({
           onClick={() =>
             onViewModeChange(viewMode === "grid" ? "list" : "grid")
           }
-          className="p-2 rounded-lg transition-colors"
+          className="p-2 rounded-lg"
           style={{
             color: "var(--text-secondary)",
             background: "var(--bg-hover)",
+            transition: "background 0.15s, color 0.15s, transform 0.1s",
           }}
           title={
             viewMode === "grid" ? "Switch to list view" : "Switch to grid view"
           }
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--bg-card-hover)";
+            e.currentTarget.style.color = "var(--text-primary)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "var(--bg-hover)";
+            e.currentTarget.style.color = "var(--text-secondary)";
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = "scale(0.93)";
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
+          }}
         >
           {viewMode === "grid" ? (
             <List className="w-4 h-4" />
@@ -132,10 +171,25 @@ export default function DriveToolbar({
 
         <button
           onClick={onCreateFolder}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm"
           style={{
             color: "var(--text-secondary)",
             background: "var(--bg-hover)",
+            transition: "background 0.15s, color 0.15s, transform 0.1s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--bg-card-hover)";
+            e.currentTarget.style.color = "var(--text-primary)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "var(--bg-hover)";
+            e.currentTarget.style.color = "var(--text-secondary)";
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = "scale(0.95)";
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
           }}
         >
           <FolderPlus className="w-4 h-4" />
@@ -144,10 +198,26 @@ export default function DriveToolbar({
 
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm"
           style={{
             background: "var(--accent)",
             color: "var(--accent-text)",
+            transition: "background 0.15s, box-shadow 0.2s, transform 0.1s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--accent-hover)";
+            e.currentTarget.style.boxShadow =
+              "0 2px 12px rgba(212, 160, 23, 0.3)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "var(--accent)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = "scale(0.95)";
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
           }}
         >
           <Upload className="w-4 h-4" />

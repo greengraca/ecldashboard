@@ -63,14 +63,27 @@ function serialize(item: any) {
   };
 }
 
-/** List folder contents (folders first, then alphabetical) */
+/** Get the next sortOrder value for a given parent */
+async function nextSortOrder(parentId: string | null): Promise<number> {
+  const c = await col();
+  const pid = parentId ? new ObjectId(parentId) : null;
+  const last = await c
+    .find({ parentId: pid })
+    .sort({ sortOrder: -1 })
+    .limit(1)
+    .project({ sortOrder: 1 })
+    .toArray();
+  return (last[0]?.sortOrder ?? -1) + 1;
+}
+
+/** List folder contents (folders first, then by sortOrder) */
 export async function listFolder(parentId: string | null) {
   await ensureIndexes();
   const c = await col();
   const pid = parentId ? new ObjectId(parentId) : null;
   const items = await c
     .find({ parentId: pid })
-    .sort({ type: -1, name: 1 }) // "folder" > "file" alphabetically, so -1 puts folders first
+    .sort({ type: -1, sortOrder: 1, name: 1 }) // folders first, then sortOrder, then name as tiebreaker
     .toArray();
   return items.map(serialize);
 }
@@ -107,11 +120,13 @@ export async function createFolder(
   const path = await buildPath(parentId, resolvedName);
   const c = await col();
   const now = new Date();
+  const sortOrder = await nextSortOrder(parentId);
   const doc = {
     name: resolvedName,
     type: "folder" as const,
     parentId: parentId ? new ObjectId(parentId) : null,
     path,
+    sortOrder,
     uploadedBy,
     createdAt: now,
     updatedAt: now,
@@ -134,6 +149,7 @@ export async function createFileMetadata(params: {
   const path = await buildPath(params.parentId, resolvedName);
   const c = await col();
   const now = new Date();
+  const sortOrder = await nextSortOrder(params.parentId);
   const doc = {
     name: resolvedName,
     type: "file" as const,
@@ -142,6 +158,7 @@ export async function createFileMetadata(params: {
     r2Key: params.r2Key,
     parentId: params.parentId ? new ObjectId(params.parentId) : null,
     path,
+    sortOrder,
     uploadedBy: params.uploadedBy,
     createdAt: now,
     updatedAt: now,
@@ -280,6 +297,52 @@ export async function deleteItemFromDb(id: string): Promise<void> {
     await c.deleteMany({ path: { $regex: `^${escapedPath}/` } });
   }
   await c.deleteOne({ _id: new ObjectId(id) });
+}
+
+/**
+ * Reorder an item within its current folder.
+ * Places the item after `afterId` (null = move to first position).
+ * Folders and files are reordered within their own group.
+ */
+export async function reorderItem(
+  id: string,
+  afterId: string | null
+): Promise<void> {
+  const c = await col();
+  const item = await c.findOne({ _id: new ObjectId(id) });
+  if (!item) throw new Error("Item not found");
+
+  // Get all siblings of the same type in order
+  const siblings = await c
+    .find({ parentId: item.parentId, type: item.type })
+    .sort({ sortOrder: 1, name: 1 })
+    .toArray();
+
+  // Build the new ordered list
+  const filtered = siblings.filter((s) => !s._id.equals(new ObjectId(id)));
+
+  let insertIdx: number;
+  if (afterId === null) {
+    insertIdx = 0;
+  } else {
+    const afterIdx = filtered.findIndex((s) =>
+      s._id.equals(new ObjectId(afterId))
+    );
+    insertIdx = afterIdx === -1 ? filtered.length : afterIdx + 1;
+  }
+
+  filtered.splice(insertIdx, 0, item);
+
+  // Reassign sortOrder for the group
+  const bulkOps = filtered.map((s, i) => ({
+    updateOne: {
+      filter: { _id: s._id },
+      update: { $set: { sortOrder: i, updatedAt: new Date() } },
+    },
+  }));
+  if (bulkOps.length > 0) {
+    await c.bulkWrite(bulkOps);
+  }
 }
 
 /** Check which required asset names exist in the drive (by filename match) */

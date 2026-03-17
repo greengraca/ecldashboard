@@ -51,6 +51,11 @@ export default function DriveFileCard({
   function handleDragStart(e: React.DragEvent) {
     // For move within drive
     e.dataTransfer.setData("application/x-drive-move", item._id);
+    // For reorder within same folder
+    e.dataTransfer.setData(
+      "application/x-drive-reorder",
+      JSON.stringify({ id: item._id, type: "file" })
+    );
     // For drag-to-template-editor
     if (item.previewUrl) {
       e.dataTransfer.setData(
@@ -71,14 +76,19 @@ export default function DriveFileCard({
         draggable
         onDragStart={handleDragStart}
         onClick={() => onClick(item)}
-        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors group"
-        style={{ background: "transparent" }}
-        onMouseEnter={(e) =>
-          (e.currentTarget.style.background = "var(--bg-hover)")
-        }
-        onMouseLeave={(e) =>
-          (e.currentTarget.style.background = "transparent")
-        }
+        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer group"
+        style={{
+          background: "transparent",
+          transition: "background 0.15s, padding-left 0.15s",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "var(--bg-hover)";
+          e.currentTarget.style.paddingLeft = "16px";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "transparent";
+          e.currentTarget.style.paddingLeft = "12px";
+        }}
       >
         {isImage && item.previewUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
@@ -135,17 +145,23 @@ export default function DriveFileCard({
       draggable
       onDragStart={handleDragStart}
       onClick={() => onClick(item)}
-      className="flex flex-col rounded-xl border cursor-pointer transition-all group relative overflow-hidden"
+      className="flex flex-col rounded-xl border cursor-pointer group relative overflow-hidden"
       style={{
         background: "var(--bg-card)",
         borderColor: "var(--border)",
+        transition: "border-color 0.2s, box-shadow 0.2s, transform 0.15s",
       }}
-      onMouseEnter={(e) =>
-        (e.currentTarget.style.borderColor = "var(--border-hover)")
-      }
-      onMouseLeave={(e) =>
-        (e.currentTarget.style.borderColor = "var(--border)")
-      }
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "var(--accent-border)";
+        e.currentTarget.style.boxShadow =
+          "0 4px 20px rgba(212, 160, 23, 0.08)";
+        e.currentTarget.style.transform = "translateY(-2px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "var(--border)";
+        e.currentTarget.style.boxShadow = "none";
+        e.currentTarget.style.transform = "translateY(0)";
+      }}
     >
       {/* Thumbnail area */}
       <div
@@ -158,9 +174,23 @@ export default function DriveFileCard({
             src={item.previewUrl}
             alt={item.name}
             className="w-full h-full object-cover"
+            style={{
+              transition: "transform 0.3s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.05)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "scale(1)";
+            }}
           />
         ) : (
-          <FileIcon mimeType={item.mimeType} />
+          <div
+            className="flex items-center justify-center w-full h-full"
+            style={{ transition: "background 0.2s" }}
+          >
+            <FileIcon mimeType={item.mimeType} />
+          </div>
         )}
       </div>
 
@@ -188,10 +218,20 @@ export default function DriveFileCard({
               e.stopPropagation();
               setShowMenu(!showMenu);
             }}
-            className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+            className="p-1 rounded-md opacity-0 group-hover:opacity-100"
             style={{
               color: "var(--text-muted)",
               background: "rgba(0,0,0,0.5)",
+              backdropFilter: "blur(4px)",
+              transition: "opacity 0.15s, background 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(0,0,0,0.7)";
+              e.currentTarget.style.color = "var(--text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(0,0,0,0.5)";
+              e.currentTarget.style.color = "var(--text-muted)";
             }}
           >
             <MoreVertical className="w-3.5 h-3.5" />
@@ -231,33 +271,69 @@ function FileContextMenu({
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div
-        className="absolute right-0 top-full mt-1 z-50 rounded-lg border shadow-lg py-1 min-w-[140px]"
+        className="absolute right-0 top-full mt-1 z-50 rounded-lg border py-1 min-w-[140px]"
         style={{
           background: "var(--bg-card)",
           borderColor: "var(--border)",
+          boxShadow: "0 8px 30px rgba(0, 0, 0, 0.4)",
+          backdropFilter: "blur(12px)",
+          animation: "menuSlideIn 0.15s ease-out",
         }}
       >
         <a
           href={`/api/media/drive/${itemId}/download`}
           onClick={(e) => e.stopPropagation()}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:opacity-80"
-          style={{ color: "var(--text-primary)" }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md mx-auto"
+          style={{
+            color: "var(--text-primary)",
+            transition: "background 0.12s, padding-left 0.12s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--bg-hover)";
+            e.currentTarget.style.paddingLeft = "14px";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.paddingLeft = "12px";
+          }}
         >
           <Download className="w-3.5 h-3.5" />
           Download
         </a>
         <button
           onClick={onRename}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:opacity-80"
-          style={{ color: "var(--text-primary)" }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left rounded-md"
+          style={{
+            color: "var(--text-primary)",
+            transition: "background 0.12s, padding-left 0.12s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--bg-hover)";
+            e.currentTarget.style.paddingLeft = "14px";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.paddingLeft = "12px";
+          }}
         >
           <Pencil className="w-3.5 h-3.5" />
           Rename
         </button>
         <button
           onClick={onDelete}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:opacity-80"
-          style={{ color: "var(--error)" }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left rounded-md"
+          style={{
+            color: "var(--error)",
+            transition: "background 0.12s, padding-left 0.12s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--error-light)";
+            e.currentTarget.style.paddingLeft = "14px";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.paddingLeft = "12px";
+          }}
         >
           <Trash2 className="w-3.5 h-3.5" />
           Delete

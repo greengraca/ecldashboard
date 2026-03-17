@@ -61,15 +61,24 @@ export default function DriveDropZone({
         <div
           className="absolute inset-0 z-30 flex flex-col items-center justify-center rounded-xl border-2 border-dashed"
           style={{
-            background: "rgba(10, 15, 20, 0.85)",
+            background: "rgba(10, 15, 20, 0.88)",
             borderColor: "var(--accent)",
-            boxShadow: "inset 0 0 30px rgba(212, 160, 23, 0.1)",
+            boxShadow:
+              "inset 0 0 40px rgba(212, 160, 23, 0.12), 0 0 0 1px rgba(212, 160, 23, 0.05)",
+            backdropFilter: "blur(4px)",
+            animation: "dropZonePulse 1.5s ease-in-out infinite",
           }}
         >
-          <Upload
-            className="w-10 h-10 mb-2"
-            style={{ color: "var(--accent)" }}
-          />
+          <div
+            style={{
+              animation: "dropZoneBounce 1.5s ease-in-out infinite",
+            }}
+          >
+            <Upload
+              className="w-10 h-10 mb-2"
+              style={{ color: "var(--accent)" }}
+            />
+          </div>
           <p
             className="text-sm font-medium"
             style={{ color: "var(--accent)" }}

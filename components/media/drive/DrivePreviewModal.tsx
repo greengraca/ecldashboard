@@ -102,8 +102,19 @@ export default function DrivePreviewModal({
           {isImage && (
             <button
               onClick={() => setZoomed(!zoomed)}
-              className="p-2 rounded-lg transition-colors"
-              style={{ color: "var(--text-secondary)" }}
+              className="p-2 rounded-lg"
+              style={{
+                color: "var(--text-secondary)",
+                transition: "background 0.15s, color 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+                e.currentTarget.style.color = "var(--text-primary)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "var(--text-secondary)";
+              }}
             >
               {zoomed ? (
                 <ZoomOut className="w-5 h-5" />
@@ -114,16 +125,38 @@ export default function DrivePreviewModal({
           )}
           <a
             href={`/api/media/drive/${item._id}/download`}
-            className="p-2 rounded-lg transition-colors"
-            style={{ color: "var(--text-secondary)" }}
+            className="p-2 rounded-lg"
+            style={{
+              color: "var(--text-secondary)",
+              transition: "background 0.15s, color 0.15s",
+            }}
             title="Download"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+              e.currentTarget.style.color = "var(--text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = "var(--text-secondary)";
+            }}
           >
             <Download className="w-5 h-5" />
           </a>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg transition-colors"
-            style={{ color: "var(--text-secondary)" }}
+            className="p-2 rounded-lg"
+            style={{
+              color: "var(--text-secondary)",
+              transition: "background 0.15s, color 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.15)";
+              e.currentTarget.style.color = "#fff";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = "var(--text-secondary)";
+            }}
           >
             <X className="w-5 h-5" />
           </button>
@@ -134,10 +167,29 @@ export default function DrivePreviewModal({
       {hasPrev && (
         <button
           className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full z-10"
-          style={{ background: "rgba(255,255,255,0.1)", color: "#fff" }}
+          style={{
+            background: "rgba(255,255,255,0.08)",
+            color: "#fff",
+            backdropFilter: "blur(8px)",
+            transition:
+              "background 0.15s, transform 0.15s, box-shadow 0.15s",
+          }}
           onClick={(e) => {
             e.stopPropagation();
             onNavigate(allFiles[currentIndex - 1]);
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(255,255,255,0.2)";
+            e.currentTarget.style.transform =
+              "translateY(-50%) scale(1.1)";
+            e.currentTarget.style.boxShadow =
+              "0 4px 20px rgba(0, 0, 0, 0.3)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+            e.currentTarget.style.transform =
+              "translateY(-50%) scale(1)";
+            e.currentTarget.style.boxShadow = "none";
           }}
         >
           <ChevronLeft className="w-6 h-6" />
@@ -146,10 +198,29 @@ export default function DrivePreviewModal({
       {hasNext && (
         <button
           className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full z-10"
-          style={{ background: "rgba(255,255,255,0.1)", color: "#fff" }}
+          style={{
+            background: "rgba(255,255,255,0.08)",
+            color: "#fff",
+            backdropFilter: "blur(8px)",
+            transition:
+              "background 0.15s, transform 0.15s, box-shadow 0.15s",
+          }}
           onClick={(e) => {
             e.stopPropagation();
             onNavigate(allFiles[currentIndex + 1]);
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(255,255,255,0.2)";
+            e.currentTarget.style.transform =
+              "translateY(-50%) scale(1.1)";
+            e.currentTarget.style.boxShadow =
+              "0 4px 20px rgba(0, 0, 0, 0.3)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+            e.currentTarget.style.transform =
+              "translateY(-50%) scale(1)";
+            e.currentTarget.style.boxShadow = "none";
           }}
         >
           <ChevronRight className="w-6 h-6" />
