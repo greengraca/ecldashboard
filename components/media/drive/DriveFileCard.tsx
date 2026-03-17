@@ -128,7 +128,7 @@ export default function DriveFileCard({
           <img
             src={item.previewUrl}
             alt={item.name}
-            className="w-8 h-8 rounded object-cover flex-shrink-0"
+            className="w-8 h-8 rounded object-cover shrink-0"
           />
         ) : (
           <FileIcon mimeType={item.mimeType} />
@@ -345,7 +345,7 @@ function FileContextMenu({
   return (
     <div
       ref={menuRef}
-      className="absolute right-0 top-full mt-1 z-50 rounded-md border py-0.5 min-w-[110px]"
+      className="absolute right-0 top-full mt-1 z-50 rounded-md border py-0.5 min-w-27.5"
       onClick={(e) => e.stopPropagation()}
         style={{
           background: "rgba(12, 14, 18, 0.95)",

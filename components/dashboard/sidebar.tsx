@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   LayoutDashboard,
   Users,
@@ -25,17 +26,32 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
-const mainNav = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/subscribers", label: "Subscribers", icon: Users },
-  { href: "/finance", label: "Finance", icon: Wallet },
-  { href: "/players", label: "Standings", icon: Swords },
-  { href: "/prizes", label: "Prizes", icon: Trophy },
-  { href: "/activity", label: "Activity", icon: Activity },
-  { href: "/media", label: "Media", icon: Image },
+const navSections = [
+  {
+    label: "OVERVIEW",
+    items: [
+      { href: "/", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/subscribers", label: "Subscribers", icon: Users },
+      { href: "/players", label: "Standings", icon: Swords },
+    ],
+  },
+  {
+    label: "MANAGEMENT",
+    items: [
+      { href: "/finance", label: "Finance", icon: Wallet },
+      { href: "/prizes", label: "Prizes", icon: Trophy },
+    ],
+  },
+  {
+    label: "CONTENT",
+    items: [
+      { href: "/activity", label: "Activity", icon: Activity },
+      { href: "/media", label: "Media", icon: Image },
+    ],
+  },
 ];
 
-const bottomNav = [
+const bottomItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -44,18 +60,29 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
+const sidebarSurface: React.CSSProperties = {
+  background: "linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03))",
+  borderRight: "1.5px solid rgba(255,255,255,0.10)",
+  boxShadow: "0 2px 12px rgba(0,0,0,0.35)",
+  backdropFilter: "blur(8px)",
+};
+
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
+  const userName = session?.user?.name ?? "User";
+  const userInitial = userName.charAt(0).toUpperCase();
+
   function renderNavItem(item: {
     href: string;
     label: string;
-    icon: React.ComponentType<{ className?: string }>;
+    icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   }) {
     const Icon = item.icon;
     const active = isActive(pathname, item.href);
@@ -65,17 +92,18 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         key={item.href}
         href={item.href}
         onClick={() => setMobileOpen(false)}
-        className={`flex items-center gap-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-          collapsed ? "justify-center px-0" : "px-3"
+        className={`flex items-center transition-all duration-150 ${
+          collapsed ? "justify-center" : ""
         }`}
         style={{
-          borderLeft: collapsed
-            ? "none"
-            : active
-              ? "3px solid var(--accent)"
-              : "3px solid transparent",
+          gap: "10px",
+          padding: collapsed ? "8px" : "8px 12px",
+          borderRadius: "var(--radius)",
+          borderLeft: active ? "3px solid var(--accent)" : "3px solid transparent",
           background: active ? "rgba(255, 255, 255, 0.03)" : "transparent",
           color: active ? "var(--text-primary)" : "var(--text-secondary)",
+          fontSize: "14px",
+          fontWeight: 500,
         }}
         title={collapsed ? item.label : undefined}
         onMouseEnter={(e) => {
@@ -91,80 +119,242 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           }
         }}
       >
-        <Icon className="w-5 h-5 flex-shrink-0" />
+        <span
+          className="flex-shrink-0 flex items-center justify-center"
+          style={{
+            width: "20px",
+            height: "20px",
+            color: active ? "var(--accent)" : "inherit",
+          }}
+        >
+          <Icon className="w-[18px] h-[18px]" />
+        </span>
         {!collapsed && <span>{item.label}</span>}
       </Link>
     );
   }
 
-  const sidebarContent = (isMobile: boolean) => (
-    <>
-      <div className="h-14 flex items-center px-4 border-b border-[var(--border)]">
-        {collapsed && !isMobile ? (
-          <span className="text-lg font-bold text-[var(--accent)]">E</span>
-        ) : (
-          <span className="text-lg font-semibold text-[var(--text-primary)]">
-            <span style={{ color: "var(--accent)" }}>ECL</span>{" "}
-            <span className="text-sm font-normal text-[var(--text-secondary)]">
-              Dashboard
-            </span>
-          </span>
-        )}
-        {isMobile && (
-          <button
-            onClick={() => setMobileOpen(false)}
-            className="ml-auto p-1 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)] transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        )}
-      </div>
-
-      <nav className="flex-1 py-3 px-2 space-y-0.5">
-        {mainNav.map((item) => renderNavItem(item))}
-      </nav>
-
-      <div className="flex-1" />
-
-      <div className="mx-3 border-t border-[var(--border)] my-2" />
-
-      <nav className="py-2 px-2 space-y-0.5">
-        {bottomNav.map((item) => renderNavItem(item))}
-      </nav>
-
-      <button
-        onClick={() => signOut({ callbackUrl: "/login" })}
-        className={`flex items-center gap-3 px-3 py-2 mx-2 mb-2 rounded-lg text-sm font-medium transition-colors text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] ${
-          collapsed && !isMobile ? "justify-center px-0" : ""
-        }`}
-        title={collapsed ? "Sign out" : undefined}
+  function renderSectionLabel(label: string) {
+    if (collapsed) return null;
+    return (
+      <div
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "11px",
+          fontWeight: 600,
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          color: "var(--text-muted)",
+          padding: "12px 12px 6px",
+        }}
       >
-        <LogOut className="w-5 h-5 flex-shrink-0" />
-        {(!collapsed || isMobile) && <span>Sign out</span>}
-      </button>
+        {label}
+      </div>
+    );
+  }
 
-      {!isMobile && (
-        <button
-          onClick={onToggle}
-          className="mx-2 mb-3 p-2 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)] transition-colors flex items-center justify-center"
+  const sidebarContent = (isMobile: boolean) => {
+    const isCollapsed = collapsed && !isMobile;
+
+    return (
+      <>
+        {/* Header */}
+        <div
+          className="flex items-center"
+          style={{
+            height: "56px",
+            padding: "0 16px",
+            borderBottom: "1px solid var(--border)",
+          }}
         >
-          {collapsed ? (
-            <PanelLeft className="w-5 h-5" />
+          {isCollapsed ? (
+            <span
+              style={{
+                fontSize: "18px",
+                fontWeight: 700,
+                color: "var(--accent)",
+              }}
+            >
+              E
+            </span>
           ) : (
-            <PanelLeftClose className="w-5 h-5" />
+            <span
+              style={{
+                fontSize: "18px",
+                fontWeight: 600,
+                color: "var(--text-primary)",
+              }}
+            >
+              <span style={{ color: "var(--accent)" }}>ECL</span>{" "}
+              <span
+                style={{
+                  fontSize: "14px",
+                  fontWeight: 400,
+                  color: "var(--text-secondary)",
+                }}
+              >
+                Dashboard
+              </span>
+            </span>
           )}
-        </button>
-      )}
-    </>
-  );
+          {isMobile && (
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="ml-auto"
+              style={{
+                padding: "4px",
+                borderRadius: "var(--radius)",
+                color: "var(--text-muted)",
+              }}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+
+        {/* Navigation sections */}
+        <nav
+          className="flex-1"
+          style={{ padding: "12px 12px 20px", overflow: "hidden" }}
+        >
+          {navSections.map((section) => (
+            <div key={section.label} style={{ marginBottom: "8px" }}>
+              {renderSectionLabel(section.label)}
+              <div className="flex flex-col" style={{ gap: "2px" }}>
+                {section.items.map((item) => renderNavItem(item))}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        <div className="flex-1" />
+
+        {/* Bottom nav */}
+        <div
+          style={{
+            borderTop: "1px solid var(--border)",
+            padding: "8px 12px",
+          }}
+        >
+          <div className="flex flex-col" style={{ gap: "2px" }}>
+            {bottomItems.map((item) => renderNavItem(item))}
+            <button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className={`flex items-center transition-all duration-150 ${
+                isCollapsed ? "justify-center" : ""
+              }`}
+              style={{
+                gap: "10px",
+                padding: isCollapsed ? "8px" : "8px 12px",
+                borderRadius: "var(--radius)",
+                borderLeft: "3px solid transparent",
+                background: "transparent",
+                color: "var(--text-secondary)",
+                fontSize: "14px",
+                fontWeight: 500,
+                width: "100%",
+              }}
+              title={isCollapsed ? "Sign out" : undefined}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
+                e.currentTarget.style.color = "var(--text-primary)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "var(--text-secondary)";
+              }}
+            >
+              <span
+                className="flex-shrink-0 flex items-center justify-center"
+                style={{ width: "20px", height: "20px" }}
+              >
+                <LogOut className="w-[18px] h-[18px]" />
+              </span>
+              {!isCollapsed && <span>Sign out</span>}
+            </button>
+          </div>
+        </div>
+
+        {/* Footer — user profile + collapse toggle */}
+        <div
+          style={{
+            padding: isCollapsed ? "12px 0" : "16px 20px",
+            borderTop: "1px solid var(--border)",
+            display: "flex",
+            flexDirection: isCollapsed ? "column-reverse" : "row",
+            alignItems: "center",
+            gap: isCollapsed ? "8px" : "10px",
+          }}
+        >
+          {/* Avatar */}
+          <div
+            className="flex items-center justify-center flex-shrink-0"
+            style={{
+              width: "32px",
+              height: "32px",
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, rgba(251,191,36,0.25), rgba(251,191,36,0.08))",
+              border: "1.5px solid rgba(255,255,255,0.10)",
+              color: "var(--accent)",
+              fontWeight: 700,
+              fontSize: "13px",
+            }}
+          >
+            {userInitial}
+          </div>
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0">
+              <div
+                className="truncate"
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: "var(--text-primary)",
+                }}
+              >
+                {userName}
+              </div>
+            </div>
+          )}
+          {!isMobile && (
+            <button
+              onClick={onToggle}
+              className="flex-shrink-0 flex items-center justify-center transition-colors duration-150"
+              style={{
+                padding: "4px",
+                borderRadius: "var(--radius)",
+                color: "var(--text-muted)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--text-secondary)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--text-muted)";
+              }}
+            >
+              {isCollapsed ? (
+                <PanelLeft className="w-[18px] h-[18px]" />
+              ) : (
+                <PanelLeftClose className="w-[18px] h-[18px]" />
+              )}
+            </button>
+          )}
+        </div>
+      </>
+    );
+  };
+
+  const isCollapsed = collapsed;
 
   return (
     <>
       {/* Desktop sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-dvh bg-[var(--card-inner-bg)] border-r border-[var(--border)] flex-col transition-all duration-200 ease-in-out z-40 hidden md:flex ${
-          collapsed ? "w-16" : "w-60"
-        }`}
+        className="fixed left-0 top-0 h-dvh flex-col transition-all duration-200 ease-in-out z-40 hidden md:flex"
+        style={{
+          ...sidebarSurface,
+          width: isCollapsed ? "64px" : "260px",
+        }}
       >
         {sidebarContent(false)}
       </aside>
@@ -172,19 +362,35 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Mobile hamburger */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed top-3 left-3 z-50 md:hidden bg-[var(--card-inner-bg)] border border-[var(--border)] rounded-lg p-2"
+        className="fixed z-50 md:hidden"
+        style={{
+          top: "12px",
+          left: "12px",
+          background: "linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03))",
+          border: "1.5px solid rgba(255,255,255,0.10)",
+          borderRadius: "var(--radius)",
+          padding: "8px",
+          backdropFilter: "blur(8px)",
+        }}
       >
-        <Menu className="w-5 h-5 text-[var(--text-secondary)]" />
+        <Menu className="w-5 h-5" style={{ color: "var(--text-secondary)" }} />
       </button>
 
       {/* Mobile overlay */}
       {mobileOpen && (
         <>
           <div
-            className="fixed inset-0 bg-[var(--overlay-bg)] z-40 md:hidden"
+            className="fixed inset-0 z-40 md:hidden"
+            style={{ background: "rgba(0, 0, 0, 0.6)", backdropFilter: "blur(4px)" }}
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="fixed left-0 top-0 h-dvh w-60 bg-[var(--card-inner-bg)] border-r border-[var(--border)] flex flex-col z-50 md:hidden">
+          <aside
+            className="fixed left-0 top-0 h-dvh flex flex-col z-50 md:hidden"
+            style={{
+              ...sidebarSurface,
+              width: "260px",
+            }}
+          >
             {sidebarContent(true)}
           </aside>
         </>

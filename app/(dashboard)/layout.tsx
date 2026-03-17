@@ -15,7 +15,7 @@ export default function DashboardLayout({
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       <main
         className={`transition-all duration-200 ease-in-out min-h-screen ${
-          collapsed ? "md:ml-16" : "md:ml-60"
+          collapsed ? "md:ml-16" : "md:ml-[260px]"
         }`}
       >
         <div className="p-4 pt-14 md:pt-8 md:p-8 max-w-7xl mx-auto">{children}</div>
