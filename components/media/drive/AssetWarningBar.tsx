@@ -16,6 +16,7 @@ interface AssetCheck {
   label: string;
   path: string;
   exists: boolean;
+  source?: "repo" | "drive" | null;
 }
 
 export default function AssetWarningBar() {
@@ -115,6 +116,17 @@ export default function AssetWarningBar() {
               >
                 {asset.label}
               </span>
+              {asset.source && (
+                <span
+                  className="px-1.5 py-0.5 rounded text-[10px]"
+                  style={{
+                    background: asset.source === "repo" ? "rgba(99,102,241,0.15)" : "var(--accent-light)",
+                    color: asset.source === "repo" ? "#818cf8" : "var(--accent)",
+                  }}
+                >
+                  {asset.source}
+                </span>
+              )}
               <span
                 className="ml-auto"
                 style={{
