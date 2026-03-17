@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { listFolder, createFolder, getBreadcrumbs } from "@/lib/media-drive";
+import {
+  listFolder,
+  createFolder,
+  getBreadcrumbs,
+  getFolderPreviews,
+} from "@/lib/media-drive";
 import { getPresignedDownloadUrl } from "@/lib/r2";
 
 export async function GET(request: NextRequest) {
@@ -17,6 +22,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Batch-generate presigned preview URLs for image files
+    const folderIds = items
+      .filter((i) => i.type === "folder")
+      .map((i) => i._id);
+    const [folderPreviewKeys] = await Promise.all([
+      getFolderPreviews(folderIds),
+    ]);
+
     const withPreviews = await Promise.all(
       items.map(async (item) => {
         if (
@@ -29,6 +41,20 @@ export async function GET(request: NextRequest) {
             return { ...item, previewUrl };
           } catch {
             return item;
+          }
+        }
+        // Attach folder preview URLs
+        if (item.type === "folder") {
+          const keys = folderPreviewKeys[item._id] || [];
+          if (keys.length > 0) {
+            try {
+              const folderPreviews = await Promise.all(
+                keys.map((k) => getPresignedDownloadUrl(k, 3600))
+              );
+              return { ...item, folderPreviews };
+            } catch {
+              return item;
+            }
           }
         }
         return item;

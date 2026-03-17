@@ -393,6 +393,7 @@ export interface MediaFile {
   parentId: string | null;
   path: string;
   previewUrl?: string;
+  folderPreviews?: string[];
   uploadedBy: string;
   createdAt: string;
   updatedAt: string;

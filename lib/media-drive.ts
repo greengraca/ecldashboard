@@ -88,6 +88,49 @@ export async function listFolder(parentId: string | null) {
   return items.map(serialize);
 }
 
+/**
+ * Batch-fetch up to 4 image r2Keys per folder.
+ * Returns a map: folderId → r2Key[]
+ */
+export async function getFolderPreviews(
+  folderIds: string[]
+): Promise<Record<string, string[]>> {
+  if (folderIds.length === 0) return {};
+  const c = await col();
+  const objectIds = folderIds.map((id) => new ObjectId(id));
+
+  // Get up to 4 image files per folder using aggregation
+  const pipeline = [
+    {
+      $match: {
+        parentId: { $in: objectIds },
+        type: "file",
+        mimeType: { $regex: /^image\// },
+        r2Key: { $exists: true },
+      },
+    },
+    { $sort: { sortOrder: 1 as const, name: 1 as const } },
+    {
+      $group: {
+        _id: "$parentId",
+        keys: { $push: "$r2Key" },
+      },
+    },
+    {
+      $project: {
+        keys: { $slice: ["$keys", 4] },
+      },
+    },
+  ];
+
+  const results = await c.aggregate(pipeline).toArray();
+  const map: Record<string, string[]> = {};
+  for (const r of results) {
+    map[r._id.toString()] = r.keys;
+  }
+  return map;
+}
+
 /** Get a single item by ID */
 export async function getItem(id: string) {
   const c = await col();

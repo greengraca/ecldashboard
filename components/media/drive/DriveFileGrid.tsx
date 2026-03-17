@@ -115,7 +115,8 @@ function NewFolderPlaceholder({
       style={{
         background: "var(--bg-card)",
         borderColor: "var(--accent)",
-        minHeight: 120,
+        width: 120,
+        height: 120,
       }}
     >
       <Folder
@@ -132,58 +133,65 @@ function NewFolderPlaceholder({
   );
 }
 
-/** Thin drop indicator between items for reordering */
-function DropIndicator({
+/**
+ * Drop zone that sits in the gap between items.
+ * In grid: a vertical line between cards.
+ * In list: a horizontal line between rows.
+ * Only one indicator is visible at a time (managed by parent via activeDropId).
+ */
+function GapDropZone({
   afterId,
   groupType,
   viewMode,
-  onReorder,
+  isActive,
+  onDragOver,
+  onDragLeave,
+  onDrop,
 }: {
   afterId: string | null;
   groupType: "folder" | "file";
   viewMode: "grid" | "list";
-  onReorder: (itemId: string, afterId: string | null) => void;
+  isActive: boolean;
+  onDragOver: (afterId: string | null, groupType: "folder" | "file") => void;
+  onDragLeave: () => void;
+  onDrop: (
+    e: React.DragEvent,
+    afterId: string | null,
+    groupType: "folder" | "file"
+  ) => void;
 }) {
-  const [active, setActive] = useState(false);
-
   function handleDragOver(e: React.DragEvent) {
     if (e.dataTransfer.types.includes("application/x-drive-reorder")) {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
-      setActive(true);
+      onDragOver(afterId, groupType);
     }
-  }
-
-  function handleDragLeave() {
-    setActive(false);
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
-    setActive(false);
-    const data = e.dataTransfer.getData("application/x-drive-reorder");
-    if (!data) return;
-    const { id, type } = JSON.parse(data);
-    // Only allow reordering within the same type group
-    if (type !== groupType) return;
-    if (id === afterId) return;
-    onReorder(id, afterId);
+    onDrop(e, afterId, groupType);
   }
 
   if (viewMode === "list") {
     return (
       <div
         onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
+        onDragLeave={onDragLeave}
         onDrop={handleDrop}
         className="relative"
-        style={{ height: active ? 3 : 1, transition: "height 0.1s" }}
+        style={{
+          height: 10,
+          marginTop: -3,
+          marginBottom: -3,
+        }}
       >
-        {active && (
+        {isActive && (
           <div
-            className="absolute inset-x-2 top-0 rounded-full"
+            className="absolute inset-x-3 top-1/2 rounded-full"
             style={{
               height: 3,
+              transform: "translateY(-50%)",
               background: "var(--accent)",
               boxShadow: "0 0 6px var(--accent)",
             }}
@@ -193,32 +201,85 @@ function DropIndicator({
     );
   }
 
-  // Grid: vertical drop zone between columns
+  // Grid: vertical indicator in the gap — large hitbox, small visual
   return (
     <div
       onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
+      onDragLeave={onDragLeave}
       onDrop={handleDrop}
-      className="relative"
       style={{
-        width: active ? 4 : 2,
-        minHeight: 120,
-        transition: "width 0.1s",
-        marginLeft: -1,
-        marginRight: -1,
+        width: 20,
+        alignSelf: "stretch",
+        position: "relative",
+        marginLeft: -8,
+        marginRight: -8,
+        flexShrink: 0,
+        zIndex: 5,
       }}
     >
-      {active && (
+      {isActive && (
         <div
-          className="absolute inset-y-2 left-0 rounded-full"
+          className="absolute top-3 bottom-3 left-1/2 rounded-full"
           style={{
             width: 3,
+            transform: "translateX(-50%)",
             background: "var(--accent)",
             boxShadow: "0 0 6px var(--accent)",
           }}
         />
       )}
     </div>
+  );
+}
+
+/**
+ * Fills remaining space in a flex row. When something is dragged over it,
+ * it activates the "after last item" indicator.
+ */
+function TrailingEmptyZone({
+  lastId,
+  groupType,
+  isActive,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+}: {
+  lastId: string;
+  groupType: "folder" | "file";
+  isActive: boolean;
+  onDragOver: (afterId: string | null, groupType: "folder" | "file") => void;
+  onDragLeave: () => void;
+  onDrop: (
+    e: React.DragEvent,
+    afterId: string | null,
+    groupType: "folder" | "file"
+  ) => void;
+}) {
+  function handleDragOver(e: React.DragEvent) {
+    if (e.dataTransfer.types.includes("application/x-drive-reorder")) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      onDragOver(lastId, groupType);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    onDrop(e, lastId, groupType);
+  }
+
+  return (
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={handleDrop}
+      style={{
+        flexGrow: 1,
+        minWidth: 40,
+        minHeight: 40,
+        alignSelf: "stretch",
+      }}
+    />
   );
 }
 
@@ -241,6 +302,48 @@ export default function DriveFileGrid({
   onConfirmCreateFolder,
   onCancelCreateFolder,
 }: DriveFileGridProps) {
+  // Single active drop zone — only one indicator visible at a time
+  const [activeDrop, setActiveDrop] = useState<{
+    afterId: string | null;
+    groupType: "folder" | "file";
+  } | null>(null);
+
+  function handleGapDragOver(
+    afterId: string | null,
+    groupType: "folder" | "file"
+  ) {
+    setActiveDrop({ afterId, groupType });
+  }
+
+  function handleGapDragLeave() {
+    setActiveDrop(null);
+  }
+
+  function handleGapDrop(
+    e: React.DragEvent,
+    afterId: string | null,
+    groupType: "folder" | "file"
+  ) {
+    setActiveDrop(null);
+    const data = e.dataTransfer.getData("application/x-drive-reorder");
+    if (!data) return;
+    const { id, type } = JSON.parse(data);
+    if (type !== groupType) return;
+    if (id === afterId) return;
+    onReorder(id, afterId);
+  }
+
+  function isGapActive(
+    afterId: string | null,
+    groupType: "folder" | "file"
+  ) {
+    return (
+      activeDrop !== null &&
+      activeDrop.afterId === afterId &&
+      activeDrop.groupType === groupType
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -255,7 +358,6 @@ export default function DriveFileGrid({
     );
   }
 
-  // Empty state (but still show new folder placeholder if creating)
   if (items.length === 0 && !creatingFolder) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
@@ -300,7 +402,7 @@ export default function DriveFileGrid({
 
   if (viewMode === "list") {
     return (
-      <div className="space-y-0">
+      <div>
         {creatingFolder && (
           <NewFolderPlaceholder
             viewMode="list"
@@ -308,14 +410,17 @@ export default function DriveFileGrid({
             onCancel={onCancelCreateFolder}
           />
         )}
-        {/* Folders with drop indicators */}
+        {/* Folders */}
         {folders.length > 0 && (
-          <>
-            <DropIndicator
+          <div>
+            <GapDropZone
               afterId={null}
               groupType="folder"
               viewMode="list"
-              onReorder={onReorder}
+              isActive={isGapActive(null, "folder")}
+              onDragOver={handleGapDragOver}
+              onDragLeave={handleGapDragLeave}
+              onDrop={handleGapDrop}
             />
             {folders.map((item) => (
               <div key={item._id}>
@@ -330,33 +435,36 @@ export default function DriveFileGrid({
                   onCancelRename={onCancelRename}
                   onDelete={onDelete}
                 />
-                <DropIndicator
+                <GapDropZone
                   afterId={item._id}
                   groupType="folder"
                   viewMode="list"
-                  onReorder={onReorder}
+                  isActive={isGapActive(item._id, "folder")}
+                  onDragOver={handleGapDragOver}
+                  onDragLeave={handleGapDragLeave}
+                  onDrop={handleGapDrop}
                 />
               </div>
             ))}
-          </>
+          </div>
         )}
-        {/* Files with drop indicators */}
+        {/* Files */}
         {files.length > 0 && (
-          <>
+          <div>
             {folders.length > 0 && (
               <div
                 className="my-1 mx-3"
-                style={{
-                  height: 1,
-                  background: "var(--border-subtle)",
-                }}
+                style={{ height: 1, background: "var(--border-subtle)" }}
               />
             )}
-            <DropIndicator
+            <GapDropZone
               afterId={null}
               groupType="file"
               viewMode="list"
-              onReorder={onReorder}
+              isActive={isGapActive(null, "file")}
+              onDragOver={handleGapDragOver}
+              onDragLeave={handleGapDragLeave}
+              onDrop={handleGapDrop}
             />
             {files.map((item) => (
               <div key={item._id}>
@@ -367,28 +475,29 @@ export default function DriveFileGrid({
                   onRename={onRename}
                   onDelete={onDelete}
                 />
-                <DropIndicator
+                <GapDropZone
                   afterId={item._id}
                   groupType="file"
                   viewMode="list"
-                  onReorder={onReorder}
+                  isActive={isGapActive(item._id, "file")}
+                  onDragOver={handleGapDragOver}
+                  onDragLeave={handleGapDragLeave}
+                  onDrop={handleGapDrop}
                 />
               </div>
             ))}
-          </>
+          </div>
         )}
       </div>
     );
   }
 
+  // Grid view
   return (
     <div>
-      {/* Folders grid */}
+      {/* Folders */}
       {(folders.length > 0 || creatingFolder) && (
-        <div
-          className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2"
-          style={{ gridAutoRows: "min-content" }}
-        >
+        <div className="flex flex-wrap items-stretch">
           {creatingFolder && (
             <NewFolderPlaceholder
               viewMode="grid"
@@ -396,14 +505,18 @@ export default function DriveFileGrid({
               onCancel={onCancelCreateFolder}
             />
           )}
-          {folders.map((item, idx) => (
-            <ReorderableGridItem
-              key={item._id}
-              item={item}
-              prevId={idx === 0 ? null : folders[idx - 1]._id}
-              groupType="folder"
-              onReorder={onReorder}
-            >
+          {/* Leading drop zone (become first) */}
+          <GapDropZone
+            afterId={null}
+            groupType="folder"
+            viewMode="grid"
+            isActive={isGapActive(null, "folder")}
+            onDragOver={handleGapDragOver}
+            onDragLeave={handleGapDragLeave}
+            onDrop={handleGapDrop}
+          />
+          {folders.map((item) => (
+            <div key={item._id} className="flex items-stretch">
               <DriveFolderCard
                 item={item}
                 viewMode="grid"
@@ -415,34 +528,52 @@ export default function DriveFileGrid({
                 onCancelRename={onCancelRename}
                 onDelete={onDelete}
               />
-            </ReorderableGridItem>
+              {/* Trailing drop zone after each folder */}
+              <GapDropZone
+                afterId={item._id}
+                groupType="folder"
+                viewMode="grid"
+                isActive={isGapActive(item._id, "folder")}
+                onDragOver={handleGapDragOver}
+                onDragLeave={handleGapDragLeave}
+                onDrop={handleGapDrop}
+              />
+            </div>
           ))}
+          {/* Empty space after last folder catches drag */}
+          {folders.length > 0 && (
+            <TrailingEmptyZone
+              lastId={folders[folders.length - 1]._id}
+              groupType="folder"
+              isActive={isGapActive(folders[folders.length - 1]._id, "folder")}
+              onDragOver={handleGapDragOver}
+              onDragLeave={handleGapDragLeave}
+              onDrop={handleGapDrop}
+            />
+          )}
         </div>
       )}
-      {/* Separator between folders and files */}
+      {/* Separator */}
       {folders.length > 0 && files.length > 0 && (
         <div
           className="my-2 mx-1"
-          style={{
-            height: 1,
-            background: "var(--border-subtle)",
-          }}
+          style={{ height: 1, background: "var(--border-subtle)" }}
         />
       )}
-      {/* Files grid */}
+      {/* Files */}
       {files.length > 0 && (
-        <div
-          className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2"
-          style={{ gridAutoRows: "min-content" }}
-        >
-          {files.map((item, idx) => (
-            <ReorderableGridItem
-              key={item._id}
-              item={item}
-              prevId={idx === 0 ? null : files[idx - 1]._id}
-              groupType="file"
-              onReorder={onReorder}
-            >
+        <div className="flex flex-wrap items-stretch">
+          <GapDropZone
+            afterId={null}
+            groupType="file"
+            viewMode="grid"
+            isActive={isGapActive(null, "file")}
+            onDragOver={handleGapDragOver}
+            onDragLeave={handleGapDragLeave}
+            onDrop={handleGapDrop}
+          />
+          {files.map((item) => (
+            <div key={item._id} className="flex items-stretch">
               <DriveFileCard
                 item={item}
                 viewMode="grid"
@@ -450,96 +581,29 @@ export default function DriveFileGrid({
                 onRename={onRename}
                 onDelete={onDelete}
               />
-            </ReorderableGridItem>
+              <GapDropZone
+                afterId={item._id}
+                groupType="file"
+                viewMode="grid"
+                isActive={isGapActive(item._id, "file")}
+                onDragOver={handleGapDragOver}
+                onDragLeave={handleGapDragLeave}
+                onDrop={handleGapDrop}
+              />
+            </div>
           ))}
+          {/* Empty space after last file catches drag */}
+          {files.length > 0 && (
+            <TrailingEmptyZone
+              lastId={files[files.length - 1]._id}
+              groupType="file"
+              isActive={isGapActive(files[files.length - 1]._id, "file")}
+              onDragOver={handleGapDragOver}
+              onDragLeave={handleGapDragLeave}
+              onDrop={handleGapDrop}
+            />
+          )}
         </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Wraps a grid item with left/right drop zones for reorder.
- * Detects which half the cursor is on and shows an indicator on that side.
- */
-function ReorderableGridItem({
-  item,
-  prevId,
-  groupType,
-  onReorder,
-  children,
-}: {
-  item: MediaFile;
-  prevId: string | null;
-  groupType: "folder" | "file";
-  onReorder: (itemId: string, afterId: string | null) => void;
-  children: React.ReactNode;
-}) {
-  const [dropSide, setDropSide] = useState<"left" | "right" | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
-
-  function handleDragOver(e: React.DragEvent) {
-    if (!e.dataTransfer.types.includes("application/x-drive-reorder")) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-
-    const rect = ref.current?.getBoundingClientRect();
-    if (!rect) return;
-    const midX = rect.left + rect.width / 2;
-    setDropSide(e.clientX < midX ? "left" : "right");
-  }
-
-  function handleDragLeave() {
-    setDropSide(null);
-  }
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
-    const data = e.dataTransfer.getData("application/x-drive-reorder");
-    if (!data) { setDropSide(null); return; }
-    const { id, type } = JSON.parse(data);
-    if (type !== groupType) { setDropSide(null); return; }
-
-    // Left side = place before this item (after prevId)
-    // Right side = place after this item
-    const afterId = dropSide === "left" ? prevId : item._id;
-    setDropSide(null);
-    if (id === item._id) return;
-    onReorder(id, afterId);
-  }
-
-  return (
-    <div
-      ref={ref}
-      className="relative"
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
-      {children}
-      {/* Left indicator */}
-      {dropSide === "left" && (
-        <div
-          className="absolute left-0 top-2 bottom-2 rounded-full pointer-events-none"
-          style={{
-            width: 3,
-            background: "var(--accent)",
-            boxShadow: "0 0 6px var(--accent)",
-            transform: "translateX(-3px)",
-          }}
-        />
-      )}
-      {/* Right indicator */}
-      {dropSide === "right" && (
-        <div
-          className="absolute right-0 top-2 bottom-2 rounded-full pointer-events-none"
-          style={{
-            width: 3,
-            background: "var(--accent)",
-            boxShadow: "0 0 6px var(--accent)",
-            transform: "translateX(3px)",
-          }}
-        />
       )}
     </div>
   );
