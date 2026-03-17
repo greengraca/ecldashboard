@@ -293,6 +293,10 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
   // 1) Process Discord members with subscription roles (or Topcut eligibility)
   for (const member of members) {
     let source = determineSource(member.roles);
+    // Patreon snapshot overrides role-based source (dual-tag: e.g. paid + mod)
+    if (source !== "patreon" && patreonTierById.has(member.id)) {
+      source = "patreon";
+    }
     // Topcut players without a subscription role still get free entry in Jan 2026
     if (!source && topcutUsernames.has(member.username.toLowerCase().trim())) {
       source = "free";
