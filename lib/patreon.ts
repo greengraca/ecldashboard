@@ -169,7 +169,7 @@ export async function syncPatreonForMonth(
 
     if (!tierTitle && isFormer) {
       const prevSnapshot = await collection.findOne(
-        { patreon_user_id: patreonUserId || member.id, tier: { $ne: null } },
+        { patreon_user_id: patreonUserId || member.id, tier: { $exists: true, $ne: "" } },
         { sort: { month: -1 } }
       );
       if (prevSnapshot) {
