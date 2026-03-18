@@ -12,6 +12,7 @@ import PrizeDetailModal from "@/components/prizes/prize-detail-modal";
 import BudgetConfigurator from "@/components/prizes/budget-configurator";
 import ShippingTracker from "@/components/prizes/shipping-tracker";
 import AutoPopulateButton from "@/components/prizes/auto-populate-button";
+import TreasurePodSection from "@/components/prizes/treasure-pod-section";
 import type { Prize, PrizeBudget, PrizeBudgetAllocations, PrizeSummary } from "@/lib/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -185,6 +186,9 @@ export default function PrizesPage() {
           icon={<Gift className="w-4 h-4" style={{ color: "var(--accent)" }} />}
         />
       </div>
+
+      {/* Treasure Pods */}
+      <TreasurePodSection month={month} />
 
       {/* Tab bar */}
       <div className="flex items-center gap-1 mb-6 border-b" style={{ borderColor: "var(--border)" }}>

@@ -383,6 +383,74 @@ export interface ApiError {
 
 export type ApiResult<T> = ApiResponse<T> | ApiError;
 
+// ─── Treasure Pod Types ───
+
+export interface TreasurePodTypeConfig {
+  type: string;
+  count: number;
+  title: string;
+  description: string;
+  image_url: string | null;
+}
+
+export interface TreasurePodSchedule {
+  _id?: ObjectId | string;
+  guild_id: string;
+  month: string;
+  estimated_total: number;
+  player_count_at_creation: number;
+  fired_tables: number[];
+  pod_types_config: TreasurePodTypeConfig[];
+}
+
+export interface TreasurePod {
+  _id?: ObjectId | string;
+  guild_id: string;
+  month: string;
+  table: number;
+  status: "pending" | "won" | "draw";
+  pod_type: string;
+  pod_title: string;
+  pod_description: string;
+  pod_image_url: string | null;
+  player_discord_ids: string[];
+  player_topdeck_uids: string[];
+  winner_entrant_id: string | null;
+  winner_topdeck_uid: string | null;
+  winner_discord_handle: string | null;
+}
+
+export interface TreasurePodClaim {
+  _id?: ObjectId | string;
+  treasure_pod_id: string;
+  month: string;
+  pod_type: string;
+  claimed_at: string;
+  claimed_by: string;
+  friend_discord_id: string | null;
+  friend_name: string | null;
+  notes: string | null;
+}
+
+export interface TreasurePodTypeStat {
+  type: string;
+  title: string;
+  total: number;
+  triggered: number;
+  won: number;
+  claimed: number;
+}
+
+export interface TreasurePodWithClaim extends TreasurePod {
+  claim?: TreasurePodClaim | null;
+}
+
+export interface TreasurePodData {
+  schedule: TreasurePodSchedule | null;
+  pods: TreasurePodWithClaim[];
+  stats: TreasurePodTypeStat[];
+}
+
 // ─── Media Drive Types ───
 
 export interface MediaFile {
