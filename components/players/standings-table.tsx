@@ -263,9 +263,9 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
               return (
                 <tr
                   key={s.uid}
-                  className="border-b border-[var(--border-subtle)] transition-colors"
+                  className="border-b border-[var(--border-subtle)] transition-colors hover:bg-[rgba(255,255,255,0.03)]"
+                  data-rank={isPodium ? s.rank : undefined}
                   style={{
-                    background: isPodium ? rankStyle.bg : undefined,
                     cursor: onRowClick ? "pointer" : undefined,
                   }}
                   onClick={onRowClick ? () => onRowClick(s.uid) : undefined}

@@ -10,6 +10,7 @@ interface SubscriberTableProps {
   filterSource?: SubscriptionSource | null;
   manualPaidIds?: Set<string>;
   onToggleManualPaid?: (discordId: string, isPaid: boolean) => void;
+  onPlayerClick?: (discordId: string) => void;
 }
 
 const SOURCE_BADGES: Record<
@@ -82,6 +83,7 @@ export default function SubscriberTable({
   filterSource,
   manualPaidIds,
   onToggleManualPaid,
+  onPlayerClick,
 }: SubscriberTableProps) {
   const columns: Column<Subscriber & Record<string, unknown>>[] = [
     {
@@ -243,6 +245,7 @@ export default function SubscriberTable({
         keyField="discord_id"
         emptyMessage="No subscribers found for this month"
         rowHover
+        onRowClick={onPlayerClick ? (row) => onPlayerClick(row.discord_id as string) : undefined}
         defaultSortKey="is_playing"
         defaultSortDir="desc"
         renderMobileCard={(row) => (

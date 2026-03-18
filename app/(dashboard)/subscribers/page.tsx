@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { Users, Crown, Coffee, Gift, AlertTriangle, HandCoins, Gamepad2, Info } from "lucide-react";
 import StatCard from "@/components/dashboard/stat-card";
@@ -24,6 +25,7 @@ function getCurrentMonth(): string {
 type SourceFilter = "all" | "patreon" | "kofi" | "free" | "manual" | "paying_not_playing";
 
 export default function SubscribersPage() {
+  const router = useRouter();
   const [month, setMonth] = useState(getCurrentMonth);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
 
@@ -35,6 +37,12 @@ export default function SubscribersPage() {
   const { data: manualData, mutate: mutateManual } = useSWR<{
     data: { discord_id: string }[];
   }>(`/api/subscribers/manual-payments?month=${month}`, fetcher);
+
+  const { data: identityData } = useSWR<{ data: Record<string, string> }>(
+    "/api/players/identities?map=true",
+    fetcher
+  );
+  const identityMap = identityData?.data || {};
 
   const manualPaidIds = new Set(
     (manualData?.data || []).map((m) => m.discord_id)
@@ -258,6 +266,10 @@ export default function SubscribersPage() {
           subscribers={filteredSubscribers}
           manualPaidIds={manualPaidIds}
           onToggleManualPaid={handleToggleManualPaid}
+          onPlayerClick={(discordId) => {
+            const uid = identityMap[discordId];
+            if (uid) router.push(`/players/${uid}`);
+          }}
         />
       )}
     </div>

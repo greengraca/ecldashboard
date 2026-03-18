@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { syncPlayerIdentities, getIdentityCount } from "@/lib/player-identities";
+import { syncPlayerIdentities, getIdentityCount, getAllIdentityMappings } from "@/lib/player-identities";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    if (searchParams.get("map") === "true") {
+      const map = await getAllIdentityMappings();
+      return NextResponse.json({ data: map });
+    }
     const count = await getIdentityCount();
     return NextResponse.json({ data: { count } });
   } catch (err) {

@@ -108,6 +108,18 @@ export async function getUidsByDiscordIds(discordIds: string[]): Promise<Map<str
 }
 
 /**
+ * Return all discord_id → topdeck_uid mappings as a plain object.
+ */
+export async function getAllIdentityMappings(): Promise<Record<string, string>> {
+  const db = await getDb();
+  const docs = await db
+    .collection(COLLECTION)
+    .find({}, { projection: { discord_id: 1, topdeck_uid: 1, _id: 0 } })
+    .toArray();
+  return Object.fromEntries(docs.map((d) => [d.discord_id as string, d.topdeck_uid as string]));
+}
+
+/**
  * Get total count of identity mappings.
  */
 export async function getIdentityCount(): Promise<number> {

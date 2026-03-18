@@ -276,9 +276,9 @@ export default function LiveStandingsTable({
               return (
                 <tr
                   key={s.uid}
-                  className="border-b border-[var(--border-subtle)] transition-colors"
+                  className="border-b border-[var(--border-subtle)] transition-colors hover:bg-[rgba(255,255,255,0.03)]"
+                  data-rank={isPodium && !s.dropped ? s.rank : undefined}
                   style={{
-                    background: isPodium && !s.dropped ? rankStyle.bg : undefined,
                     opacity: s.dropped ? 0.4 : 1,
                     cursor: onRowClick ? "pointer" : undefined,
                   }}
