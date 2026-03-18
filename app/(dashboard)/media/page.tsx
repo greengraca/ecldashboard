@@ -88,6 +88,32 @@ export default function MediaPage() {
     }
   }, [needsStandings, standingsRes, selectedTemplate]);
 
+  // Caption templates from DB
+  const { data: captionsRes, mutate: mutateCaptions } = useSWR<{ data: Record<string, string> }>(
+    "/api/media/caption-templates",
+    fetcher,
+  );
+  const savedCaptions = captionsRes?.data ?? {};
+
+  const handleSaveCaption = useCallback(async (templateId: string, value: string) => {
+    // Optimistic update
+    mutateCaptions({ data: { ...savedCaptions, [templateId]: value } }, false);
+    await fetch(`/api/media/caption-templates/${templateId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ captionTemplate: value }),
+    });
+    mutateCaptions();
+  }, [savedCaptions, mutateCaptions]);
+
+  const handleResetCaption = useCallback(async (templateId: string) => {
+    const next = { ...savedCaptions };
+    delete next[templateId];
+    mutateCaptions({ data: next }, false);
+    await fetch(`/api/media/caption-templates/${templateId}`, { method: "DELETE" });
+    mutateCaptions();
+  }, [savedCaptions, mutateCaptions]);
+
   const handleSelectTemplate = useCallback((id: string) => {
     setSelectedTemplate(id);
     setTemplateData({});
@@ -183,6 +209,10 @@ export default function MediaPage() {
               templateId={selectedTemplate}
               data={templateData}
               onChange={handleFieldChange}
+              month={month}
+              savedCaptions={savedCaptions}
+              onSaveCaption={handleSaveCaption}
+              onResetCaption={handleResetCaption}
             />
 
             {/* Auto-fill status */}

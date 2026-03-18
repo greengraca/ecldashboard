@@ -21,8 +21,8 @@ interface TransactionFormProps {
 }
 
 const CATEGORIES: { value: TransactionCategory; label: string }[] = [
-  { value: "subscription", label: "Subscription" },
   { value: "prize", label: "Prize" },
+  { value: "subscription", label: "Subscription" },
   { value: "operational", label: "Operational" },
   { value: "sponsorship", label: "Sponsorship" },
   { value: "other", label: "Other" },

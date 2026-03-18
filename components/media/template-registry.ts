@@ -25,6 +25,7 @@ export interface TemplateDefinition {
   component: ComponentType<{ data: Record<string, any> }>;
   fields: TemplateDataField[];
   autoFillEndpoints?: string[];
+  captionTemplate?: string;
 }
 
 // Templates are imported dynamically by TemplatePreview using the id.
@@ -47,6 +48,7 @@ export const TEMPLATES: Omit<TemplateDefinition, "component">[] = [
       { key: "customStat2Label", label: "Custom Stat 2 Label", type: "text" },
       { key: "customStat2Value", label: "Custom Stat 2 Value", type: "text" },
     ],
+    captionTemplate: "🏆 ECL {month} Season Recap\n\nChampion: {championName}\n🎮 {totalPlayers} players · {totalGames} games\n💰 {totalPrizeValue}€ in prizes\n\n#cEDH #EDH #MTG #ECL",
   },
   {
     id: "registration-open",
@@ -59,6 +61,7 @@ export const TEMPLATES: Omit<TemplateDefinition, "component">[] = [
       { key: "deadline", label: "Registration Deadline", type: "date" },
       { key: "spotsLeft", label: "Spots Left (optional)", type: "text" },
     ],
+    captionTemplate: "📋 Registration is OPEN for ECL {month}!\n\n🔗 Link in bio\n⏰ Deadline: {deadline}\n\n#cEDH #EDH #MTG #ECL",
   },
   // ── Modern / off-brand templates ─────────────────────────────
   {
@@ -71,6 +74,7 @@ export const TEMPLATES: Omit<TemplateDefinition, "component">[] = [
       { key: "streamUrl", label: "Stream URL", type: "url" },
       { key: "streamTime", label: "Stream Time", type: "text" },
     ],
+    captionTemplate: "🎮 MATCH DAY — ECL {month}\n\n{subtitle}\n📺 Stream: {streamUrl}\n⏰ {streamTime}\n\n#cEDH #EDH #MTG #ECL",
   },
   {
     id: "player-spotlight",
@@ -100,6 +104,7 @@ export const TEMPLATES: Omit<TemplateDefinition, "component">[] = [
       { key: "stat3Label", label: "Stat 3 Label", type: "text" },
       { key: "stat3Value", label: "Stat 3 Value", type: "text" },
     ],
+    captionTemplate: "⭐ {label} — {playerName}\n\nCommander: {commanderName}\n{stat1Label}: {stat1Value} · {stat2Label}: {stat2Value} · {stat3Label}: {stat3Value}\n\n#cEDH #EDH #MTG #ECL",
   },
   {
     id: "results-drop-2",
@@ -113,6 +118,7 @@ export const TEMPLATES: Omit<TemplateDefinition, "component">[] = [
       { key: "sponsorText", label: "Sponsor Text", type: "text" },
     ],
     autoFillEndpoints: ["/api/players/standings"],
+    captionTemplate: "📊 ECL {month} — Top 16 Standings\n\n🎮 {totalPlayers} players · {totalGames} games\n\nFull standings in the image 👆\n\n#cEDH #EDH #MTG #ECL",
   },
   {
     id: "results-drop-top4-v2",
@@ -142,6 +148,7 @@ export const TEMPLATES: Omit<TemplateDefinition, "component">[] = [
       { key: "sponsorText", label: "Sponsor Text", type: "text" },
     ],
     autoFillEndpoints: ["/api/players/brackets", "/api/players/standings"],
+    captionTemplate: "🔥 ECL {month} — Finals Lineup!\n\n🏟️ The Top 4 are set. Who will take the crown?\n\n📺 Stream date coming soon\n\n#cEDH #EDH #MTG #ECL",
   },
   {
     id: "results-drop-winner",
@@ -171,6 +178,7 @@ export const TEMPLATES: Omit<TemplateDefinition, "component">[] = [
       { key: "sponsorText", label: "Sponsor Text", type: "text" },
     ],
     autoFillEndpoints: ["/api/players/brackets", "/api/players/standings"],
+    captionTemplate: "🏆 ECL {month} — We have a CHAMPION!\n\nCongratulations to {winner}! 🎉\n\n🎮 {totalPlayers} players · {totalGames} games\n\n#cEDH #EDH #MTG #ECL",
   },
   {
     id: "event-hype",
@@ -196,5 +204,6 @@ export const TEMPLATES: Omit<TemplateDefinition, "component">[] = [
       { key: "eventTime", label: "Event Time", type: "text" },
       { key: "streamUrl", label: "Stream URL", type: "url" },
     ],
+    captionTemplate: "🚀 {eventName}\n\n{description}\n\n📅 {eventDate} · ⏰ {eventTime}\n📺 {streamUrl}\n\n#cEDH #EDH #MTG #ECL",
   },
 ];

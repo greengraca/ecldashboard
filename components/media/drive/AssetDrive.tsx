@@ -17,6 +17,7 @@ export default function AssetDrive() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [previewItem, setPreviewItem] = useState<MediaFile | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -46,9 +47,33 @@ export default function AssetDrive() {
   // Upload files (handles both small and large)
   const handleUploadFiles = useCallback(
     async (fileList: FileList) => {
+      const WARN_SIZE = 10 * 1024 * 1024; // 10 MB
+      const BLOCK_SIZE = 150 * 1024 * 1024; // 150 MB
+      const warnings: string[] = [];
+      const allowed: File[] = [];
+
+      for (const file of Array.from(fileList)) {
+        if (file.size > BLOCK_SIZE) {
+          warnings.push(`"${file.name}" exceeds 150 MB and was not uploaded`);
+        } else {
+          if (file.size > WARN_SIZE) {
+            const mb = (file.size / (1024 * 1024)).toFixed(1);
+            warnings.push(`"${file.name}" is ${mb} MB — large files use more storage`);
+          }
+          allowed.push(file);
+        }
+      }
+
+      if (warnings.length) {
+        setUploadWarnings(warnings);
+        setTimeout(() => setUploadWarnings([]), 8000);
+      }
+
+      if (allowed.length === 0) return;
+
       setUploading(true);
       try {
-        for (const file of Array.from(fileList)) {
+        for (const file of allowed) {
           if (file.size < 4 * 1024 * 1024) {
             const formData = new FormData();
             formData.append("file", file);
@@ -244,6 +269,21 @@ export default function AssetDrive() {
               }}
             />
             <span className="relative">Uploading...</span>
+          </div>
+        )}
+
+        {uploadWarnings.length > 0 && (
+          <div
+            className="flex flex-col gap-1 mb-3 px-3 py-2 rounded-lg text-xs"
+            style={{
+              background: "rgba(234, 179, 8, 0.08)",
+              color: "var(--warning, #eab308)",
+              border: "1px solid rgba(234, 179, 8, 0.2)",
+            }}
+          >
+            {uploadWarnings.map((w, i) => (
+              <span key={i}>{w}</span>
+            ))}
           </div>
         )}
 

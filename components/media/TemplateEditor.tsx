@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useRef } from "react";
-import { Upload, X } from "lucide-react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
+import { Upload, X, Copy, Check, Pencil, Eye } from "lucide-react";
 import { TEMPLATES, type TemplateDataField } from "./template-registry";
 import CardImage from "./shared/CardImage";
 
@@ -11,6 +11,10 @@ interface TemplateEditorProps {
   data: Record<string, any>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onChange: (key: string, value: any) => void;
+  month?: string;
+  savedCaptions?: Record<string, string>;
+  onSaveCaption?: (templateId: string, value: string) => void;
+  onResetCaption?: (templateId: string) => void;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -367,7 +371,153 @@ function buildLayout(fields: TemplateDataField[], data: Record<string, any>) {
   return sections;
 }
 
-export default function TemplateEditor({ templateId, data, onChange }: TemplateEditorProps) {
+function formatMonthLabel(month: string): string {
+  const [year, m] = month.split("-");
+  const date = new Date(Number(year), Number(m) - 1);
+  return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function resolveCaption(template: string, data: Record<string, any>, month?: string): string {
+  let result = template;
+  if (month) {
+    result = result.replace(/\{month\}/g, formatMonthLabel(month));
+  }
+  result = result.replace(/\{(\w+)\}/g, (match, key) => {
+    const val = data[key];
+    return val != null && val !== "" ? String(val) : "";
+  });
+  // Clean up empty lines left by stripped placeholders
+  result = result.replace(/\n{3,}/g, "\n\n").trim();
+  return result;
+}
+
+function CaptionSection({
+  captionTemplate,
+  savedTemplate,
+  data,
+  month,
+  templateId,
+  onSave,
+  onReset,
+}: {
+  captionTemplate: string;
+  savedTemplate?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: Record<string, any>;
+  month?: string;
+  templateId: string;
+  onSave: (templateId: string, value: string) => void;
+  onReset: (templateId: string) => void;
+}) {
+  const effectiveDefault = savedTemplate ?? captionTemplate;
+  const [editing, setEditing] = useState(false);
+  const [localTemplate, setLocalTemplate] = useState(effectiveDefault);
+  const [copied, setCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const isCustomized = effectiveDefault !== captionTemplate;
+  const hasUnsavedChanges = localTemplate !== effectiveDefault;
+
+  // Sync when template switches or saved data arrives
+  useEffect(() => {
+    setLocalTemplate(savedTemplate ?? captionTemplate);
+    setEditing(false);
+  }, [templateId, captionTemplate, savedTemplate]);
+
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    onSave(templateId, localTemplate);
+    setSaving(false);
+  }, [templateId, localTemplate, onSave]);
+
+  const handleReset = useCallback(() => {
+    setLocalTemplate(captionTemplate);
+    onReset(templateId);
+  }, [templateId, captionTemplate, onReset]);
+
+  const resolved = resolveCaption(localTemplate, data, month);
+
+  const handleCopy = useCallback(() => {
+    const text = editing ? localTemplate : resolved;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, [editing, localTemplate, resolved]);
+
+  return (
+    <div className="mt-5 pt-5 border-t" style={{ borderColor: "var(--border)" }}>
+      <div className="flex items-center justify-between mb-3">
+        <span
+          className="text-xs font-semibold uppercase tracking-wider"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Instagram Caption
+        </span>
+        <div className="flex items-center gap-1.5">
+          {editing && isCustomized && (
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-1 px-2 py-1 rounded text-[11px] transition-colors"
+              style={{ background: "var(--bg-hover)", color: "var(--text-muted)" }}
+            >
+              Reset
+            </button>
+          )}
+          {editing && hasUnsavedChanges && (
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-1 px-2 py-1 rounded text-[11px] transition-colors"
+              style={{ background: "var(--accent)", color: "#fff" }}
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+          )}
+          <button
+            onClick={() => setEditing((e) => !e)}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[11px] transition-colors"
+            style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+          >
+            {editing ? <Eye className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
+            {editing ? "Preview" : "Edit Template"}
+          </button>
+          <button
+            onClick={handleCopy}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[11px] transition-colors"
+            style={{
+              background: copied ? "var(--success)" : "var(--bg-hover)",
+              color: copied ? "#fff" : "var(--text-secondary)",
+            }}
+          >
+            {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+            {copied ? "Copied!" : "Copy"}
+          </button>
+        </div>
+      </div>
+
+      {editing ? (
+        <textarea
+          value={localTemplate}
+          onChange={(e) => setLocalTemplate(e.target.value)}
+          rows={8}
+          className="w-full px-3 py-2 rounded-lg text-xs font-mono border outline-none resize-y"
+          style={{ background: "var(--bg-page)", borderColor: "var(--border)", color: "var(--text-primary)" }}
+        />
+      ) : (
+        <div
+          className="w-full px-3 py-2 rounded-lg text-xs whitespace-pre-wrap"
+          style={{ background: "var(--bg-page)", color: "var(--text-primary)", minHeight: "4rem" }}
+        >
+          {resolved || <span style={{ color: "var(--text-muted)" }}>Fill in fields to preview caption...</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function TemplateEditor({ templateId, data, onChange, month, savedCaptions, onSaveCaption, onResetCaption }: TemplateEditorProps) {
   const template = TEMPLATES.find((t) => t.id === templateId);
   if (!template) return null;
 
@@ -462,6 +612,18 @@ export default function TemplateEditor({ templateId, data, onChange }: TemplateE
           </React.Fragment>
         );
       })}
+
+      {template.captionTemplate && onSaveCaption && onResetCaption && (
+        <CaptionSection
+          captionTemplate={template.captionTemplate}
+          savedTemplate={savedCaptions?.[templateId]}
+          data={data}
+          month={month}
+          templateId={templateId}
+          onSave={onSaveCaption}
+          onReset={onResetCaption}
+        />
+      )}
     </div>
   );
 }
