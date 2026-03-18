@@ -75,9 +75,11 @@ function Section({
 export default function SettingsContent({
   maskedGuildId,
   dbName,
+  version,
 }: {
   maskedGuildId: string;
   dbName: string;
+  version: string;
 }) {
   const { data: session } = useSession();
   const { hidden, setHidden } = useSensitiveData();
@@ -226,7 +228,7 @@ export default function SettingsContent({
             }
             title="Dashboard Info"
           >
-            <InfoRow label="Version" value="1.0.0" />
+            <InfoRow label="Version" value={version} />
             <InfoRow label="Framework" value="Next.js 16 (App Router)" />
             <InfoRow label="Database" value={dbName} />
             <InfoRow label="Auth Provider" value="Discord OAuth" />

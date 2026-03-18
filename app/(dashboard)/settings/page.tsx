@@ -11,5 +11,7 @@ export default function SettingsPage() {
   const maskedGuildId = mask(DISCORD_GUILD_ID, 6);
   const dbName = process.env.MONGODB_DB_NAME || "eclbot";
 
-  return <SettingsContent maskedGuildId={maskedGuildId} dbName={dbName} />;
+  const version = process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0";
+
+  return <SettingsContent maskedGuildId={maskedGuildId} dbName={dbName} version={version} />;
 }

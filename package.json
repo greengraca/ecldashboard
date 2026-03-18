@@ -1,12 +1,13 @@
 {
   "name": "ecl-dashboard",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "ECL Dashboard",
   "scripts": {
     "dev": "next dev --turbopack -p 3001",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "prepare": "bash scripts/install-hooks.sh"
   },
   "keywords": [],
   "author": "",
