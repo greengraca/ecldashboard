@@ -150,6 +150,18 @@ export default function SubscriptionIncomeCard({
               {entry.tier}
             </span>
           )}
+          {!entry.topdeck_uid && (
+            <span
+              className="shrink-0 rounded px-1 py-px leading-none italic"
+              style={{
+                fontSize: "10px",
+                background: "rgba(239,68,68,0.10)",
+                color: "var(--danger, #ef4444)",
+              }}
+            >
+              never joined
+            </span>
+          )}
         </div>
         <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
           &euro;{entry.amount.toFixed(2)}

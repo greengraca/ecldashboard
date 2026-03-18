@@ -102,14 +102,25 @@ export async function syncPatreonForMonth(
     url = page.links?.next || null;
   }
 
-  // Process members — atomic: collect all docs first, then bulk write
+  // Process members
   const db = await getDb();
   const collection = db.collection<PatreonSnapshot>(COLLECTION);
   let synced = 0;
   let skipped = 0;
+  let formerIncluded = 0;
+
+  // Helper: extract YYYY-MM from a date string
+  function toMonth(dateStr: string | null): string | null {
+    if (!dateStr) return null;
+    return dateStr.slice(0, 7); // "2026-02-28T..." → "2026-02"
+  }
 
   for (const member of members) {
-    if (member.attributes.patron_status !== "active_patron") {
+    const status = member.attributes.patron_status;
+    const isActive = status === "active_patron";
+    const isFormer = status === "former_patron";
+
+    if (!isActive && !isFormer) {
       skipped++;
       continue;
     }
@@ -118,6 +129,25 @@ export async function syncPatreonForMonth(
       continue;
     }
 
+    // Skip patrons who started after the target month
+    const pledgeStart = member.attributes.pledge_relationship_start || null;
+    const pledgeStartMonth = toMonth(pledgeStart);
+    if (pledgeStartMonth && pledgeStartMonth > month) {
+      skipped++;
+      continue;
+    }
+
+    // For former patrons: skip if their last charge was before the target month
+    const lastChargeDate = member.attributes.last_charge_date || null;
+    const lastChargeMonth = toMonth(lastChargeDate);
+    if (isFormer) {
+      if (!lastChargeMonth || lastChargeMonth < month) {
+        skipped++;
+        continue;
+      }
+    }
+
+    // Resolve tier — active patrons have current entitlements, former patrons don't
     const tierIds =
       member.relationships.currently_entitled_tiers?.data?.map((t) => t.id) ||
       [];
@@ -129,7 +159,32 @@ export async function syncPatreonForMonth(
       ECL_ELIGIBLE_PATREON_TIERS.includes(t.attributes.title)
     );
 
-    if (!eclTier) {
+    const patreonUserId = member.relationships.user?.data?.id;
+
+    // For former patrons with no current tier, look up their most recent snapshot
+    let tierTitle: string | null = eclTier?.attributes.title ?? null;
+    let pledgeAmount: number | null = eclTier
+      ? eclTier.attributes.amount_cents / 100
+      : null;
+
+    if (!tierTitle && isFormer) {
+      const prevSnapshot = await collection.findOne(
+        { patreon_user_id: patreonUserId || member.id, tier: { $ne: null } },
+        { sort: { month: -1 } }
+      );
+      if (prevSnapshot) {
+        tierTitle = prevSnapshot.tier;
+        pledgeAmount = prevSnapshot.pledge_amount;
+      } else {
+        warnings.push(
+          `Former patron "${member.attributes.full_name}" has no tier history — skipped`
+        );
+        skipped++;
+        continue;
+      }
+    }
+
+    if (!tierTitle) {
       for (const t of memberTiers) {
         if (
           !ECL_ELIGIBLE_PATREON_TIERS.includes(t.attributes.title) &&
@@ -145,37 +200,56 @@ export async function syncPatreonForMonth(
     }
 
     // Discord user ID from social connections (snowflake, not username)
-    const patreonUserId = member.relationships.user?.data?.id;
     const user = patreonUserId ? users.get(patreonUserId) : null;
     const discordConnection =
       user?.attributes?.social_connections?.discord ?? null;
-    const discordId = discordConnection?.user_id ?? null;
+    let discordId = discordConnection?.user_id ?? null;
+
+    // Fallback: look up discord_id from player identities by exact patreon_name
+    if (!discordId) {
+      const identity = await db
+        .collection("dashboard_player_identities")
+        .findOne({ patreon_name: member.attributes.full_name });
+      if (identity?.discord_id) {
+        discordId = identity.discord_id as string;
+      }
+    }
 
     const now = new Date().toISOString();
+
+    // Only overwrite discord_id when the API provides one — preserve manual patches
+    const setFields: Record<string, unknown> = {
+      month,
+      patreon_name: member.attributes.full_name,
+      tier: tierTitle,
+      pledge_amount: pledgeAmount,
+      patreon_user_id: patreonUserId || member.id,
+      pledge_start: pledgeStart,
+      last_charge_date: lastChargeDate,
+      synced_at: now,
+    };
+    if (discordId) {
+      setFields.discord_id = discordId;
+    }
+
     await collection.updateOne(
       { month, patreon_user_id: patreonUserId || member.id },
       {
-        $set: {
-          month,
-          discord_id: discordId,
-          patreon_name: member.attributes.full_name,
-          tier: eclTier.attributes.title,
-          pledge_amount: eclTier.attributes.amount_cents / 100,
-          patreon_user_id: patreonUserId || member.id,
-          synced_at: now,
-        },
+        $set: setFields,
+        ...(!discordId ? { $setOnInsert: { discord_id: null } } : {}),
       },
       { upsert: true }
     );
 
     synced++;
+    if (isFormer) formerIncluded++;
   }
 
   await logActivity(
     "sync",
     "patreon_sync",
     month,
-    { synced, skipped, warnings_count: warnings.length },
+    { synced, skipped, former_included: formerIncluded, warnings_count: warnings.length },
     userId,
     userName
   );

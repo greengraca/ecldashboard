@@ -12,14 +12,14 @@ import type { DiscordMember } from "./types";
 const BRONZE_SILVER_TIERS = new Set(["Bronze", "Silver"]);
 const BRONZE_SILVER_ELIGIBLE_MONTH = "2026-01";
 
-// December 2025 was a free month — zero subscription income
-const FREE_MONTH = "2025-12";
+// Nov 2025 was setup, Dec 2025 was free — zero subscription income
+const ZERO_INCOME_MONTHS = new Set(["2025-11", "2025-12"]);
 
 export async function getSubscriptionIncome(
   month: string
 ): Promise<SubscriptionIncome> {
   // Free month: no subscription income for any source
-  if (month === FREE_MONTH) {
+  if (ZERO_INCOME_MONTHS.has(month)) {
     return {
       patreon: { count: 0, amount: 0 },
       kofi: { count: 0, amount: 0 },
@@ -111,7 +111,7 @@ export async function getSubscriptionIncome(
 export async function getSubscriptionIncomeBreakdown(
   month: string
 ): Promise<SubscriptionIncomeBreakdown> {
-  if (month === FREE_MONTH) {
+  if (ZERO_INCOME_MONTHS.has(month)) {
     return { patreon: [], kofi: [], manual: [] };
   }
 

@@ -303,6 +303,12 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
     }
     if (!source) continue;
 
+    // Skip Bronze/Silver Patreon subscribers outside January (they only count in Jan)
+    if (source === "patreon" && !month.endsWith("-01")) {
+      const tier = patreonTierById.get(member.id) || "";
+      if (tier === "Bronze" || tier === "Silver") continue;
+    }
+
     // Skip Gold/Diamond Patreon subscribers not registered in the month's bracket
     if (source === "patreon" && registeredUsernames !== null) {
       const tier = patreonTierById.get(member.id) || "";
@@ -444,19 +450,53 @@ export async function getSubscriberSummary(
   // ─── Data health checks ───
   const warnings: DataHealthWarning[] = [];
 
-  // Check Patreon snapshots vs role holders
-  const snapshotCount = await db
+  // Check Patreon role holders vs snapshots (both directions)
+  // Bronze and Silver only count as subscribers in January
+  const NON_SUBSCRIBER_TIERS = month.endsWith("-01")
+    ? new Set<string>()
+    : new Set(["Bronze", "Silver"]);
+  const members = await fetchGuildMembers();
+  const memberByUsername = new Map(members.map((m) => [m.username.toLowerCase(), m.id]));
+  const patreonRoleHolderIds = new Set(
+    members.filter((m) => roleSetHasAny(m.roles, PATREON_ROLE_IDS)).map((m) => m.id)
+  );
+
+  const subscriberSnapshots = await db
     .collection("dashboard_patreon_snapshots")
-    .countDocuments({ month });
-  if (patreon > 0 && snapshotCount === 0) {
+    .find({ month, tier: { $nin: [...NON_SUBSCRIBER_TIERS] } }, { projection: { discord_id: 1, tier: 1 } })
+    .toArray();
+
+  // Resolve snapshot discord_ids to numeric IDs (CSV backfill stores usernames)
+  const snapshotDiscordIds = new Set<string>();
+  for (const s of subscriberSnapshots) {
+    const raw = s.discord_id?.toString().trim() ?? "";
+    if (/^\d+$/.test(raw)) {
+      snapshotDiscordIds.add(raw);
+    } else if (raw) {
+      const numericId = memberByUsername.get(raw.toLowerCase());
+      if (numericId) snapshotDiscordIds.add(numericId);
+    }
+  }
+
+  const roleHoldersNoSnapshot = [...patreonRoleHolderIds].filter((id) => !snapshotDiscordIds.has(id));
+  const snapshotsNoRoleHolder = [...snapshotDiscordIds].filter((id) => !patreonRoleHolderIds.has(id));
+
+  if (patreon > 0 && snapshotDiscordIds.size === 0) {
     warnings.push({
       source: "patreon",
       message: `${patreon} Patreon subscribers with roles but no snapshots synced — sync Patreon on Finance page`,
     });
-  } else if (patreon > 0 && Math.abs(patreon - snapshotCount) > 0) {
+  }
+  if (roleHoldersNoSnapshot.length > 0) {
     warnings.push({
       source: "patreon",
-      message: `${patreon} Patreon role holders vs ${snapshotCount} snapshots (${Math.abs(patreon - snapshotCount)} mismatch)`,
+      message: `${roleHoldersNoSnapshot.length} Patreon role holder${roleHoldersNoSnapshot.length > 1 ? "s" : ""} paying on Patreon but missing from snapshots — sync Patreon to resolve`,
+    });
+  }
+  if (snapshotsNoRoleHolder.length > 0) {
+    warnings.push({
+      source: "patreon",
+      message: `${snapshotsNoRoleHolder.length} paying Patreon subscriber${snapshotsNoRoleHolder.length > 1 ? "s" : ""} without a Patreon role on Discord — they may not have synced Patreon to Discord`,
     });
   }
 
@@ -467,7 +507,7 @@ export async function getSubscriberSummary(
   if (missingTier > 0) {
     warnings.push({
       source: "patreon",
-      message: `${missingTier} Patreon subscriber${missingTier > 1 ? "s" : ""} without tier info — sync Patreon to resolve`,
+      message: `${missingTier} Patreon subscriber${missingTier > 1 ? "s" : ""} without tier info — likely missing Discord link on Patreon`,
     });
   }
 

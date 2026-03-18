@@ -191,6 +191,8 @@ export interface PatreonSnapshot {
   tier: string;
   pledge_amount: number;
   patreon_user_id: string;
+  pledge_start: string | null;
+  last_charge_date: string | null;
   synced_at: string;
 }
 
