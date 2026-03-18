@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { SubscriptionIncome, SubscriptionIncomeBreakdown, SubscriptionBreakdownEntry } from "@/lib/types";
+import { Sensitive } from "@/components/dashboard/sensitive";
 
 interface SubscriptionIncomeCardProps {
   income: SubscriptionIncome | null;
@@ -132,7 +133,7 @@ export default function SubscriptionIncomeCard({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="truncate" style={{ color: "var(--text-secondary)" }}>
-            {entry.name}
+            <Sensitive>{entry.name}</Sensitive>
           </span>
           {entry.tier && (
             <span
@@ -160,7 +161,7 @@ export default function SubscriptionIncomeCard({
           )}
         </div>
         <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
-          &euro;{entry.amount.toFixed(2)}
+          <Sensitive placeholder="€•••••">&euro;{entry.amount.toFixed(2)}</Sensitive>
         </span>
       </div>
     );
@@ -266,7 +267,7 @@ export default function SubscriptionIncomeCard({
           className="text-3xl font-bold"
           style={{ color: "var(--success)" }}
         >
-          &euro;{income.total.toFixed(2)}
+          <Sensitive placeholder="€•••••">&euro;{income.total.toFixed(2)}</Sensitive>
         </span>
       </div>
 
@@ -302,7 +303,7 @@ export default function SubscriptionIncomeCard({
                 </div>
                 <div className="flex items-center gap-2">
                   <span style={{ color: "var(--text-primary)" }}>
-                    &euro;{src.amount.toFixed(2)}
+                    <Sensitive placeholder="€•••••">&euro;{src.amount.toFixed(2)}</Sensitive>
                   </span>
                   {isExpanded ? (
                     <ChevronUp className="w-4 h-4" style={{ color: "var(--text-muted)" }} />

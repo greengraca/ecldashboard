@@ -3,6 +3,7 @@
 import { CheckCircle, Clock } from "lucide-react";
 import type { GroupSummary, PendingReimbursement } from "@/lib/types";
 import { GROUPS } from "@/lib/constants";
+import { Sensitive } from "@/components/dashboard/sensitive";
 
 interface GroupSummaryCardProps {
   summary: GroupSummary | null;
@@ -23,7 +24,7 @@ function GroupColumn({ group, detail }: { group: "cedhpt" | "ca"; detail: GroupS
         {detail.label}
       </h4>
       <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
-        {members.join(", ")}
+        <Sensitive>{members.join(", ")}</Sensitive>
       </p>
 
       <div className="space-y-2">
@@ -33,20 +34,20 @@ function GroupColumn({ group, detail }: { group: "cedhpt" | "ca"; detail: GroupS
             className="text-sm font-semibold"
             style={{ color: isPositive ? "var(--success)" : "var(--error)" }}
           >
-            {isPositive ? "+" : ""}&euro;{detail.profit_share.toFixed(2)}
+            <Sensitive placeholder="€•••••">{isPositive ? "+" : ""}&euro;{detail.profit_share.toFixed(2)}</Sensitive>
           </span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>Expenses paid</span>
           <span className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-            &euro;{detail.expenses_paid.toFixed(2)}
+            <Sensitive placeholder="€•••••">&euro;{detail.expenses_paid.toFixed(2)}</Sensitive>
           </span>
         </div>
         {detail.pending > 0 && (
           <div className="flex items-center justify-between">
             <span className="text-xs" style={{ color: "var(--warning, #f59e0b)" }}>Pending reimbursement</span>
             <span className="text-sm font-medium" style={{ color: "var(--warning, #f59e0b)" }}>
-              &euro;{detail.pending.toFixed(2)}
+              <Sensitive placeholder="€•••••">&euro;{detail.pending.toFixed(2)}</Sensitive>
             </span>
           </div>
         )}
@@ -70,11 +71,11 @@ function PendingItem({
         <Clock className="w-4 h-4 shrink-0" style={{ color: "var(--warning, #f59e0b)" }} />
         <div className="min-w-0">
           <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
-            {item.description}
+            <Sensitive>{item.description}</Sensitive>
           </p>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-              {item.paid_by_name}
+              <Sensitive>{item.paid_by_name}</Sensitive>
             </span>
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>{item.date}</span>
             <span
@@ -91,7 +92,7 @@ function PendingItem({
       </div>
       <div className="flex items-center gap-3 shrink-0">
         <span className="text-sm font-medium" style={{ color: "var(--error)" }}>
-          &euro;{item.amount.toFixed(2)}
+          <Sensitive placeholder="€•••••">&euro;{item.amount.toFixed(2)}</Sensitive>
         </span>
         <button
           onClick={() => onReimburse(item.id, item.source, false)}
@@ -136,7 +137,7 @@ export default function GroupSummaryCard({ summary, isLoading, onReimburse }: Gr
           Group Profit Split
         </h3>
         <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-          Net: &euro;{summary.total_net.toFixed(2)} &middot; 50/50 split: &euro;{summary.profit_split.toFixed(2)} each
+          Net: <Sensitive placeholder="€•••••">&euro;{summary.total_net.toFixed(2)}</Sensitive> &middot; 50/50 split: <Sensitive placeholder="€•••••">&euro;{summary.profit_split.toFixed(2)}</Sensitive> each
         </p>
       </div>
 

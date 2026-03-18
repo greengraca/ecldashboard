@@ -5,6 +5,7 @@ import DataTable from "@/components/dashboard/data-table";
 import type { Column } from "@/components/dashboard/data-table";
 import type { Transaction } from "@/lib/types";
 import { TEAM_MEMBERS, TREASURER_ID } from "@/lib/constants";
+import { Sensitive } from "@/components/dashboard/sensitive";
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -72,7 +73,7 @@ export default function TransactionTable({
       label: "Paid by",
       render: (row) => (
         <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          {getMemberName((row as unknown as Transaction).paid_by)}
+          <Sensitive>{getMemberName((row as unknown as Transaction).paid_by)}</Sensitive>
         </span>
       ),
     },
@@ -81,7 +82,7 @@ export default function TransactionTable({
       label: "Description",
       render: (row) => (
         <span style={{ color: "var(--text-primary)" }}>
-          {row.description}
+          <Sensitive>{row.description}</Sensitive>
         </span>
       ),
     },
@@ -98,7 +99,7 @@ export default function TransactionTable({
               row.type === "income" ? "var(--success)" : "var(--error)",
           }}
         >
-          {row.type === "income" ? "+" : "-"}&euro;{row.amount.toFixed(2)}
+          <Sensitive placeholder="€•••••">{row.type === "income" ? "+" : "-"}&euro;{row.amount.toFixed(2)}</Sensitive>
         </span>
       ),
     },
@@ -190,12 +191,12 @@ export default function TransactionTable({
                   className="font-medium text-sm"
                   style={{ color: tx.type === "income" ? "var(--success)" : "var(--error)" }}
                 >
-                  {tx.type === "income" ? "+" : "-"}&euro;{tx.amount.toFixed(2)}
+                  <Sensitive placeholder="€•••••">{tx.type === "income" ? "+" : "-"}&euro;{tx.amount.toFixed(2)}</Sensitive>
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm" style={{ color: "var(--text-primary)" }}>
-                  {tx.description}
+                  <Sensitive>{tx.description}</Sensitive>
                 </span>
                 <div className="flex items-center gap-1">
                   {tx.type === "expense" && tx.paid_by && tx.paid_by !== TREASURER_ID && onReimburse && (
@@ -228,7 +229,7 @@ export default function TransactionTable({
                 <span className="text-xs" style={{ color: "var(--text-muted)" }}>{tx.date}</span>
                 {tx.paid_by && (
                   <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    Paid by {getMemberName(tx.paid_by)}
+                    Paid by <Sensitive>{getMemberName(tx.paid_by)}</Sensitive>
                   </span>
                 )}
               </div>

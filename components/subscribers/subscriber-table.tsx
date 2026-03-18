@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Search } from "lucide-react";
 import DataTable, { type Column } from "@/components/dashboard/data-table";
 import type { Subscriber, SubscriptionSource } from "@/lib/types";
+import { Sensitive } from "@/components/dashboard/sensitive";
 
 interface SubscriberTableProps {
   subscribers: Subscriber[];
@@ -111,10 +112,10 @@ export default function SubscriberTable({
           )}
           <div>
             <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-              {row.display_name as string}
+              <Sensitive>{row.display_name as string}</Sensitive>
             </p>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              {row.username as string}
+              <Sensitive>{row.username as string}</Sensitive>
             </p>
           </div>
         </div>
@@ -264,10 +265,10 @@ export default function SubscriberTable({
                 )}
                 <div>
                   <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                    {row.display_name as string}
+                    <Sensitive>{row.display_name as string}</Sensitive>
                   </p>
                   <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    {row.username as string}
+                    <Sensitive>{row.username as string}</Sensitive>
                   </p>
                 </div>
               </div>

@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import useSWR from "swr";
 import type { MonthlySummary } from "@/lib/types";
+import { Sensitive } from "@/components/dashboard/sensitive";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -65,7 +66,7 @@ function OverviewTab({ totals }: { totals: { net: number; split: number; income:
           className="text-3xl font-bold"
           style={{ color: isPositive ? "var(--success)" : "var(--error)" }}
         >
-          {euro(totals.net, true)}
+          <Sensitive placeholder="€•••••">{euro(totals.net, true)}</Sensitive>
         </p>
       </div>
 
@@ -132,7 +133,7 @@ function GroupBalanceCard({
           className="text-2xl font-bold tracking-tight"
           style={{ color: isPositive ? color : "var(--error)" }}
         >
-          {euro(split, true)}
+          <Sensitive placeholder="€•••••">{euro(split, true)}</Sensitive>
         </p>
 
         {/* Progress-style bar */}
@@ -180,28 +181,28 @@ function BreakdownTab({
               <tr key={s.month} className="border-t" style={{ borderColor: "var(--border-subtle)" }}>
                 <td className="py-2.5 px-3 font-medium">{formatMonth(s.month)}</td>
                 <td className="py-2.5 px-3 text-right" style={{ color: "var(--success)" }}>
-                  {euro(s.income)}
+                  <Sensitive placeholder="€•••••">{euro(s.income)}</Sensitive>
                 </td>
                 <td className="py-2.5 px-3 text-right" style={{ color: "var(--error)" }}>
-                  {euro(totalExpenses)}
+                  <Sensitive placeholder="€•••••">{euro(totalExpenses)}</Sensitive>
                 </td>
                 <td
                   className="py-2.5 px-3 text-right font-medium"
                   style={{ color: s.net >= 0 ? "var(--success)" : "var(--error)" }}
                 >
-                  {euro(s.net, true)}
+                  <Sensitive placeholder="€•••••">{euro(s.net, true)}</Sensitive>
                 </td>
                 <td
                   className="py-2.5 px-3 text-right"
                   style={{ color: split >= 0 ? "var(--text-secondary)" : "var(--error)" }}
                 >
-                  {euro(split, true)}
+                  <Sensitive placeholder="€•••••">{euro(split, true)}</Sensitive>
                 </td>
                 <td
                   className="py-2.5 px-3 text-right"
                   style={{ color: split >= 0 ? "var(--text-secondary)" : "var(--error)" }}
                 >
-                  {euro(split, true)}
+                  <Sensitive placeholder="€•••••">{euro(split, true)}</Sensitive>
                 </td>
               </tr>
             );
@@ -211,28 +212,28 @@ function BreakdownTab({
           <tr className="border-t-2 font-semibold" style={{ borderColor: "var(--border)" }}>
             <td className="py-2.5 px-3">Total</td>
             <td className="py-2.5 px-3 text-right" style={{ color: "var(--success)" }}>
-              {euro(totals.income)}
+              <Sensitive placeholder="€•••••">{euro(totals.income)}</Sensitive>
             </td>
             <td className="py-2.5 px-3 text-right" style={{ color: "var(--error)" }}>
-              {euro(totals.expenses)}
+              <Sensitive placeholder="€•••••">{euro(totals.expenses)}</Sensitive>
             </td>
             <td
               className="py-2.5 px-3 text-right"
               style={{ color: totals.net >= 0 ? "var(--success)" : "var(--error)" }}
             >
-              {euro(totals.net, true)}
+              <Sensitive placeholder="€•••••">{euro(totals.net, true)}</Sensitive>
             </td>
             <td
               className="py-2.5 px-3 text-right"
               style={{ color: totals.split >= 0 ? "var(--accent)" : "var(--error)" }}
             >
-              {euro(totals.split, true)}
+              <Sensitive placeholder="€•••••">{euro(totals.split, true)}</Sensitive>
             </td>
             <td
               className="py-2.5 px-3 text-right"
               style={{ color: totals.split >= 0 ? "var(--accent)" : "var(--error)" }}
             >
-              {euro(totals.split, true)}
+              <Sensitive placeholder="€•••••">{euro(totals.split, true)}</Sensitive>
             </td>
           </tr>
         </tfoot>

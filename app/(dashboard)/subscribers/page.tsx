@@ -8,6 +8,7 @@ import StatCard from "@/components/dashboard/stat-card";
 import MonthPicker from "@/components/dashboard/month-picker";
 import SubscriberTable from "@/components/subscribers/subscriber-table";
 import type { Subscriber, SubscriberSummary } from "@/lib/types";
+import { Sensitive } from "@/components/dashboard/sensitive";
 
 interface SubscriberData {
   subscribers: Subscriber[];
@@ -118,7 +119,7 @@ export default function SubscribersPage() {
         <div className="cursor-pointer" onClick={() => toggleFilter("all")}>
           <StatCard
             title="Total Subscribers"
-            value={isLoading ? "--" : (summary?.total ?? 0)}
+            value={isLoading ? "--" : <Sensitive>{summary?.total ?? 0}</Sensitive>}
             active={sourceFilter === "all"}
             icon={
               <Users
@@ -130,7 +131,7 @@ export default function SubscribersPage() {
         </div>
         <StatCard
           title="In Bracket"
-          value={isLoading ? "--" : (summary?.registered_players ?? "--")}
+          value={isLoading ? "--" : <Sensitive>{summary?.registered_players ?? "--"}</Sensitive>}
           subtitle={!isLoading && summary?.registered_players != null && summary.total > 0
             ? `${summary.total - (summary.registered_players ?? 0)} not registered`
             : undefined}
@@ -144,7 +145,7 @@ export default function SubscribersPage() {
         <div className="cursor-pointer" onClick={() => toggleFilter("patreon")}>
           <StatCard
             title="Patreon"
-            value={isLoading ? "--" : (summary?.patreon ?? 0)}
+            value={isLoading ? "--" : <Sensitive>{summary?.patreon ?? 0}</Sensitive>}
             active={sourceFilter === "patreon"}
             icon={
               <Crown
@@ -157,7 +158,7 @@ export default function SubscribersPage() {
         <div className="cursor-pointer" onClick={() => toggleFilter("kofi")}>
           <StatCard
             title="Ko-fi"
-            value={isLoading ? "--" : (summary?.kofi ?? 0)}
+            value={isLoading ? "--" : <Sensitive>{summary?.kofi ?? 0}</Sensitive>}
             active={sourceFilter === "kofi"}
             icon={
               <Coffee
@@ -171,7 +172,7 @@ export default function SubscribersPage() {
           <div className="cursor-pointer" onClick={() => toggleFilter("manual")}>
             <StatCard
               title="Manually Paid"
-              value={isLoading ? "--" : manualPaidCount}
+              value={isLoading ? "--" : <Sensitive>{manualPaidCount}</Sensitive>}
               active={sourceFilter === "manual"}
               icon={
                 <HandCoins
@@ -185,7 +186,7 @@ export default function SubscribersPage() {
         <div className="cursor-pointer" onClick={() => toggleFilter("free")}>
           <StatCard
             title="Free Entry"
-            value={isLoading ? "--" : freeCount}
+            value={isLoading ? "--" : <Sensitive>{freeCount}</Sensitive>}
             active={sourceFilter === "free"}
             icon={
               <Gift
@@ -198,7 +199,7 @@ export default function SubscribersPage() {
         <div className="cursor-pointer" onClick={() => toggleFilter("paying_not_playing")}>
           <StatCard
             title="Paying Not Playing"
-            value={isLoading ? "--" : subscribers.filter((s) => isPaying(s) && !s.is_playing).length}
+            value={isLoading ? "--" : <Sensitive>{subscribers.filter((s) => isPaying(s) && !s.is_playing).length}</Sensitive>}
             active={sourceFilter === "paying_not_playing"}
             icon={
               <AlertTriangle

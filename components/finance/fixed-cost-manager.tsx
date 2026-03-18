@@ -5,6 +5,7 @@ import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import type { FixedCost } from "@/lib/types";
 import Select from "@/components/dashboard/select";
 import { TEAM_MEMBERS } from "@/lib/constants";
+import { Sensitive } from "@/components/dashboard/sensitive";
 
 function appliesToMonth(fc: FixedCost, month: string): boolean {
   if (fc.start_month > month) return false;
@@ -129,7 +130,7 @@ export default function FixedCostManager({
           <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
             Monthly total:{" "}
             <span className="font-medium" style={{ color: "var(--error)" }}>
-              &euro;{monthlyTotal.toFixed(2)}
+              <Sensitive placeholder="€•••••">&euro;{monthlyTotal.toFixed(2)}</Sensitive>
             </span>
           </p>
         </div>
@@ -367,7 +368,7 @@ export default function FixedCostManager({
                           textDecoration: fc.active ? "none" : "line-through",
                         }}
                       >
-                        {fc.name}
+                        <Sensitive>{fc.name}</Sensitive>
                       </span>
                       <span
                         className="ml-2 text-xs capitalize"
@@ -380,7 +381,7 @@ export default function FixedCostManager({
                           className="ml-2 text-xs"
                           style={{ color: "var(--text-muted)" }}
                         >
-                          ({TEAM_MEMBERS.find((m) => m.id === fc.paid_by)?.name || fc.paid_by})
+                          (<Sensitive>{TEAM_MEMBERS.find((m) => m.id === fc.paid_by)?.name || fc.paid_by}</Sensitive>)
                         </span>
                       )}
                       {!applies && (
@@ -406,7 +407,7 @@ export default function FixedCostManager({
                           : "var(--text-muted)",
                       }}
                     >
-                      &euro;{fc.amount.toFixed(2)}
+                      <Sensitive placeholder="€•••••">&euro;{fc.amount.toFixed(2)}</Sensitive>
                     </span>
                     <button
                       onClick={() => startEdit(fc)}

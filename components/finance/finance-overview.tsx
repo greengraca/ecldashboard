@@ -17,6 +17,8 @@ import {
   Legend,
 } from "recharts";
 import type { MonthlySummary } from "@/lib/types";
+import { Sensitive, SensitiveBlock } from "@/components/dashboard/sensitive";
+import { useSensitiveData } from "@/contexts/SensitiveDataContext";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -93,6 +95,7 @@ function ChartTooltip({ active, payload, label }: {
 
 export default function FinanceOverview() {
   const [chartView, setChartView] = useState<ChartView>("area");
+  const { hidden: sensitiveHidden } = useSensitiveData();
 
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -181,7 +184,7 @@ export default function FinanceOverview() {
             >
               {isLoading
                 ? "--"
-                : `${rollingBalance >= 0 ? "+" : "-"}\u20AC${Math.abs(rollingBalance).toFixed(2)}`}
+                : <Sensitive placeholder="€•••••">{`${rollingBalance >= 0 ? "+" : "-"}\u20AC${Math.abs(rollingBalance).toFixed(2)}`}</Sensitive>}
             </p>
           </div>
         </div>
@@ -216,7 +219,9 @@ export default function FinanceOverview() {
       </div>
 
       {/* Chart */}
-      {isLoading ? (
+      {sensitiveHidden ? (
+        <SensitiveBlock message="Chart hidden in privacy mode" height={280} />
+      ) : isLoading ? (
         <div
           className="flex items-center justify-center"
           style={{ height: 280 }}

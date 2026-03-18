@@ -2,6 +2,7 @@
 
 import { TrendingUp, TrendingDown, Landmark, Wallet } from "lucide-react";
 import type { MonthlySummary } from "@/lib/types";
+import { Sensitive } from "@/components/dashboard/sensitive";
 
 interface BalanceCardProps {
   summary: MonthlySummary | null;
@@ -65,7 +66,7 @@ export default function BalanceCard({ summary, isLoading }: BalanceCardProps) {
           <p className="text-xl sm:text-2xl font-bold" style={{ color: item.color }}>
             {isLoading
               ? "--"
-              : `${item.prefix}\u20AC${item.value.toFixed(2)}`}
+              : <Sensitive placeholder="€•••••">{`${item.prefix}\u20AC${item.value.toFixed(2)}`}</Sensitive>}
           </p>
         </div>
       ))}
@@ -109,7 +110,7 @@ export default function BalanceCard({ summary, isLoading }: BalanceCardProps) {
         >
           {isLoading
             ? "--"
-            : `${net >= 0 ? "+" : "-"}\u20AC${Math.abs(net).toFixed(2)}`}
+            : <Sensitive placeholder="€•••••">{`${net >= 0 ? "+" : "-"}\u20AC${Math.abs(net).toFixed(2)}`}</Sensitive>}
         </p>
       </div>
     </div>

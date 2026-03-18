@@ -6,6 +6,7 @@ import FinanceOverview from "@/components/finance/finance-overview";
 import ProfitSplitTable from "@/components/finance/profit-split-table";
 import { Users, Wallet, Swords, Activity, CheckCircle, Clock } from "lucide-react";
 import type { ActivityEntry, ActivityAction, PendingReimbursement } from "@/lib/types";
+import { Sensitive } from "@/components/dashboard/sensitive";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -137,7 +138,7 @@ export default function HomePage() {
         ) : (
           <StatCard
             title="Subscribers"
-            value={subscriberCount != null ? subscriberCount : "--"}
+            value={subscriberCount != null ? <Sensitive>{subscriberCount}</Sensitive> : "--"}
             subtitle={
               payingCount != null
                 ? `${payingCount} paying`
@@ -159,7 +160,7 @@ export default function HomePage() {
             title="Monthly Revenue"
             value={
               revenue != null
-                ? `€${revenue.toFixed(2)}`
+                ? <Sensitive placeholder="€•••••">{`€${revenue.toFixed(2)}`}</Sensitive>
                 : "--"
             }
             subtitle={
@@ -277,7 +278,7 @@ export default function HomePage() {
                       style={{ color: "var(--text-primary)" }}
                     >
                       <span className="font-medium">
-                        {entry.user_name || "System"}
+                        <Sensitive>{entry.user_name || "System"}</Sensitive>
                       </span>{" "}
                       <span style={{ color: "var(--text-secondary)" }}>
                         {entry.action}d
@@ -348,17 +349,17 @@ export default function HomePage() {
                       className="text-sm truncate"
                       style={{ color: "var(--text-primary)" }}
                     >
-                      {item.description}
+                      <Sensitive>{item.description}</Sensitive>
                     </p>
                     <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                      {item.paid_by_name} &middot; {item.date}
+                      <Sensitive>{item.paid_by_name}</Sensitive> &middot; {item.date}
                     </p>
                   </div>
                   <span
                     className="text-sm font-medium flex-shrink-0"
                     style={{ color: "var(--error)" }}
                   >
-                    &euro;{item.amount.toFixed(2)}
+                    <Sensitive placeholder="€•••••">&euro;{item.amount.toFixed(2)}</Sensitive>
                   </span>
                   <button
                     onClick={() => handleReimburse(item)}

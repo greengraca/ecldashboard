@@ -1,7 +1,8 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { Settings, User, Database, Shield, Globe, DollarSign } from "lucide-react";
+import { Settings, User, Database, Shield, Globe, DollarSign, EyeOff } from "lucide-react";
+import { useSensitiveData } from "@/contexts/SensitiveDataContext";
 import TopDeckRefreshButton from "@/components/settings/topdeck-refresh-button";
 import SyncDiscordButton from "@/components/settings/sync-discord-button";
 import SyncPatreonButton from "@/components/settings/sync-patreon-button";
@@ -79,6 +80,7 @@ export default function SettingsContent({
   dbName: string;
 }) {
   const { data: session } = useSession();
+  const { hidden, setHidden } = useSensitiveData();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const user = session?.user as any;
@@ -150,6 +152,42 @@ export default function SettingsContent({
                   Discord ID: {discordId}
                 </p>
               </div>
+            </div>
+          </Section>
+
+          {/* Privacy */}
+          <Section
+            icon={<EyeOff className="w-4 h-4" style={{ color: "var(--accent)" }} />}
+            title="Privacy"
+          >
+            <div
+              className="flex items-center justify-between py-3"
+            >
+              <div>
+                <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                  Hide sensitive data
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                  Mask financial amounts, names, and PII across the dashboard
+                </p>
+              </div>
+              <button
+                role="switch"
+                aria-checked={hidden}
+                onClick={() => setHidden(!hidden)}
+                className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
+                style={{
+                  background: hidden ? "var(--accent)" : "var(--border)",
+                }}
+              >
+                <span
+                  className="inline-block h-4 w-4 rounded-full transition-transform duration-200"
+                  style={{
+                    background: hidden ? "var(--accent-text, #fff)" : "var(--text-muted)",
+                    transform: hidden ? "translateX(24px)" : "translateX(4px)",
+                  }}
+                />
+              </button>
             </div>
           </Section>
 

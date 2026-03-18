@@ -2,6 +2,7 @@
 
 import DataTable, { Column } from "@/components/dashboard/data-table";
 import type { ActivityEntry, ActivityAction } from "@/lib/types";
+import { Sensitive } from "@/components/dashboard/sensitive";
 
 function timeAgo(date: string): string {
   const now = Date.now();
@@ -81,7 +82,7 @@ export default function ActivityTable({ data, loading }: ActivityTableProps) {
       label: "User",
       render: (row) => (
         <span className="text-sm" style={{ color: "var(--text-primary)" }}>
-          {(row.user_name as string) || "System"}
+          <Sensitive>{(row.user_name as string) || "System"}</Sensitive>
         </span>
       ),
     },
@@ -157,7 +158,7 @@ export default function ActivityTable({ data, loading }: ActivityTableProps) {
           </div>
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm" style={{ color: "var(--text-primary)" }}>
-              {(row.user_name as string) || "System"}
+              <Sensitive>{(row.user_name as string) || "System"}</Sensitive>
             </span>
           </div>
           {row.details && Object.keys(row.details as Record<string, unknown>).length > 0 && (
