@@ -298,7 +298,7 @@ export default function SubscriptionIncomeCard({
                     className="text-sm"
                     style={{ color: "var(--text-muted)" }}
                   >
-                    ({src.count})
+                    (<Sensitive>{src.count}</Sensitive>)
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

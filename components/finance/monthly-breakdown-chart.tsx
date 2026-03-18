@@ -14,6 +14,8 @@ import {
   ReferenceLine,
 } from "recharts";
 import type { MonthlySummary } from "@/lib/types";
+import { Sensitive, SensitiveBlock } from "@/components/dashboard/sensitive";
+import { useSensitiveData } from "@/contexts/SensitiveDataContext";
 
 interface MonthlyBreakdownChartProps {
   month: string;
@@ -62,6 +64,7 @@ export default function MonthlyBreakdownChart({
   isLoading,
 }: MonthlyBreakdownChartProps) {
   const [refLineHover, setRefLineHover] = useState<{ x: number; y: number } | null>(null);
+  const { hidden: sensitiveHidden } = useSensitiveData();
   const breakdown = summary?.breakdown;
 
   const data = breakdown
@@ -108,16 +111,18 @@ export default function MonthlyBreakdownChart({
         {summary && (
           <div className="flex items-center gap-4 text-xs">
             <span style={{ color: "var(--success)" }}>
-              Income: +{"\u20AC"}{summary.income.toFixed(2)}
+              Income: <Sensitive placeholder="€•••••">+{"\u20AC"}{summary.income.toFixed(2)}</Sensitive>
             </span>
             <span style={{ color: "var(--error)" }}>
-              Expenses: -{"\u20AC"}{(summary.expenses + summary.fixed_costs).toFixed(2)}
+              Expenses: <Sensitive placeholder="€•••••">-{"\u20AC"}{(summary.expenses + summary.fixed_costs).toFixed(2)}</Sensitive>
             </span>
           </div>
         )}
       </div>
 
-      {isLoading ? (
+      {sensitiveHidden ? (
+        <SensitiveBlock message="Chart hidden in privacy mode" height={220} />
+      ) : isLoading ? (
         <div
           className="flex items-center justify-center"
           style={{ height: 220 }}
@@ -220,7 +225,7 @@ export default function MonthlyBreakdownChart({
       )}
 
       {/* Legend */}
-      {data.length > 0 && (
+      {data.length > 0 && !sensitiveHidden && (
         <div className="flex flex-wrap gap-4 mt-3 justify-center">
           {data.map((d) => (
             <div key={d.category} className="flex items-center gap-1.5 text-xs">

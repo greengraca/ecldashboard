@@ -146,10 +146,10 @@ export default function SettingsContent({
                   className="font-medium"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  {username}
+                  {hidden ? "••••" : username}
                 </p>
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  Discord ID: {discordId}
+                  Discord ID: {hidden ? "••••••••••" : discordId}
                 </p>
               </div>
             </div>
