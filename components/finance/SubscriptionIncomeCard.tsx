@@ -263,7 +263,7 @@ export default function SubscriptionIncomeCard({
         >
           Subscription Income
         </h3>
-        {onSyncPatreon && (
+        {onSyncPatreon && month !== "2025-11" && month !== "2025-12" && (
           <button
             onClick={onSyncPatreon}
             disabled={isSyncing}

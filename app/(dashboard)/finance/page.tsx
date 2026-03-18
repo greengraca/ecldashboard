@@ -234,30 +234,37 @@ export default function FinancePage() {
       </div>
 
       {/* Category Breakdown + Subscription Income */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-        <MonthlyBreakdownChart month={month} summary={summary} isLoading={summaryLoading} />
-        <div>
-          <SubscriptionIncomeCard
-            income={summary?.subscription_income ?? null}
-            isLoading={summaryLoading}
-            month={month}
-            onSyncPatreon={handleSyncPatreon}
-            isSyncing={isSyncing}
-          />
-          {syncError && (
-            <div
-              className="mt-3 rounded-lg border px-4 py-3 text-sm"
-              style={{
-                background: "rgba(239, 68, 68, 0.1)",
-                borderColor: "var(--error)",
-                color: "var(--error)",
-              }}
-            >
-              {syncError}
-            </div>
-          )}
-        </div>
-      </div>
+      {(() => {
+        const hasSubscriptionIncome = summary?.subscription_income && summary.subscription_income.total > 0;
+        return (
+          <div className={`grid grid-cols-1 ${hasSubscriptionIncome ? "lg:grid-cols-2" : ""} gap-4 mb-8`}>
+            <MonthlyBreakdownChart month={month} summary={summary} isLoading={summaryLoading} />
+            {hasSubscriptionIncome && (
+              <div>
+                <SubscriptionIncomeCard
+                  income={summary?.subscription_income ?? null}
+                  isLoading={summaryLoading}
+                  month={month}
+                  onSyncPatreon={handleSyncPatreon}
+                  isSyncing={isSyncing}
+                />
+                {syncError && (
+                  <div
+                    className="mt-3 rounded-lg border px-4 py-3 text-sm"
+                    style={{
+                      background: "rgba(239, 68, 68, 0.1)",
+                      borderColor: "var(--error)",
+                      color: "var(--error)",
+                    }}
+                  >
+                    {syncError}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Balance Cards */}
       <div className="mb-8">
