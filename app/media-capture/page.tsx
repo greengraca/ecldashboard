@@ -5,20 +5,11 @@ import { useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import useSWR from "swr";
 
-import StreamLive from "@/components/media/templates/StreamLive";
-import PrizeAnnouncement from "@/components/media/templates/PrizeAnnouncement";
-import PrizePoolOverview from "@/components/media/templates/PrizePoolOverview";
-import SemiFinalWinner from "@/components/media/templates/SemiFinalWinner";
-import FinalsAnnouncement from "@/components/media/templates/FinalsAnnouncement";
-import MonthlyChampion from "@/components/media/templates/MonthlyChampion";
-import StandingsLeaderboard from "@/components/media/templates/StandingsLeaderboard";
 import SeasonRecap from "@/components/media/templates/SeasonRecap";
 import RegistrationOpen from "@/components/media/templates/RegistrationOpen";
 import MatchDayModern from "@/components/media/templates/MatchDayModern";
 import PlayerSpotlight from "@/components/media/templates/PlayerSpotlight";
-import ResultsDrop from "@/components/media/templates/ResultsDrop";
 import ResultsDrop2 from "@/components/media/templates/ResultsDrop2";
-import ResultsDropTop4 from "@/components/media/templates/ResultsDropTop4";
 import ResultsDropTop4v2 from "@/components/media/templates/ResultsDropTop4v2";
 import ResultsDropWinner from "@/components/media/templates/ResultsDropWinner";
 import EventHype from "@/components/media/templates/EventHype";
@@ -28,34 +19,25 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const COMPONENT_MAP: Record<string, React.ComponentType<{ data: any }>> = {
-  "stream-live": StreamLive,
-  "prize-announcement": PrizeAnnouncement,
-  "prize-pool-overview": PrizePoolOverview,
-  "semi-final-winner": SemiFinalWinner,
-  "finals-announcement": FinalsAnnouncement,
-  "monthly-champion": MonthlyChampion,
-  "standings-leaderboard": StandingsLeaderboard,
   "season-recap": SeasonRecap,
   "registration-open": RegistrationOpen,
   "match-day-modern": MatchDayModern,
   "player-spotlight": PlayerSpotlight,
-  "results-drop": ResultsDrop,
   "results-drop-2": ResultsDrop2,
-  "results-drop-top4": ResultsDropTop4,
   "results-drop-top4-v2": ResultsDropTop4v2,
   "results-drop-winner": ResultsDropWinner,
   "event-hype": EventHype,
 };
 
-const PRIZE_TEMPLATES = new Set(["prize-announcement", "prize-pool-overview"]);
-const BRACKET_TEMPLATES = new Set(["semi-final-winner", "finals-announcement", "results-drop-top4", "results-drop-top4-v2", "results-drop-winner"]);
-const STANDINGS_TEMPLATES = new Set(["results-drop", "results-drop-2", "results-drop-top4", "results-drop-top4-v2", "results-drop-winner"]);
+const PRIZE_TEMPLATES = new Set<string>([]);
+const BRACKET_TEMPLATES = new Set(["results-drop-top4-v2", "results-drop-winner"]);
+const STANDINGS_TEMPLATES = new Set(["results-drop-2", "results-drop-top4-v2", "results-drop-winner"]);
 
 /**
  * Standalone capture page — renders a single template at full resolution
  * with no dashboard chrome. Used for Figma export.
  *
- * URL: /media/capture?template=stream-live&month=2026-03
+ * URL: /media/capture?template=season-recap&month=2026-03
  */
 export default function CapturePage() {
   return (
@@ -109,7 +91,7 @@ function CaptureContent() {
     return (
       <div style={{ padding: 40, color: "#fff", fontFamily: "sans-serif" }}>
         <h1>Missing template</h1>
-        <p>Use <code>?template=stream-live&month=2026-03</code></p>
+        <p>Use <code>?template=season-recap&month=2026-03</code></p>
         <p>Available: {Object.keys(COMPONENT_MAP).join(", ")}</p>
       </div>
     );

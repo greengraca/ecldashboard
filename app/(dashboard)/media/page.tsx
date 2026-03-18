@@ -17,11 +17,11 @@ function getCurrentMonth(): string {
 }
 
 // Templates that need prize data
-const PRIZE_TEMPLATES = new Set(["prize-announcement", "prize-pool-overview"]);
+const PRIZE_TEMPLATES = new Set<string>([]);
 // Templates that need bracket data
-const BRACKET_TEMPLATES = new Set(["semi-final-winner", "finals-announcement", "results-drop-top4", "results-drop-top4-v2", "results-drop-winner"]);
+const BRACKET_TEMPLATES = new Set(["results-drop-top4-v2", "results-drop-winner"]);
 // Templates that need standings data
-const STANDINGS_TEMPLATES = new Set(["results-drop", "results-drop-2", "results-drop-top4", "results-drop-top4-v2", "results-drop-winner"]);
+const STANDINGS_TEMPLATES = new Set(["results-drop-2", "results-drop-top4-v2", "results-drop-winner"]);
 
 export default function MediaPage() {
   const [month, setMonth] = useState(getCurrentMonth);

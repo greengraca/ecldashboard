@@ -4,40 +4,22 @@ import { useRef, useMemo } from "react";
 import { TEMPLATES } from "./template-registry";
 import ExportButton from "./shared/ExportButton";
 
-import StreamLive from "./templates/StreamLive";
-import PrizeAnnouncement from "./templates/PrizeAnnouncement";
-import PrizePoolOverview from "./templates/PrizePoolOverview";
-import SemiFinalWinner from "./templates/SemiFinalWinner";
-import FinalsAnnouncement from "./templates/FinalsAnnouncement";
-import MonthlyChampion from "./templates/MonthlyChampion";
-import StandingsLeaderboard from "./templates/StandingsLeaderboard";
 import SeasonRecap from "./templates/SeasonRecap";
 import RegistrationOpen from "./templates/RegistrationOpen";
 import MatchDayModern from "./templates/MatchDayModern";
 import PlayerSpotlight from "./templates/PlayerSpotlight";
-import ResultsDrop from "./templates/ResultsDrop";
 import ResultsDrop2 from "./templates/ResultsDrop2";
-import ResultsDropTop4 from "./templates/ResultsDropTop4";
 import ResultsDropTop4v2 from "./templates/ResultsDropTop4v2";
 import ResultsDropWinner from "./templates/ResultsDropWinner";
 import EventHype from "./templates/EventHype";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const COMPONENT_MAP: Record<string, React.ComponentType<{ data: any }>> = {
-  "stream-live": StreamLive,
-  "prize-announcement": PrizeAnnouncement,
-  "prize-pool-overview": PrizePoolOverview,
-  "semi-final-winner": SemiFinalWinner,
-  "finals-announcement": FinalsAnnouncement,
-  "monthly-champion": MonthlyChampion,
-  "standings-leaderboard": StandingsLeaderboard,
   "season-recap": SeasonRecap,
   "registration-open": RegistrationOpen,
   "match-day-modern": MatchDayModern,
   "player-spotlight": PlayerSpotlight,
-  "results-drop": ResultsDrop,
   "results-drop-2": ResultsDrop2,
-  "results-drop-top4": ResultsDropTop4,
   "results-drop-top4-v2": ResultsDropTop4v2,
   "results-drop-winner": ResultsDropWinner,
   "event-hype": EventHype,
