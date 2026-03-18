@@ -9,8 +9,6 @@ interface SubscriptionIncomeCardProps {
   income: SubscriptionIncome | null;
   isLoading: boolean;
   month: string;
-  onSyncPatreon?: () => void;
-  isSyncing?: boolean;
 }
 
 type SourceKey = "patreon" | "kofi" | "manual";
@@ -19,8 +17,6 @@ export default function SubscriptionIncomeCard({
   income,
   isLoading,
   month,
-  onSyncPatreon,
-  isSyncing,
 }: SubscriptionIncomeCardProps) {
   const [expanded, setExpanded] = useState<SourceKey | null>(null);
   const [breakdown, setBreakdown] = useState<SubscriptionIncomeBreakdown | null>(null);
@@ -263,24 +259,6 @@ export default function SubscriptionIncomeCard({
         >
           Subscription Income
         </h3>
-        {onSyncPatreon && month !== "2025-11" && month !== "2025-12" && (
-          <button
-            onClick={onSyncPatreon}
-            disabled={isSyncing}
-            className="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
-            style={{
-              background: "rgba(251, 191, 36, 0.15)",
-              color: "var(--accent)",
-              border: "1px solid rgba(251, 191, 36, 0.35)",
-              backdropFilter: "blur(8px)",
-              opacity: isSyncing ? 0.6 : 1,
-            }}
-            onMouseEnter={(e) => { if (!isSyncing) { e.currentTarget.style.background = "rgba(251, 191, 36, 0.25)"; e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.5)"; } }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(251, 191, 36, 0.15)"; e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.35)"; }}
-          >
-            {isSyncing ? "Syncing..." : "Sync Patreon"}
-          </button>
-        )}
       </div>
 
       <div className="mb-4">

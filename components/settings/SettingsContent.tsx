@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { Settings, User, Database, Shield, Globe, DollarSign } from "lucide-react";
 import TopDeckRefreshButton from "@/components/settings/topdeck-refresh-button";
 import SyncDiscordButton from "@/components/settings/sync-discord-button";
+import SyncPatreonButton from "@/components/settings/sync-patreon-button";
 import SubscriptionRatesManager from "./SubscriptionRatesManager";
 
 function mask(value: string, showChars = 4): string {
@@ -170,6 +171,7 @@ export default function SettingsContent({
             title="Data & Caches"
           >
             <SyncDiscordButton />
+            <SyncPatreonButton />
             <TopDeckRefreshButton />
           </Section>
         </div>

@@ -34,9 +34,6 @@ export default function FinancePage() {
   const [editingTx, setEditingTx] = useState<Transaction | undefined>(
     undefined
   );
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
-
   const {
     data: txData,
     isLoading: txLoading,
@@ -81,26 +78,6 @@ export default function FinancePage() {
     mutateFc();
     mutateGroup();
   }, [mutateTx, mutateSummary, mutateFc, mutateGroup]);
-
-  const handleSyncPatreon = async () => {
-    setIsSyncing(true);
-    setSyncError(null);
-    try {
-      const res = await fetch(`/api/patreon/sync?month=${month}`, {
-        method: "POST",
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        setSyncError(err.error || "Sync failed");
-        return;
-      }
-      mutateSummary();
-    } catch {
-      setSyncError("Failed to sync Patreon");
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
   function openAdd() {
     setEditingTx(undefined);
@@ -240,27 +217,11 @@ export default function FinancePage() {
           <div className={`grid grid-cols-1 ${hasSubscriptionIncome ? "lg:grid-cols-2" : ""} gap-4 mb-8`}>
             <MonthlyBreakdownChart month={month} summary={summary} isLoading={summaryLoading} />
             {hasSubscriptionIncome && (
-              <div>
-                <SubscriptionIncomeCard
-                  income={summary?.subscription_income ?? null}
-                  isLoading={summaryLoading}
-                  month={month}
-                  onSyncPatreon={handleSyncPatreon}
-                  isSyncing={isSyncing}
-                />
-                {syncError && (
-                  <div
-                    className="mt-3 rounded-lg border px-4 py-3 text-sm"
-                    style={{
-                      background: "rgba(239, 68, 68, 0.1)",
-                      borderColor: "var(--error)",
-                      color: "var(--error)",
-                    }}
-                  >
-                    {syncError}
-                  </div>
-                )}
-              </div>
+              <SubscriptionIncomeCard
+                income={summary?.subscription_income ?? null}
+                isLoading={summaryLoading}
+                month={month}
+              />
             )}
           </div>
         );
