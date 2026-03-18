@@ -214,8 +214,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
         {/* Navigation sections */}
         <nav
-          className="flex-1"
-          style={{ padding: "12px 12px 20px", overflow: "hidden" }}
+          style={{ padding: "12px 12px 0" }}
         >
           {navSections.map((section) => (
             <div key={section.label} style={{ marginBottom: "8px" }}>

@@ -49,30 +49,69 @@ export default function PlayerDetailPage({
         </div>
       )}
 
-      {/* Loading state */}
+      {/* Loading skeleton */}
       {isLoading && (
-        <div
-          className="rounded-xl p-12 text-center"
-          style={{
-            background: "var(--surface-gradient)",
-            backdropFilter: "var(--surface-blur)",
-            border: "1.5px solid rgba(255, 255, 255, 0.10)",
-            boxShadow: "var(--surface-shadow)",
-          }}
-        >
-          <div
-            className="inline-block w-6 h-6 border-2 rounded-full animate-spin"
-            style={{
-              borderColor: "var(--border)",
-              borderTopColor: "var(--accent)",
-            }}
-          />
-          <p
-            className="text-sm mt-3"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Loading player data...
-          </p>
+        <div className="space-y-8 animate-pulse">
+          {/* Header skeleton */}
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-full skeleton" />
+            <div className="space-y-2">
+              <div className="h-6 w-40 rounded skeleton" />
+              <div className="h-3 w-56 rounded skeleton" />
+              <div className="h-4 w-24 rounded skeleton" />
+            </div>
+          </div>
+
+          {/* Achievements skeleton */}
+          <div>
+            <div className="h-3 w-28 rounded skeleton mb-3" />
+            <div className="flex flex-wrap gap-2">
+              <div className="h-8 w-36 rounded-lg skeleton" />
+              <div className="h-8 w-32 rounded-lg skeleton" />
+              <div className="h-8 w-34 rounded-lg skeleton" />
+            </div>
+          </div>
+
+          {/* Prizes placeholder skeleton */}
+          <div className="h-24 rounded-xl skeleton" />
+
+          {/* Stats skeleton */}
+          <div>
+            <div className="h-3 w-28 rounded skeleton mb-3" />
+            <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-20 rounded-xl skeleton" />
+              ))}
+            </div>
+          </div>
+
+          {/* Progression skeleton */}
+          <div>
+            <div className="h-3 w-36 rounded skeleton mb-3" />
+            <div className="h-44 rounded-xl skeleton" />
+          </div>
+
+          {/* History table skeleton */}
+          <div>
+            <div className="h-3 w-32 rounded skeleton mb-3" />
+            <div
+              className="rounded-xl overflow-hidden"
+              style={{ border: "1px solid var(--border)" }}
+            >
+              <div className="h-10 skeleton" style={{ borderRadius: 0 }} />
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-12 skeleton"
+                  style={{
+                    borderRadius: 0,
+                    borderTop: "1px solid var(--border-subtle)",
+                    animationDelay: `${i * 0.1}s`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
