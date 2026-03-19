@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import useSWR from "swr";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search } from "lucide-react";
 import type { GamePod } from "@/lib/topdeck-live";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -19,6 +19,7 @@ export default function GamePodsGrid({ month }: { month: string }) {
     fetcher
   );
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [podSearch, setPodSearch] = useState("");
   const [page, setPage] = useState(0);
 
   // Reset page when filter or month changes
@@ -34,10 +35,16 @@ export default function GamePodsGrid({ month }: { month: string }) {
   }, [pods]);
 
   const filtered = useMemo(() => {
-    const f = statusFilter === "all" ? pods : pods.filter((p) => p.status === statusFilter);
+    let f = statusFilter === "all" ? pods : pods.filter((p) => p.status === statusFilter);
+    if (podSearch.trim()) {
+      const num = parseInt(podSearch.trim(), 10);
+      if (!isNaN(num)) {
+        f = f.filter((p) => p.table === num);
+      }
+    }
     // Sort by table number descending (most recent first)
     return [...f].sort((a, b) => b.table - a.table || b.season - a.season);
-  }, [pods, statusFilter]);
+  }, [pods, statusFilter, podSearch]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PODS_PER_PAGE));
   const safePage = Math.min(page, totalPages - 1);
@@ -79,13 +86,29 @@ export default function GamePodsGrid({ month }: { month: string }) {
     <div>
       {/* Filter pills */}
       <div className="flex flex-wrap items-center gap-2 mb-6">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
+          <input
+            type="text"
+            placeholder="Pod #"
+            value={podSearch}
+            onChange={(e) => { setPodSearch(e.target.value); setPage(0); }}
+            className="pl-8 pr-2 py-1.5 rounded-lg text-xs sm:text-sm w-20 sm:w-24"
+            style={{
+              background: "var(--bg-card)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border)",
+              outline: "none",
+            }}
+          />
+        </div>
         {leftFilters.map(({ key, label }) => {
           const active = statusFilter === key;
           const count = counts[key];
           return (
             <button
               key={key}
-              onClick={() => { setStatusFilter(key); setPage(0); }}
+              onClick={() => { setStatusFilter(active && key !== "all" ? "all" : key); setPage(0); }}
               className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
               style={{
                 background: active ? "var(--accent-light)" : "var(--bg-card)",
@@ -104,7 +127,7 @@ export default function GamePodsGrid({ month }: { month: string }) {
           return (
             <button
               key={key}
-              onClick={() => { setStatusFilter(key); setPage(0); }}
+              onClick={() => { setStatusFilter(active && key !== "all" ? "all" : key); setPage(0); }}
               className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
               style={{
                 background: active ? "var(--accent-light)" : "var(--bg-card)",
@@ -134,7 +157,7 @@ export default function GamePodsGrid({ month }: { month: string }) {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {paginated.map((pod) => (
             <PodCard key={`${pod.season}-${pod.table}`} pod={pod} />
           ))}
@@ -220,9 +243,11 @@ function PodCard({ pod }: { pod: GamePod }) {
           ? "1.5px solid var(--error)"
           : isInProgress
           ? "1.5px solid var(--warning)"
+          : isDraw
+          ? "1.5px solid rgba(255, 255, 255, 0.18)"
           : "1.5px solid rgba(255, 255, 255, 0.10)",
         boxShadow: "var(--surface-shadow)",
-        opacity: isVoided ? 0.6 : 1,
+        opacity: isVoided ? 0.6 : isDraw ? 0.7 : 1,
       }}
     >
       {/* Header */}
@@ -234,7 +259,7 @@ function PodCard({ pod }: { pod: GamePod }) {
           Pod {pod.table}
         </span>
         <span className="text-[11px]" style={{ color: statusColor(pod.status) }}>
-          {isDraw && "draw"}
+          {isDraw && "\u2550"}
           {isVoided && "voided"}
           {isInProgress && "in progress"}
         </span>
@@ -255,13 +280,7 @@ function PodCard({ pod }: { pod: GamePod }) {
                   : "transparent",
               }}
             >
-              {isWinner && (
-                <span
-                  className="w-1.5 h-1.5 rounded-full shrink-0"
-                  style={{ background: "#22c55e" }}
-                />
-              )}
-              <div className={`min-w-0 flex-1 ${!isWinner ? "ml-[18px]" : ""}`}>
+              <div className="min-w-0 flex-1">
                 <p
                   className="text-sm truncate"
                   style={{

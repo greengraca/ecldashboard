@@ -610,23 +610,29 @@ export default function PlayersPage() {
       <TurnOrderSection month={month} />
 
       {/* View Mode Toggle */}
-      <div className="flex items-center gap-1 mb-6 p-1 rounded-lg w-fit" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+      <div
+        className="inline-flex items-center p-0.5 rounded-lg mb-6"
+        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)" }}
+      >
         <button
           onClick={() => setViewMode("standings")}
-          className="px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors"
+          className="px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all"
           style={{
-            background: viewMode === "standings" ? "var(--accent)" : "transparent",
-            color: viewMode === "standings" ? "var(--bg-page)" : "var(--text-secondary)",
+            background: viewMode === "standings" ? "rgba(251,191,36,0.15)" : "transparent",
+            color: viewMode === "standings" ? "var(--accent)" : "var(--text-muted)",
+            boxShadow: viewMode === "standings" ? "0 1px 4px rgba(0,0,0,0.2)" : "none",
+            borderRight: "1px solid transparent",
           }}
         >
           Standings
         </button>
         <button
           onClick={() => setViewMode("pods")}
-          className="px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors"
+          className="px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all"
           style={{
-            background: viewMode === "pods" ? "var(--accent)" : "transparent",
-            color: viewMode === "pods" ? "var(--bg-page)" : "var(--text-secondary)",
+            background: viewMode === "pods" ? "rgba(251,191,36,0.15)" : "transparent",
+            color: viewMode === "pods" ? "var(--accent)" : "var(--text-muted)",
+            boxShadow: viewMode === "pods" ? "0 1px 4px rgba(0,0,0,0.2)" : "none",
           }}
         >
           Games
