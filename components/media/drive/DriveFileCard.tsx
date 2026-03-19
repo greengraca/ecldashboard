@@ -192,10 +192,8 @@ export default function DriveFileCard({
       } : {
         width: 120,
         height: 120,
-        background: "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))",
-        backdropFilter: "blur(6px)",
-        border: "1px solid rgba(255,255,255,0.06)",
-        boxShadow: "0 1px 6px rgba(0,0,0,0.2)",
+        background: "var(--card-inner-bg)",
+        border: "1px solid var(--border)",
         transition: "border-color 0.2s, box-shadow 0.2s, transform 0.15s",
       }}
       onMouseEnter={(e) => {
@@ -207,8 +205,8 @@ export default function DriveFileCard({
       }}
       onMouseLeave={(e) => {
         if (!isDragging) {
-          e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
-          e.currentTarget.style.boxShadow = "0 1px 6px rgba(0,0,0,0.2)";
+          e.currentTarget.style.borderColor = "var(--border)";
+          e.currentTarget.style.boxShadow = "none";
           e.currentTarget.style.transform = "translateY(0)";
         }
       }}
@@ -216,7 +214,7 @@ export default function DriveFileCard({
       {/* Thumbnail area — flex-1 to fill remaining space after info */}
       <div
         className="flex items-center justify-center flex-1 min-h-0 overflow-hidden"
-        style={{ background: isDragging ? "transparent" : "var(--bg-page)" }}
+        style={{ background: isDragging ? "transparent" : "var(--card-inner-bg)" }}
       >
         {isDragging && isImage && item.previewUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
