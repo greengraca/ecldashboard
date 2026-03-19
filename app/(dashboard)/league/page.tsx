@@ -540,6 +540,7 @@ export default function PlayersPage() {
         <StatCard
           title="Total Games"
           value={dataLoading ? "--" : stats.totalGames}
+          subtitle={!dataLoading && isCurrentMonth && liveVoided > 0 ? `${liveVoided} voided` : undefined}
           icon={
             <Hash
               className="w-4 h-4"

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import type { Standing } from "@/lib/types";
 
 type SortKey = "rank" | "points" | "wins" | "losses" | "draws" | "games" | "win_pct";
@@ -63,6 +63,15 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
   const [sortDir, setSortDir] = useState<SortDir>(defaultSort?.dir ?? "asc");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const wasOnLastPage = useRef(false);
+
+  useEffect(() => {
+    if (wasOnLastPage.current && containerRef.current) {
+      containerRef.current.scrollIntoView({ block: "end", behavior: "smooth" });
+      wasOnLastPage.current = false;
+    }
+  }, [page]);
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -103,6 +112,12 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
     );
   }
 
+  const navigatePage = (newPage: number) => {
+    const tp = Math.ceil(sorted.length / PAGE_SIZE);
+    wasOnLastPage.current = page >= tp - 1;
+    setPage(newPage);
+  };
+
   const thClass =
     "px-4 py-3 font-medium text-xs uppercase tracking-wider select-none cursor-pointer transition-colors hover:text-[var(--accent)]";
   const thHeaderStyle = {
@@ -115,6 +130,7 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
 
   return (
     <div
+      ref={containerRef}
       className="rounded-xl overflow-hidden"
       style={{
         background: "rgba(255, 255, 255, 0.015)",
@@ -348,11 +364,11 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>
             Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sorted.length)} of {sorted.length}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
-              onClick={() => setPage(p => Math.max(0, p - 1))}
+              onClick={() => navigatePage(0)}
               disabled={page === 0}
-              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors"
+              className="flex items-center justify-center w-7 h-7 rounded transition-colors"
               style={{
                 background: page === 0 ? "transparent" : "var(--bg-hover)",
                 color: page === 0 ? "var(--text-muted)" : "var(--text-secondary)",
@@ -361,16 +377,29 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
                 cursor: page === 0 ? "not-allowed" : "pointer",
               }}
             >
-              <ChevronLeft className="w-3 h-3" />
-              Prev
+              <ChevronsLeft className="w-3.5 h-3.5" />
             </button>
-            <span className="text-xs tabular-nums" style={{ color: "var(--text-secondary)" }}>
-              Page {page + 1} of {totalPages}
+            <button
+              onClick={() => navigatePage(Math.max(0, page - 1))}
+              disabled={page === 0}
+              className="flex items-center justify-center w-7 h-7 rounded transition-colors"
+              style={{
+                background: page === 0 ? "transparent" : "var(--bg-hover)",
+                color: page === 0 ? "var(--text-muted)" : "var(--text-secondary)",
+                border: "1px solid var(--border)",
+                opacity: page === 0 ? 0.5 : 1,
+                cursor: page === 0 ? "not-allowed" : "pointer",
+              }}
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-xs tabular-nums px-1.5" style={{ color: "var(--text-secondary)" }}>
+              {page + 1} / {totalPages}
             </span>
             <button
-              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              onClick={() => navigatePage(Math.min(totalPages - 1, page + 1))}
               disabled={page >= totalPages - 1}
-              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors"
+              className="flex items-center justify-center w-7 h-7 rounded transition-colors"
               style={{
                 background: page >= totalPages - 1 ? "transparent" : "var(--bg-hover)",
                 color: page >= totalPages - 1 ? "var(--text-muted)" : "var(--text-secondary)",
@@ -379,8 +408,21 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
                 cursor: page >= totalPages - 1 ? "not-allowed" : "pointer",
               }}
             >
-              Next
-              <ChevronRight className="w-3 h-3" />
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => navigatePage(totalPages - 1)}
+              disabled={page >= totalPages - 1}
+              className="flex items-center justify-center w-7 h-7 rounded transition-colors"
+              style={{
+                background: page >= totalPages - 1 ? "transparent" : "var(--bg-hover)",
+                color: page >= totalPages - 1 ? "var(--text-muted)" : "var(--text-secondary)",
+                border: "1px solid var(--border)",
+                opacity: page >= totalPages - 1 ? 0.5 : 1,
+                cursor: page >= totalPages - 1 ? "not-allowed" : "pointer",
+              }}
+            >
+              <ChevronsRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
