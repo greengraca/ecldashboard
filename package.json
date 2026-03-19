@@ -1,6 +1,6 @@
 {
   "name": "ecl-dashboard",
-  "version": "2.5.2",
+  "version": "2.5.3",
   "description": "ECL Dashboard",
   "scripts": {
     "dev": "next dev --turbopack -p 3001",

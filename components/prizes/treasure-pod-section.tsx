@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import useSWR from "swr";
 import { ChevronDown, ChevronUp, Gem, X } from "lucide-react";
 import {
@@ -145,11 +146,11 @@ export default function TreasurePodSection({ month }: TreasurePodSectionProps) {
                 <TreasurePodTimeline pods={pods} month={month} schedule={podData?.schedule ?? null} onHoverPod={setHoveredPodId} />
               )}
 
-              {/* Pod list — only triggered pods */}
+              {/* Pod list — sorted by table */}
               {pods.length > 0 ? (
-                <div className="space-y-2">
-                  {pods.map((pod) => (
-                    <PodCard key={String(pod._id)} pod={pod} month={month} onMutate={mutate} highlighted={String(pod._id) === hoveredPodId} />
+                <div className="flex flex-wrap gap-2">
+                  {[...pods].sort((a, b) => a.table - b.table).map((pod) => (
+                    <PodChip key={String(pod._id)} pod={pod} month={month} onMutate={mutate} highlighted={String(pod._id) === hoveredPodId} />
                   ))}
                 </div>
               ) : (
@@ -647,9 +648,9 @@ function TreasurePodTimeline({
   );
 }
 
-// ─── Pod Card ───
+// ─── Pod Chip ───
 
-function PodCard({
+function PodChip({
   pod,
   month,
   onMutate,
@@ -660,6 +661,7 @@ function PodCard({
   onMutate: () => void;
   highlighted?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [loading, setLoading] = useState(false);
   const [friendDiscordId, setFriendDiscordId] = useState("");
@@ -689,6 +691,7 @@ function PodCard({
         }),
       });
       setClaiming(false);
+      setExpanded(false);
       onMutate();
     } finally {
       setLoading(false);
@@ -705,17 +708,11 @@ function PodCard({
     }
   }
 
-  const statusColor =
+  const dotColor =
     pod.status === "won" ? "#22c55e" :
-    pod.status === "draw" ? "var(--text-muted)" :
+    pod.status === "draw" ? "rgba(255, 255, 255, 0.35)" :
     "#9a7dd4";
 
-  const statusBg =
-    pod.status === "won" ? "rgba(34, 197, 94, 0.15)" :
-    pod.status === "draw" ? "rgba(255, 255, 255, 0.05)" :
-    "rgba(154, 125, 212, 0.15)";
-
-  // Winner display: prefer display name with handle in parens
   const winnerDisplay = pod.winner_discord_handle
     ? pod.winner_display_name && pod.winner_display_name !== pod.winner_discord_handle
       ? `${pod.winner_display_name} (${pod.winner_discord_handle})`
@@ -723,162 +720,213 @@ function PodCard({
     : null;
 
   return (
-    <div
-      className="rounded-lg p-4 transition-colors"
-      style={{
-        background: "rgba(255, 255, 255, 0.03)",
-        border: highlighted ? "1px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
-      }}
-    >
-      <div className="flex items-center gap-3">
-        {/* Status badge */}
-        <div className="flex items-center gap-1.5 shrink-0">
+    <>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] transition-colors hover:brightness-125"
+        style={{
+          background: highlighted ? "rgba(251, 191, 36, 0.12)" : "rgba(255, 255, 255, 0.05)",
+          border: highlighted ? "1px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.08)",
+          color: "var(--text-primary)",
+        }}
+      >
+        <span
+          className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
+          style={{ background: dotColor }}
+        />
+        <span className="font-medium truncate" style={{ maxWidth: 140 }}>
+          {cleanPodTitle(pod.pod_title)}
+        </span>
+        <span style={{ color: "var(--text-muted)" }}>T{pod.table}</span>
+        {isClaimed && (
           <span
-            className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase"
-            style={{ background: statusBg, color: statusColor }}
+            className="text-[9px] font-semibold uppercase tracking-wide"
+            style={{ color: "var(--accent)" }}
           >
-            {pod.status}
+            CLAIMED
           </span>
-          {pod.status === "draw" && (
-            <span
-              className="px-1.5 py-0.5 rounded text-[10px] font-medium"
-              style={{ background: "rgba(255, 255, 255, 0.05)", color: "var(--text-muted)" }}
-            >
-              Recalculated
-            </span>
-          )}
-        </div>
+        )}
+      </button>
 
-        {/* Pod info */}
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-            {pod.pod_title}
-            <span className="text-xs ml-2 font-normal" style={{ color: "var(--text-muted)" }}>
-              Table {pod.table}
-            </span>
-          </div>
-          {winnerDisplay && (
-            <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
-              Winner: {winnerDisplay}
-            </div>
-          )}
-        </div>
-
-        {/* Claim actions */}
-        <div className="flex items-center gap-2 shrink-0">
-          {isClaimed && (
-            <>
-              <span
-                className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase"
-                style={{ background: "rgba(var(--accent-rgb, 212 175 55), 0.15)", color: "var(--accent)" }}
-              >
-                Claimed
-              </span>
+      {/* Overlay popover — rendered via portal to escape overflow clipping */}
+      {expanded && createPortal(
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40"
+            style={{ background: "rgba(0, 0, 0, 0.5)" }}
+            onClick={() => { setExpanded(false); setClaiming(false); }}
+          />
+          {/* Panel */}
+          <div
+            className="fixed z-50 rounded-xl p-4 space-y-3"
+            style={{
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "min(360px, calc(100vw - 32px))",
+              background: "rgba(20, 20, 30, 0.85)",
+              backdropFilter: "blur(24px) saturate(1.4)",
+              WebkitBackdropFilter: "blur(24px) saturate(1.4)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.6)",
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                  {pod.pod_title}
+                </div>
+                <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                  Table {pod.table}
+                </div>
+              </div>
               <button
-                onClick={handleUnclaim}
-                disabled={loading}
+                onClick={() => { setExpanded(false); setClaiming(false); }}
                 className="p-1 rounded transition-colors hover:brightness-125"
                 style={{ color: "var(--text-muted)" }}
-                title="Remove claim"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
-            </>
-          )}
-          {!isClaimed && pod.status === "won" && !claiming && (
-            <button
-              onClick={handleClaim}
-              disabled={loading}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-              style={{
-                background: "rgba(251, 191, 36, 0.15)",
-                color: "var(--accent)",
-                border: "1px solid transparent",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; }}
-            >
-              Mark Claimed
-            </button>
-          )}
-        </div>
-      </div>
+            </div>
 
-      {/* Bring a friend inline form */}
-      {claiming && isBringAFriend && (
-        <div className="mt-3 pt-3 space-y-2" style={{ borderTop: "1px solid rgba(255, 255, 255, 0.06)" }}>
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              type="text"
-              placeholder="Friend's Discord handle"
-              value={friendName}
-              onChange={(e) => setFriendName(e.target.value)}
-              className="px-3 py-1.5 rounded-lg text-xs outline-none"
-              style={{
-                background: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.10)",
-                color: "var(--text-primary)",
-              }}
-            />
-            <input
-              type="text"
-              placeholder="Friend's Discord ID"
-              value={friendDiscordId}
-              onChange={(e) => setFriendDiscordId(e.target.value)}
-              className="px-3 py-1.5 rounded-lg text-xs outline-none"
-              style={{
-                background: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.10)",
-                color: "var(--text-primary)",
-              }}
-            />
+            {/* Winner */}
+            {winnerDisplay && (
+              <div className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                Winner: {winnerDisplay}
+              </div>
+            )}
+
+            {/* Status */}
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-block w-2 h-2 rounded-full"
+                style={{ background: dotColor }}
+              />
+              <span className="text-xs capitalize" style={{ color: "var(--text-secondary)" }}>
+                {pod.status}
+              </span>
+            </div>
+
+            {/* Claim actions */}
+            <div className="flex items-center gap-1.5">
+              {isClaimed && (
+                <>
+                  <span
+                    className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase"
+                    style={{ background: "rgba(var(--accent-rgb, 212 175 55), 0.15)", color: "var(--accent)" }}
+                  >
+                    Claimed
+                  </span>
+                  <button
+                    onClick={handleUnclaim}
+                    disabled={loading}
+                    className="p-0.5 rounded transition-colors hover:brightness-125"
+                    style={{ color: "var(--text-muted)" }}
+                    title="Remove claim"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </>
+              )}
+              {!isClaimed && pod.status === "won" && !claiming && (
+                <button
+                  onClick={handleClaim}
+                  disabled={loading}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all"
+                  style={{
+                    background: "rgba(251, 191, 36, 0.15)",
+                    color: "var(--accent)",
+                    border: "1px solid transparent",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; }}
+                >
+                  Mark Claimed
+                </button>
+              )}
+            </div>
+
+            {/* Bring a friend form */}
+            {claiming && isBringAFriend && (
+              <div className="pt-2 space-y-2" style={{ borderTop: "1px solid rgba(255, 255, 255, 0.06)" }}>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="Friend's Discord handle"
+                    value={friendName}
+                    onChange={(e) => setFriendName(e.target.value)}
+                    className="px-2.5 py-1 rounded-lg text-[11px] outline-none"
+                    style={{
+                      background: "rgba(255, 255, 255, 0.05)",
+                      border: "1px solid rgba(255, 255, 255, 0.10)",
+                      color: "var(--text-primary)",
+                    }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Friend's Discord ID"
+                    value={friendDiscordId}
+                    onChange={(e) => setFriendDiscordId(e.target.value)}
+                    className="px-2.5 py-1 rounded-lg text-[11px] outline-none"
+                    style={{
+                      background: "rgba(255, 255, 255, 0.05)",
+                      border: "1px solid rgba(255, 255, 255, 0.10)",
+                      color: "var(--text-primary)",
+                    }}
+                  />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Notes (optional)"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full px-2.5 py-1 rounded-lg text-[11px] outline-none"
+                  style={{
+                    background: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid rgba(255, 255, 255, 0.10)",
+                    color: "var(--text-primary)",
+                  }}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleClaim}
+                    disabled={loading}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors"
+                    style={{ background: "rgba(251, 191, 36, 0.15)", color: "var(--accent)" }}
+                  >
+                    {loading ? "Saving..." : "Confirm"}
+                  </button>
+                  <button
+                    onClick={() => setClaiming(false)}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Friend info on claimed bring_a_friend */}
+            {isClaimed && isBringAFriend && pod.claim?.friend_name && (
+              <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                Friend: {pod.claim.friend_name}
+                {pod.claim.friend_discord_id && ` (${pod.claim.friend_discord_id})`}
+              </div>
+            )}
+
+            {/* Notes */}
+            {isClaimed && pod.claim?.notes && (
+              <div className="text-[11px] italic" style={{ color: "var(--text-muted)" }}>
+                {pod.claim.notes}
+              </div>
+            )}
           </div>
-          <input
-            type="text"
-            placeholder="Notes (optional)"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-3 py-1.5 rounded-lg text-xs outline-none"
-            style={{
-              background: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid rgba(255, 255, 255, 0.10)",
-              color: "var(--text-primary)",
-            }}
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={handleClaim}
-              disabled={loading}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{ background: "rgba(251, 191, 36, 0.15)", color: "var(--accent)" }}
-            >
-              {loading ? "Saving..." : "Confirm Claim"}
-            </button>
-            <button
-              onClick={() => setClaiming(false)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        </>,
+        document.body
       )}
-
-      {/* Show friend info on claimed bring_a_friend */}
-      {isClaimed && isBringAFriend && pod.claim?.friend_name && (
-        <div className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-          Friend: {pod.claim.friend_name}
-          {pod.claim.friend_discord_id && ` (${pod.claim.friend_discord_id})`}
-        </div>
-      )}
-
-      {/* Show notes if present */}
-      {isClaimed && pod.claim?.notes && (
-        <div className="mt-1 text-xs italic" style={{ color: "var(--text-muted)" }}>
-          {pod.claim.notes}
-        </div>
-      )}
-    </div>
+    </>
   );
 }
