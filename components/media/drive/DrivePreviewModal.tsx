@@ -36,19 +36,22 @@ export default function DrivePreviewModal({
 }: DrivePreviewModalProps) {
   const [zoomed, setZoomed] = useState(false);
   const [fetchedUrl, setFetchedUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const isImage = item.mimeType?.startsWith("image/");
   const isVideo = item.mimeType?.startsWith("video/");
 
-  // Fetch preview URL for items that don't have one (videos, non-images)
+  // Fetch full-res preview URL (thumbnails are only for grid/list views)
   useEffect(() => {
     setFetchedUrl(null);
     if (previewUrl || (!isImage && !isVideo)) return;
+    setLoading(true);
     fetch(`/api/media/drive/${item._id}/preview`)
       .then((r) => r.json())
       .then((d) => {
         if (d.data?.previewUrl) setFetchedUrl(d.data.previewUrl);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [item._id, previewUrl, isImage, isVideo]);
 
   const resolvedUrl = previewUrl || fetchedUrl;
@@ -81,10 +84,11 @@ export default function DrivePreviewModal({
       style={{ background: "rgba(0, 0, 0, 0.9)" }}
       onClick={onClose}
     >
-      {/* Top bar */}
+      {/* Top bar — hidden while loading */}
       <div
         className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-3 z-10"
         onClick={(e) => e.stopPropagation()}
+        style={{ display: loading ? "none" : undefined }}
       >
         <div className="flex items-center gap-3 min-w-0">
           <span
@@ -166,8 +170,8 @@ export default function DrivePreviewModal({
         </div>
       </div>
 
-      {/* Navigation arrows */}
-      {hasPrev && (
+      {/* Navigation arrows — hidden while loading */}
+      {!loading && hasPrev && (
         <button
           className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full z-10"
           style={{
@@ -198,7 +202,7 @@ export default function DrivePreviewModal({
           <ChevronLeft className="w-6 h-6" />
         </button>
       )}
-      {hasNext && (
+      {!loading && hasNext && (
         <button
           className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full z-10"
           style={{
@@ -235,7 +239,15 @@ export default function DrivePreviewModal({
         className="max-w-[90vw] max-h-[80vh] flex items-center justify-center"
         onClick={(e) => e.stopPropagation()}
       >
-        {isImage && resolvedUrl ? (
+        {(isImage || isVideo) && loading ? (
+          <div
+            className="w-10 h-10 rounded-full border-2 animate-spin"
+            style={{
+              borderColor: "rgba(255,255,255,0.1)",
+              borderTopColor: "var(--accent)",
+            }}
+          />
+        ) : isImage && resolvedUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={resolvedUrl}

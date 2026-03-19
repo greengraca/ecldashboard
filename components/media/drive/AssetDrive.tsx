@@ -339,7 +339,7 @@ export default function AssetDrive() {
       {previewItem && (
         <DrivePreviewModal
           item={previewItem}
-          previewUrl={previewItem.previewUrl || null}
+          previewUrl={null}
           allFiles={files}
           onClose={() => setPreviewItem(null)}
           onNavigate={handlePreviewNavigate}

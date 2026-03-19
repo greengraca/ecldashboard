@@ -97,13 +97,17 @@ export async function headR2Object(key: string): Promise<boolean> {
 
 export async function getPresignedDownloadUrl(
   key: string,
-  expiresIn = 3600
+  expiresIn = 3600,
+  asAttachment?: string
 ): Promise<string> {
-  return getSignedUrl(
-    getClient(),
-    new GetObjectCommand({ Bucket: bucket(), Key: key }),
-    { expiresIn }
-  );
+  const command = new GetObjectCommand({
+    Bucket: bucket(),
+    Key: key,
+    ...(asAttachment
+      ? { ResponseContentDisposition: `attachment; filename="${asAttachment}"` }
+      : {}),
+  });
+  return getSignedUrl(getClient(), command, { expiresIn });
 }
 
 export async function downloadFromR2(key: string): Promise<Buffer> {

@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    const url = await getPresignedDownloadUrl(item.r2Key, 3600);
+    const url = await getPresignedDownloadUrl(item.r2Key, 3600, item.name);
     return NextResponse.redirect(url);
   } catch (err) {
     console.error("GET /api/media/drive/[id]/download error:", err);
