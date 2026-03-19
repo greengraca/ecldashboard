@@ -13,6 +13,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  redirects: async () => [
+    { source: "/players", destination: "/league", permanent: true },
+    { source: "/players/:path*", destination: "/league/:path*", permanent: true },
+  ],
 };
 
 export default nextConfig;

@@ -167,7 +167,7 @@ export default function SubscriptionIncomeCard({
     );
 
     const href = entry.topdeck_uid
-      ? `/players/${entry.topdeck_uid}`
+      ? `/league/${entry.topdeck_uid}`
       : entry.discord_id
         ? `/subscribers`
         : null;

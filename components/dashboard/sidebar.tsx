@@ -32,7 +32,7 @@ const navSections = [
     items: [
       { href: "/", label: "Dashboard", icon: LayoutDashboard },
       { href: "/subscribers", label: "Subscribers", icon: Users },
-      { href: "/players", label: "Standings", icon: Swords },
+      { href: "/league", label: "League", icon: Swords },
     ],
   },
   {

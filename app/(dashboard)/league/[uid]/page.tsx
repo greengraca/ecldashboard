@@ -27,12 +27,12 @@ export default function PlayerDetailPage({
     <div>
       {/* Back link */}
       <Link
-        href="/players"
+        href="/league"
         className="inline-flex items-center gap-1.5 text-sm mb-6 transition-colors"
         style={{ color: "var(--text-secondary)" }}
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to Players
+        Back to League
       </Link>
 
       {/* Error state */}

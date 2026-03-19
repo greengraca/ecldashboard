@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { Users, Gamepad2, Trophy, TrendingUp, Save, Check, GripVertical } from "lucide-react";
+import { Users, Gamepad2, Trophy, TrendingUp, Save, Check, GripVertical, Hash } from "lucide-react";
 import StatCard from "@/components/dashboard/stat-card";
 import MonthPicker from "@/components/dashboard/month-picker";
 import StandingsTable from "@/components/players/standings-table";
 import LiveStandingsTable from "@/components/players/live-standings-table";
+import TurnOrderSection from "@/components/players/turn-order-section";
 import type { Player, LiveStanding, Standing } from "@/lib/types";
 
 interface PlayersData {
@@ -474,7 +475,8 @@ export default function PlayersPage() {
         : null;
       const mostGames = mostGamesPlayer ? mostGamesPlayer.games : "--";
       const mostGamesName = mostGamesPlayer ? mostGamesPlayer.name : "";
-      return { total, active, avg, top, topName, mostGames, mostGamesName };
+      const totalGames = liveTotalMatches;
+      return { total, active, avg, top, topName, mostGames, mostGamesName, totalGames };
     } else {
       const total = players.length;
       const active = players.filter((p) => p.games > 0).length;
@@ -491,9 +493,10 @@ export default function PlayersPage() {
         : null;
       const mostGames = mostGamesPlayer ? mostGamesPlayer.games : "--";
       const mostGamesName = mostGamesPlayer ? mostGamesPlayer.name : "";
-      return { total, active, avg, top, topName, mostGames, mostGamesName };
+      const totalGames = Math.round(players.reduce((sum, p) => sum + p.games, 0) / 4);
+      return { total, active, avg, top, topName, mostGames, mostGamesName, totalGames };
     }
-  }, [isCurrentMonth, liveStandings, players]);
+  }, [isCurrentMonth, liveStandings, players, liveTotalMatches]);
 
   return (
     <div>
@@ -504,13 +507,13 @@ export default function PlayersPage() {
             className="text-2xl font-bold"
             style={{ color: "var(--text-primary)" }}
           >
-            Standings
+            League
           </h1>
           <p
             className="text-sm mt-1"
             style={{ color: "var(--text-secondary)" }}
           >
-            Player rankings and game statistics
+            League standings and game statistics
           </p>
         </div>
         <div className="flex flex-col items-center gap-1">
@@ -533,7 +536,17 @@ export default function PlayersPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-8">
+        <StatCard
+          title="Total Games"
+          value={dataLoading ? "--" : stats.totalGames}
+          icon={
+            <Hash
+              className="w-4 h-4"
+              style={{ color: "var(--accent)" }}
+            />
+          }
+        />
         <StatCard
           title="Total Players"
           value={dataLoading ? "--" : stats.total}
@@ -589,6 +602,9 @@ export default function PlayersPage() {
           }
         />
       </div>
+
+      {/* Turn Order Stats */}
+      <TurnOrderSection month={month} />
 
       {/* ═══ Current Month — Live Standings ═══ */}
       {isCurrentMonth && (
@@ -745,7 +761,7 @@ export default function PlayersPage() {
             <LiveStandingsTable
               standings={filter === "inactive" ? liveStandings.filter((s) => s.games === 0) : filter === "most_games" ? [...liveStandings].sort((a, b) => b.games - a.games).slice(0, 5) : liveStandings}
               showEligibleOnly={filter === "eligible"}
-              onRowClick={(uid) => router.push(`/players/${uid}`)}
+              onRowClick={(uid) => router.push(`/league/${uid}`)}
             />
           )}
         </>
@@ -765,7 +781,7 @@ export default function PlayersPage() {
               <p
                 className="text-lg font-bold cursor-pointer transition-opacity hover:opacity-80"
                 style={{ color: "var(--accent)" }}
-                onClick={() => router.push(`/players/${champion.uid}`)}
+                onClick={() => router.push(`/league/${champion.uid}`)}
               >
                 {champion.name}
               </p>
@@ -935,7 +951,7 @@ export default function PlayersPage() {
           ) : (
             <StandingsTable
               key={filter}
-              onRowClick={(uid) => router.push(`/players/${uid}`)}
+              onRowClick={(uid) => router.push(`/league/${uid}`)}
               standings={(() => {
                 const allStandings = players.map((p) => ({ rank: p.rank!, uid: p.uid, name: p.name, points: p.points, games: p.games, wins: p.wins, losses: p.losses, draws: p.draws, win_pct: p.win_pct }));
                 if (filter === "top16") {

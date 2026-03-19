@@ -269,7 +269,7 @@ export default function SubscribersPage() {
           onToggleManualPaid={handleToggleManualPaid}
           onPlayerClick={(discordId) => {
             const uid = identityMap[discordId];
-            if (uid) router.push(`/players/${uid}`);
+            if (uid) router.push(`/league/${uid}`);
           }}
         />
       )}

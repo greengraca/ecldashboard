@@ -144,7 +144,7 @@ export default function PlayerTable({ players }: PlayerTableProps) {
         data={data}
         keyField="uid"
         emptyMessage="No players found for this month"
-        onRowClick={(row) => router.push(`/players/${row.uid}`)}
+        onRowClick={(row) => router.push(`/league/${row.uid}`)}
         renderMobileCard={(row) => {
           const player = row as unknown as Player;
           return (

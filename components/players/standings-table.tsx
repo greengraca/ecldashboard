@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Standing } from "@/lib/types";
 
 type SortKey = "rank" | "points" | "wins" | "losses" | "draws" | "games" | "win_pct";
@@ -58,9 +58,11 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
 }
 
 export default function StandingsTable({ standings, defaultSort, onRowClick }: StandingsTableProps) {
+  const PAGE_SIZE = 16;
   const [sortKey, setSortKey] = useState<SortKey>(defaultSort?.key ?? "rank");
   const [sortDir, setSortDir] = useState<SortDir>(defaultSort?.dir ?? "asc");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -86,6 +88,9 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
     }
     return sortDir === "asc" ? av - bv : bv - av;
   });
+
+  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+  const paged = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   if (standings.length === 0) {
     return (
@@ -126,7 +131,7 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
             type="text"
             placeholder="Search players..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
             className="w-full pl-9 pr-3 py-1.5 rounded-lg text-sm outline-none transition-colors hover:border-[var(--text-muted)] focus:border-[var(--accent)]"
             style={{
               background: "var(--bg-page)",
@@ -138,7 +143,7 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
       </div>
       {/* Mobile card view */}
       <div className="sm:hidden">
-        {sorted.map((s) => {
+        {paged.map((s) => {
           const isPodium = s.rank <= 3;
           const rankStyle = getRankStyle(s.rank);
           return (
@@ -256,7 +261,7 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
             </tr>
           </thead>
           <tbody>
-            {sorted.map((s) => {
+            {paged.map((s) => {
               const isPodium = s.rank <= 3;
               const rankStyle = getRankStyle(s.rank);
 
@@ -335,6 +340,51 @@ export default function StandingsTable({ standings, defaultSort, onRowClick }: S
           </tbody>
         </table>
       </div>
+      {totalPages > 1 && (
+        <div
+          className="flex items-center justify-between px-4 py-3 border-t"
+          style={{ borderColor: "var(--border)" }}
+        >
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sorted.length)} of {sorted.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors"
+              style={{
+                background: page === 0 ? "transparent" : "var(--bg-hover)",
+                color: page === 0 ? "var(--text-muted)" : "var(--text-secondary)",
+                border: "1px solid var(--border)",
+                opacity: page === 0 ? 0.5 : 1,
+                cursor: page === 0 ? "not-allowed" : "pointer",
+              }}
+            >
+              <ChevronLeft className="w-3 h-3" />
+              Prev
+            </button>
+            <span className="text-xs tabular-nums" style={{ color: "var(--text-secondary)" }}>
+              Page {page + 1} of {totalPages}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors"
+              style={{
+                background: page >= totalPages - 1 ? "transparent" : "var(--bg-hover)",
+                color: page >= totalPages - 1 ? "var(--text-muted)" : "var(--text-secondary)",
+                border: "1px solid var(--border)",
+                opacity: page >= totalPages - 1 ? 0.5 : 1,
+                cursor: page >= totalPages - 1 ? "not-allowed" : "pointer",
+              }}
+            >
+              Next
+              <ChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
