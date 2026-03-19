@@ -559,7 +559,7 @@ export default function PlayersPage() {
           }
         />
         <StatCard
-          title="Active This Month"
+          title="Active"
           value={dataLoading ? "--" : stats.active}
           subtitle="Players with games"
           icon={

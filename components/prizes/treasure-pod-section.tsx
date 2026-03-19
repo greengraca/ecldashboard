@@ -268,54 +268,149 @@ function TreasurePodTimeline({
     const msUntilEnd = end - nowMs;
     const daysUntilClose = msUntilEnd / (1000 * 60 * 60 * 24);
 
-    // ─── Cumulative probability model ───
-    // Since daysUntilClose ≤ 11, the bot's recalculation guarantees all
-    // remaining pods are within [maxTable+1, maxTable+recalcWindow].
-    // We compute cumulative P(at least 1 pod triggered BY this point)
-    // using a CDF approach — naturally increasing left to right.
-    const recalcWindow = daysUntilClose <= 3 ? 5 : daysUntilClose <= 5 ? 15 : 30;
+    // ─── Regime-aware pod range ───
+    const estimatedTotal = schedule.estimated_total;
+    const recalcActive = daysUntilClose <= 11;
+    const podRange = recalcActive
+      ? (daysUntilClose <= 3 ? 5 : daysUntilClose <= 5 ? 15 : 30)
+      : Math.max(1, Math.round(estimatedTotal * 0.92) - maxTable);
 
-    // 5 zones for a smoother cumulative gradient
     const NUM_ZONES = 5;
 
-    for (let i = 0; i < NUM_ZONES; i++) {
-      // Each zone boundary = how many tables covered by end of this zone
-      const tablesCoveredByZoneEnd = recalcWindow * (i + 1) / NUM_ZONES;
-      const zoneStartTable = maxTable + recalcWindow * i / NUM_ZONES;
-      const zoneEndTable = maxTable + tablesCoveredByZoneEnd;
+    // Enhanced model applies from April 2026 onward (month >= "2026-04")
+    const useEnhancedModel = month >= "2026-04";
 
-      // Cumulative probability: P(at least 1 pod triggered within first tablesCoveredByZoneEnd tables)
-      // = 1 - P(none of the remaining pods are in [maxTable+1, maxTable+tablesCoveredByZoneEnd])
-      // = 1 - ((recalcWindow - tablesCoveredByZoneEnd) / recalcWindow) ^ remaining
-      const fractionNotCovered = Math.max(0, (recalcWindow - tablesCoveredByZoneEnd) / recalcWindow);
-      const cumulativeProbability = 1 - Math.pow(fractionNotCovered, remaining);
+    // ─── Draw-adjusted effective remaining (enhanced model only) ───
+    let effectiveRemaining = remaining;
+    if (useEnhancedModel) {
+      const drawCount = pods.filter((p) => p.status === "draw").length;
+      const wonCount = pods.filter((p) => p.status === "won").length;
+      const drawRate = (drawCount + wonCount) > 0 ? drawCount / (drawCount + wonCount) : 0;
+      effectiveRemaining = Math.min(
+        remaining * 3,
+        remaining / Math.max(0.1, 1 - drawRate)
+      );
+    }
 
-      // Convert table range to time range
-      let zoneX1: number, zoneX2: number;
-      if (tablesPerMs > 0) {
-        zoneX1 = nowMs + (zoneStartTable - maxTable) / tablesPerMs;
-        zoneX2 = nowMs + (zoneEndTable - maxTable) / tablesPerMs;
-      } else {
-        const step = (end - nowMs) / NUM_ZONES;
-        zoneX1 = nowMs + step * i;
-        zoneX2 = nowMs + step * (i + 1);
+    // ─── Scheduling constants for spacing model ───
+    const totalPods = totalExpected;
+    const scheduleStart = 10; // MIN_TABLE_OFFSET
+    const scheduleEnd = Math.round(estimatedTotal * 0.92);
+    const step = totalPods > 0 ? (scheduleEnd - scheduleStart) / (totalPods + 1) : 0;
+
+    // Use spacing-aware model only for early month in enhanced mode
+    const useSpacingModel = useEnhancedModel && !recalcActive && step > 0;
+
+    if (!useSpacingModel) {
+      // ─── Uniform CDF model (original for current months, draw-adjusted for future) ───
+      for (let i = 0; i < NUM_ZONES; i++) {
+        const tablesCoveredByZoneEnd = podRange * (i + 1) / NUM_ZONES;
+        const zoneStartTable = maxTable + podRange * i / NUM_ZONES;
+        const zoneEndTable = maxTable + tablesCoveredByZoneEnd;
+
+        const fractionNotCovered = Math.max(0, (podRange - tablesCoveredByZoneEnd) / podRange);
+        const cumulativeProbability = 1 - Math.pow(fractionNotCovered, effectiveRemaining);
+
+        let zoneX1: number, zoneX2: number;
+        if (tablesPerMs > 0) {
+          zoneX1 = nowMs + (zoneStartTable - maxTable) / tablesPerMs;
+          zoneX2 = nowMs + (zoneEndTable - maxTable) / tablesPerMs;
+        } else {
+          const timeStep = (end - nowMs) / NUM_ZONES;
+          zoneX1 = nowMs + timeStep * i;
+          zoneX2 = nowMs + timeStep * (i + 1);
+        }
+
+        zoneX1 = Math.max(zoneX1, nowMs);
+        zoneX2 = Math.min(zoneX2, end);
+        if (zoneX2 <= zoneX1) continue;
+
+        const dateTo = new Date(zoneX2).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+        const regimeInfo = useEnhancedModel && recalcActive ? " · Recalc active" : "";
+        zones.push({
+          x1: zoneX1,
+          x2: zoneX2,
+          opacity: 0.08 + cumulativeProbability * 0.30,
+          probability: Math.round(cumulativeProbability * 100),
+          tableRange: `~${Math.round(zoneStartTable)}–${Math.round(zoneEndTable)}`,
+          label: `${Math.round(cumulativeProbability * 100)}% by ${dateTo}${regimeInfo}`,
+        });
+      }
+    } else {
+      // ─── Early month: spacing-aware distribution (enhanced model) ───
+      const firedTables = pods
+        .filter((p) => p.status !== "draw")
+        .map((p) => p.table)
+        .sort((a, b) => a - b);
+      const lastFired = firedTables.length > 0 ? firedTables[firedTables.length - 1] : scheduleStart;
+      const lastSlot = Math.round((lastFired - scheduleStart) / step);
+
+      // Build estimated positions of remaining unfired pods
+      const unfiredPositions: { center: number; low: number; high: number }[] = [];
+      for (let s = lastSlot + 1; s <= totalPods && unfiredPositions.length < remaining; s++) {
+        const center = scheduleStart + step * s;
+        unfiredPositions.push({
+          center,
+          low: center - step / 3,
+          high: center + step / 3,
+        });
       }
 
-      // Clamp to chart bounds
-      zoneX1 = Math.max(zoneX1, nowMs);
-      zoneX2 = Math.min(zoneX2, end);
+      // Determine full range for zones
+      const zoneRangeStart = maxTable;
+      const zoneRangeEnd = unfiredPositions.length > 0
+        ? Math.max(unfiredPositions[unfiredPositions.length - 1].high, maxTable + 1)
+        : scheduleEnd;
+      const totalZoneRange = zoneRangeEnd - zoneRangeStart;
 
-      if (zoneX2 <= zoneX1) continue;
+      const nextPodEstimate = unfiredPositions.length > 0
+        ? Math.round(unfiredPositions[0].center)
+        : null;
 
-      const zone: ProbabilityZone = {
-        x1: zoneX1,
-        x2: zoneX2,
-        opacity: 0.08 + cumulativeProbability * 0.30,
-        probability: Math.round(cumulativeProbability * 100),
-        tableRange: `~${Math.round(zoneStartTable)}–${Math.round(zoneEndTable)}`,
-        label: `${Math.round(cumulativeProbability * 100)}% by this point`,
-      };
-      zones.push(zone);
+      for (let i = 0; i < NUM_ZONES; i++) {
+        const zoneStartTable = zoneRangeStart + totalZoneRange * i / NUM_ZONES;
+        const zoneEndTable = zoneRangeStart + totalZoneRange * (i + 1) / NUM_ZONES;
+
+        // P(at least 1 unfired pod's jitter range overlaps [zoneRangeStart, zoneEndTable])
+        let probNoneByZoneEnd = 1;
+        for (const pos of unfiredPositions) {
+          if (pos.low > zoneEndTable) break;
+          const overlapStart = Math.max(pos.low, zoneRangeStart);
+          const overlapEnd = Math.min(pos.high, zoneEndTable);
+          const jitterWidth = pos.high - pos.low;
+          if (jitterWidth <= 0 || overlapEnd <= overlapStart) continue;
+          const probPodInRange = (overlapEnd - overlapStart) / jitterWidth;
+          probNoneByZoneEnd *= (1 - probPodInRange);
+        }
+        // Adjust for draw-spawned extra pods
+        const drawMultiplier = remaining > 0 ? effectiveRemaining / remaining : 1;
+        const cumulativeProbability = 1 - Math.pow(probNoneByZoneEnd, drawMultiplier);
+
+        let zoneX1: number, zoneX2: number;
+        if (tablesPerMs > 0) {
+          zoneX1 = nowMs + (zoneStartTable - maxTable) / tablesPerMs;
+          zoneX2 = nowMs + (zoneEndTable - maxTable) / tablesPerMs;
+        } else {
+          const timeStep = (end - nowMs) / NUM_ZONES;
+          zoneX1 = nowMs + timeStep * i;
+          zoneX2 = nowMs + timeStep * (i + 1);
+        }
+
+        zoneX1 = Math.max(zoneX1, nowMs);
+        zoneX2 = Math.min(zoneX2, end);
+        if (zoneX2 <= zoneX1) continue;
+
+        const dateTo = new Date(zoneX2).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+        const nextPodInfo = nextPodEstimate ? ` · Next pod ~table ${nextPodEstimate}` : "";
+        zones.push({
+          x1: zoneX1,
+          x2: zoneX2,
+          opacity: 0.08 + cumulativeProbability * 0.30,
+          probability: Math.round(cumulativeProbability * 100),
+          tableRange: `~${Math.round(zoneStartTable)}–${Math.round(zoneEndTable)}`,
+          label: `${Math.round(cumulativeProbability * 100)}% by ${dateTo}${nextPodInfo}`,
+        });
+      }
     }
 
     return { triggeredPoints: triggered, probabilityZones: zones, domainStart: start, domainEnd: end, remainingCount: remaining };
@@ -526,7 +621,7 @@ function TreasurePodTimeline({
                   zIndex: 10,
                 }}
               >
-                <div style={{ color: "var(--accent)", fontWeight: 600 }}>{zone.probability}% chance by {dateTo}</div>
+                <div style={{ color: "var(--accent)", fontWeight: 600 }}>{zone.label}</div>
                 <div style={{ color: "var(--text-muted)" }}>{dateFrom} – {dateTo}</div>
                 <div style={{ color: "var(--text-muted)" }}>Tables {zone.tableRange}</div>
               </div>
