@@ -112,7 +112,7 @@ export default function TurnOrderSection({ month }: TurnOrderSectionProps) {
                     }}
                   >
                     <p className="text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>
-                      Turn {i + 1}
+                      Seat {i + 1}
                     </p>
                     <p className="text-lg font-bold tabular-nums mt-0.5" style={{ color: "var(--text-primary)" }}>
                       {(stats.turnRates[i] * 100).toFixed(1)}%
@@ -168,11 +168,11 @@ export default function TurnOrderSection({ month }: TurnOrderSectionProps) {
                       )}
                       <p className="text-xs mt-1.5" style={{ color: "var(--text-secondary)" }}>
                         <span className="font-semibold tabular-nums" style={{ color: "var(--success)" }}>
-                          {(stats.luckiest.winRate * 100).toFixed(0)}%
+                          {(stats.luckiest.rate * 100).toFixed(0)}%
                         </span>
-                        {" "}win rate in seat {stats.luckiest.seat}
+                        {" "}of games in seat 1
                         <span style={{ color: "var(--text-muted)" }}>
-                          {" "}({stats.luckiest.gamesInSeat} games)
+                          {" "}({stats.luckiest.gamesInSeat}/{stats.luckiest.totalGames})
                         </span>
                       </p>
                     </div>
@@ -201,11 +201,11 @@ export default function TurnOrderSection({ month }: TurnOrderSectionProps) {
                       )}
                       <p className="text-xs mt-1.5" style={{ color: "var(--text-secondary)" }}>
                         <span className="font-semibold tabular-nums" style={{ color: "var(--error)" }}>
-                          {(stats.unluckiest.winRate * 100).toFixed(0)}%
+                          {(stats.unluckiest.rate * 100).toFixed(0)}%
                         </span>
-                        {" "}win rate in seat {stats.unluckiest.seat}
+                        {" "}of games in seat 4
                         <span style={{ color: "var(--text-muted)" }}>
-                          {" "}({stats.unluckiest.gamesInSeat} games)
+                          {" "}({stats.unluckiest.gamesInSeat}/{stats.unluckiest.totalGames})
                         </span>
                       </p>
                     </div>

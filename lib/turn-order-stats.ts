@@ -13,24 +13,20 @@ export interface TurnOrderStats {
   luckiest: {
     name: string;
     discord: string;
-    seat: number;
-    winRate: number;
     gamesInSeat: number;
-    totalSeatGames: number;
+    totalGames: number;
+    rate: number; // % of games in seat 1
   } | null;
   unluckiest: {
     name: string;
     discord: string;
-    seat: number;
-    winRate: number;
     gamesInSeat: number;
-    totalSeatGames: number;
+    totalGames: number;
+    rate: number; // % of games in seat 4
   } | null;
 }
 
 // ─── Computation ───
-
-const MIN_SEAT_GAMES = 3;
 
 /**
  * Compute turn order win rate statistics from raw match data.
@@ -42,7 +38,6 @@ export function computeTurnOrderStats(
     es: number[];
     winner: number | string | null;
     mute?: boolean;
-    end?: number | null;
   }>,
   playerNames: Map<number, { name: string; discord: string }>
 ): TurnOrderStats {
@@ -54,14 +49,12 @@ export function computeTurnOrderStats(
   const playerSeats = new Map<number, Map<number, { games: number; wins: number }>>();
 
   for (const m of matches) {
-    // Swiss rounds only
-    if (m.season !== 0) continue;
+    // Swiss rounds only (season 1 in TopDeck's 1-based indexing)
+    if (m.season !== 1) continue;
     // Must be a 4-player pod
     if (m.es.length !== 4) continue;
     // Must not be muted
     if (m.mute) continue;
-    // Must have an end time
-    if (m.end == null) continue;
     // Must have a valid winner
     if (m.winner === null) continue;
 
@@ -96,60 +89,57 @@ export function computeTurnOrderStats(
     }
   }
 
-  // Calculate rates
+  // Calculate rates — all 5 (seat 1-4 + draws) share the same denominator so they sum to 100%
+  const totalPods = completedPods + draws;
   const turnRates: [number, number, number, number] = [0, 0, 0, 0];
   for (let i = 0; i < 4; i++) {
-    turnRates[i] = completedPods > 0 ? turnWins[i] / completedPods : 0;
+    turnRates[i] = totalPods > 0 ? turnWins[i] / totalPods : 0;
   }
+  const drawRate = totalPods > 0 ? draws / totalPods : 0;
 
-  const totalWithDraws = completedPods + draws;
-  const drawRate = totalWithDraws > 0 ? draws / totalWithDraws : 0;
-
-  // Find luckiest and unluckiest
+  // Luckiest = highest % of games in seat 1 (min 5 total games)
+  // Unluckiest = highest % of games in seat 4 (min 5 total games)
+  const MIN_GAMES = 5;
   let luckiest: TurnOrderStats["luckiest"] = null;
   let unluckiest: TurnOrderStats["unluckiest"] = null;
 
-  let highestWinRate = -1;
-  let lowestWinRate = Infinity;
+  let highestSeat1Rate = -1;
+  let highestSeat4Rate = -1;
 
   for (const [eid, seats] of playerSeats) {
     const info = playerNames.get(eid);
     if (!info) continue;
 
-    // Total games across all seats for this player
-    let totalSeatGames = 0;
+    let totalGames = 0;
     for (const seatData of seats.values()) {
-      totalSeatGames += seatData.games;
+      totalGames += seatData.games;
+    }
+    if (totalGames < MIN_GAMES) continue;
+
+    const seat1 = seats.get(0)?.games ?? 0;
+    const seat1Rate = seat1 / totalGames;
+    if (seat1Rate > highestSeat1Rate) {
+      highestSeat1Rate = seat1Rate;
+      luckiest = {
+        name: info.name,
+        discord: info.discord,
+        gamesInSeat: seat1,
+        totalGames,
+        rate: seat1Rate,
+      };
     }
 
-    for (const [seatIdx, seatData] of seats) {
-      if (seatData.games < MIN_SEAT_GAMES) continue;
-
-      const winRate = seatData.wins / seatData.games;
-
-      if (winRate > highestWinRate) {
-        highestWinRate = winRate;
-        luckiest = {
-          name: info.name,
-          discord: info.discord,
-          seat: seatIdx + 1, // 1-indexed
-          winRate,
-          gamesInSeat: seatData.games,
-          totalSeatGames,
-        };
-      }
-
-      if (winRate < lowestWinRate) {
-        lowestWinRate = winRate;
-        unluckiest = {
-          name: info.name,
-          discord: info.discord,
-          seat: seatIdx + 1, // 1-indexed
-          winRate,
-          gamesInSeat: seatData.games,
-          totalSeatGames,
-        };
-      }
+    const seat4 = seats.get(3)?.games ?? 0;
+    const seat4Rate = seat4 / totalGames;
+    if (seat4Rate > highestSeat4Rate) {
+      highestSeat4Rate = seat4Rate;
+      unluckiest = {
+        name: info.name,
+        discord: info.discord,
+        gamesInSeat: seat4,
+        totalGames,
+        rate: seat4Rate,
+      };
     }
   }
 

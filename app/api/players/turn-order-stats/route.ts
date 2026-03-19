@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TOPDECK_BRACKET_ID, FIRESTORE_DOC_URL_TEMPLATE } from "@/lib/constants";
 import { fetchPublicPData } from "@/lib/topdeck-cache";
-import { fetchLiveStandings } from "@/lib/topdeck-live";
 import { getHistoricalMonths, reassembleMonthDump } from "@/lib/topdeck";
 import { computeTurnOrderStats } from "@/lib/turn-order-stats";
 
@@ -101,7 +100,6 @@ async function handleCurrentMonth() {
       es,
       winner: v.Winner ?? null,
       mute: v.Mute === true,
-      end: typeof v.End === "number" ? v.End : null,
     });
   }
 
@@ -166,7 +164,6 @@ async function handlePastMonth(month: string) {
     season: m.season,
     es: m.es,
     winner: m.winner,
-    end: m.end,
   }));
 
   const stats = computeTurnOrderStats(matches, playerNames);

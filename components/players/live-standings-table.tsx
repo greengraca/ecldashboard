@@ -86,7 +86,9 @@ export default function LiveStandingsTable({
 
   useEffect(() => {
     if (wasOnLastPage.current && containerRef.current) {
-      containerRef.current.scrollIntoView({ block: "end", behavior: "smooth" });
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+      });
       wasOnLastPage.current = false;
     }
   }, [page]);
