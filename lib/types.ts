@@ -462,6 +462,7 @@ export interface MediaFile {
   mimeType?: string;
   size?: number;
   r2Key?: string;
+  thumbR2Key?: string;
   parentId: string | null;
   path: string;
   previewUrl?: string;

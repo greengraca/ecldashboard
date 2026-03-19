@@ -37,7 +37,10 @@ export async function GET(request: NextRequest) {
           item.mimeType?.startsWith("image/")
         ) {
           try {
-            const previewUrl = await getPresignedDownloadUrl(item.r2Key, 3600);
+            // Prefer thumbnail URL; fall back to lazy thumbnail endpoint
+            const previewUrl = item.thumbR2Key
+              ? await getPresignedDownloadUrl(item.thumbR2Key, 3600)
+              : `/api/media/drive/${item._id}/thumbnail`;
             return { ...item, previewUrl };
           } catch {
             return item;
@@ -45,11 +48,19 @@ export async function GET(request: NextRequest) {
         }
         // Attach folder preview URLs
         if (item.type === "folder") {
-          const keys = folderPreviewKeys[item._id] || [];
-          if (keys.length > 0) {
+          const previewItems = folderPreviewKeys[item._id] || [];
+          if (previewItems.length > 0) {
             try {
               const folderPreviews = await Promise.all(
-                keys.map((k) => getPresignedDownloadUrl(k, 3600))
+                previewItems.map((pi) => {
+                  // Prefer thumbnail key, fall back to lazy endpoint
+                  if (pi.thumbR2Key) {
+                    return getPresignedDownloadUrl(pi.thumbR2Key, 3600);
+                  }
+                  return Promise.resolve(
+                    `/api/media/drive/${pi._id}/thumbnail`
+                  );
+                })
               );
               return { ...item, folderPreviews };
             } catch {

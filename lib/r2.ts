@@ -106,6 +106,14 @@ export async function getPresignedDownloadUrl(
   );
 }
 
+export async function downloadFromR2(key: string): Promise<Buffer> {
+  const response = await getClient().send(
+    new GetObjectCommand({ Bucket: bucket(), Key: key })
+  );
+  const bytes = await response.Body!.transformToByteArray();
+  return Buffer.from(bytes);
+}
+
 export async function getPresignedUploadUrl(
   key: string,
   contentType: string,

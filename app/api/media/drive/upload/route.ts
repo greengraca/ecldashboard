@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { randomUUID } from "crypto";
 import { uploadToR2 } from "@/lib/r2";
 import { createFileMetadata } from "@/lib/media-drive";
+import { generateAndStoreThumbnail } from "@/lib/thumbnails";
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,6 +36,16 @@ export async function POST(request: NextRequest) {
 
     await uploadToR2(r2Key, buffer, file.type || "application/octet-stream");
 
+    // Generate thumbnail eagerly for image uploads (buffer already in memory)
+    let thumbR2Key: string | undefined;
+    if (file.type?.startsWith("image/")) {
+      try {
+        thumbR2Key = await generateAndStoreThumbnail(r2Key, buffer);
+      } catch (err) {
+        console.warn("Thumbnail generation failed, will retry lazily:", err);
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const userName =
       (session.user as any).username || session.user.name || "unknown";
@@ -45,6 +56,7 @@ export async function POST(request: NextRequest) {
       mimeType: file.type || "application/octet-stream",
       size: file.size,
       r2Key,
+      thumbR2Key,
       uploadedBy: userName,
     });
 

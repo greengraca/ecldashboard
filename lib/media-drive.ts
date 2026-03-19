@@ -94,7 +94,7 @@ export async function listFolder(parentId: string | null) {
  */
 export async function getFolderPreviews(
   folderIds: string[]
-): Promise<Record<string, string[]>> {
+): Promise<Record<string, { r2Key: string; thumbR2Key?: string; _id: string }[]>> {
   if (folderIds.length === 0) return {};
   const c = await col();
   const objectIds = folderIds.map((id) => new ObjectId(id));
@@ -113,20 +113,30 @@ export async function getFolderPreviews(
     {
       $group: {
         _id: "$parentId",
-        keys: { $push: "$r2Key" },
+        items: {
+          $push: {
+            r2Key: "$r2Key",
+            thumbR2Key: "$thumbR2Key",
+            _id: "$_id",
+          },
+        },
       },
     },
     {
       $project: {
-        keys: { $slice: ["$keys", 4] },
+        items: { $slice: ["$items", 4] },
       },
     },
   ];
 
   const results = await c.aggregate(pipeline).toArray();
-  const map: Record<string, string[]> = {};
+  const map: Record<string, { r2Key: string; thumbR2Key?: string; _id: string }[]> = {};
   for (const r of results) {
-    map[r._id.toString()] = r.keys;
+    map[r._id.toString()] = r.items.map((i: { r2Key: string; thumbR2Key?: string; _id: ObjectId }) => ({
+      r2Key: i.r2Key,
+      thumbR2Key: i.thumbR2Key,
+      _id: i._id.toString(),
+    }));
   }
   return map;
 }
@@ -185,6 +195,7 @@ export async function createFileMetadata(params: {
   mimeType: string;
   size: number;
   r2Key: string;
+  thumbR2Key?: string;
   uploadedBy: string;
 }) {
   await ensureIndexes();
@@ -199,6 +210,7 @@ export async function createFileMetadata(params: {
     mimeType: params.mimeType,
     size: params.size,
     r2Key: params.r2Key,
+    ...(params.thumbR2Key ? { thumbR2Key: params.thumbR2Key } : {}),
     parentId: params.parentId ? new ObjectId(params.parentId) : null,
     path,
     sortOrder,
@@ -310,6 +322,7 @@ export async function collectR2Keys(id: string): Promise<string[]> {
   const r2Keys: string[] = [];
   if (item.type === "file") {
     if (item.r2Key) r2Keys.push(item.r2Key);
+    if (item.thumbR2Key) r2Keys.push(item.thumbR2Key);
   } else {
     const escapedPath = (item.path as string).replace(
       /[.*+?^${}()|[\]\\]/g,
@@ -317,10 +330,11 @@ export async function collectR2Keys(id: string): Promise<string[]> {
     );
     const descendants = await c
       .find({ path: { $regex: `^${escapedPath}/` }, r2Key: { $exists: true } })
-      .project({ r2Key: 1 })
+      .project({ r2Key: 1, thumbR2Key: 1 })
       .toArray();
     for (const desc of descendants) {
       if (desc.r2Key) r2Keys.push(desc.r2Key);
+      if (desc.thumbR2Key) r2Keys.push(desc.thumbR2Key);
     }
   }
   return r2Keys;
