@@ -259,7 +259,6 @@ function TreasurePodTimeline({
     const maxTable = schedule.fired_tables.length > 0
       ? Math.max(...schedule.fired_tables)
       : Math.max(...pods.map((p) => p.table), 0);
-    const estimatedTotal = schedule.estimated_total;
 
     // Tables per ms: from month start to now, how fast are tables being played
     const elapsedMs = nowMs - start;
@@ -269,68 +268,27 @@ function TreasurePodTimeline({
     const msUntilEnd = end - nowMs;
     const daysUntilClose = msUntilEnd / (1000 * 60 * 60 * 24);
 
-    // ─── Probability model ───
-    // Pods were pre-scheduled across the FULL estimatedTotal range at month start
-    // using a two-zone bucket distribution:
-    //   Early zone (~28%): 50% chance of 1 pod
-    //   Late zone (~72%): remaining pods spread in even buckets
-    //
-    // Recalculation pulls any unreachable pods forward into a window:
-    //   >5 days left → 30 tables ahead of current max
-    //   ≤5 days → 15 tables
-    //   ≤3 days → 5 tables
-    //
-    // So remaining pods could be:
-    //   a) In their original scheduled position (anywhere from maxTable+1 to estimatedTotal)
-    //   b) Already recalculated to within the recalc window
-    //
-    // We model this by dividing [maxTable+1, estimatedTotal] into N equal zones
-    // and computing the probability that at least one remaining pod falls in each zone.
-
+    // ─── Cumulative probability model ───
+    // Since daysUntilClose ≤ 11, the bot's recalculation guarantees all
+    // remaining pods are within [maxTable+1, maxTable+recalcWindow].
+    // We compute cumulative P(at least 1 pod triggered BY this point)
+    // using a CDF approach — naturally increasing left to right.
     const recalcWindow = daysUntilClose <= 3 ? 5 : daysUntilClose <= 5 ? 15 : 30;
-    const tablesAhead = Math.max(1, estimatedTotal - maxTable);
 
-    // Split remaining table range into zones for visualization
-    // Use more zones for a smoother gradient (but not too many)
-    const NUM_ZONES = Math.min(8, Math.max(3, Math.ceil(tablesAhead / 20)));
-    const zoneTableWidth = tablesAhead / NUM_ZONES;
+    // 5 zones for a smoother cumulative gradient
+    const NUM_ZONES = 5;
 
     for (let i = 0; i < NUM_ZONES; i++) {
-      const zoneStartTable = maxTable + zoneTableWidth * i;
-      const zoneEndTable = maxTable + zoneTableWidth * (i + 1);
+      // Each zone boundary = how many tables covered by end of this zone
+      const tablesCoveredByZoneEnd = recalcWindow * (i + 1) / NUM_ZONES;
+      const zoneStartTable = maxTable + recalcWindow * i / NUM_ZONES;
+      const zoneEndTable = maxTable + tablesCoveredByZoneEnd;
 
-      // Probability model:
-      // The bot distributes N remaining pods across tablesAhead tables.
-      // Two effects determine probability density in each zone:
-      //
-      // 1) Original scheduling: pods are in bucket positions across estimatedTotal.
-      //    Within remaining range, roughly uniform: P(pod in zone) ≈ zoneTableWidth / tablesAhead
-      //
-      // 2) Recalculation: if zoneStartTable is within the recalc window of maxTable,
-      //    any pods that were scheduled beyond the window get pulled into it.
-      //    This concentrates probability in the near-term zone.
-      const isInRecalcWindow = zoneStartTable < maxTable + recalcWindow;
-      const zoneWidthFraction = zoneTableWidth / tablesAhead;
-
-      // Base probability: N pods each with zoneWidthFraction chance of being in this zone
-      // P(at least 1 in zone) = 1 - (1 - zoneWidthFraction)^remaining
-      let baseProbPerPod = zoneWidthFraction;
-
-      // Recalculation boost: pods originally beyond the recalc window get pushed into it
-      // Estimate how many table-slots are beyond the window vs inside
-      const tablesInWindow = Math.min(recalcWindow, tablesAhead);
-      const tablesBeyondWindow = Math.max(0, tablesAhead - recalcWindow);
-
-      if (isInRecalcWindow && tablesBeyondWindow > 0 && daysUntilClose <= 11) {
-        // Pods beyond the window would get recalculated into the window
-        // Their probability mass redistributes into the window zones
-        const redistributedFraction = tablesBeyondWindow / tablesAhead;
-        const windowZoneFraction = zoneTableWidth / tablesInWindow;
-        baseProbPerPod = zoneWidthFraction + redistributedFraction * windowZoneFraction;
-      }
-
-      // P(at least 1 pod in this zone)
-      const probability = Math.min(1, 1 - Math.pow(1 - baseProbPerPod, remaining));
+      // Cumulative probability: P(at least 1 pod triggered within first tablesCoveredByZoneEnd tables)
+      // = 1 - P(none of the remaining pods are in [maxTable+1, maxTable+tablesCoveredByZoneEnd])
+      // = 1 - ((recalcWindow - tablesCoveredByZoneEnd) / recalcWindow) ^ remaining
+      const fractionNotCovered = Math.max(0, (recalcWindow - tablesCoveredByZoneEnd) / recalcWindow);
+      const cumulativeProbability = 1 - Math.pow(fractionNotCovered, remaining);
 
       // Convert table range to time range
       let zoneX1: number, zoneX2: number;
@@ -338,7 +296,6 @@ function TreasurePodTimeline({
         zoneX1 = nowMs + (zoneStartTable - maxTable) / tablesPerMs;
         zoneX2 = nowMs + (zoneEndTable - maxTable) / tablesPerMs;
       } else {
-        // No velocity — spread across remaining time
         const step = (end - nowMs) / NUM_ZONES;
         zoneX1 = nowMs + step * i;
         zoneX2 = nowMs + step * (i + 1);
@@ -348,16 +305,15 @@ function TreasurePodTimeline({
       zoneX1 = Math.max(zoneX1, nowMs);
       zoneX2 = Math.min(zoneX2, end);
 
-      // Skip zones that collapse to nothing
       if (zoneX2 <= zoneX1) continue;
 
       const zone: ProbabilityZone = {
         x1: zoneX1,
         x2: zoneX2,
-        opacity: 0.08 + probability * 0.30,
-        probability: Math.round(probability * 100),
+        opacity: 0.08 + cumulativeProbability * 0.30,
+        probability: Math.round(cumulativeProbability * 100),
         tableRange: `~${Math.round(zoneStartTable)}–${Math.round(zoneEndTable)}`,
-        label: `${Math.round(probability * 100)}% chance`,
+        label: `${Math.round(cumulativeProbability * 100)}% by this point`,
       };
       zones.push(zone);
     }
@@ -370,8 +326,33 @@ function TreasurePodTimeline({
     return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   };
 
-  const tickStep = (domainEnd - domainStart) / 4;
-  const ticks = Array.from({ length: 5 }, (_, i) => Math.round(domainStart + tickStep * i));
+  // Build ticks: 5 evenly spaced + today, deduplicated by date
+  const nowMs = Date.now();
+  const todayStart = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
+  const rawTicks = Array.from({ length: 5 }, (_, i) => Math.round(domainStart + ((domainEnd - domainStart) / 4) * i));
+  // Replace any tick that falls on the same day as today, or inject today
+  const todayDateStr = formatTick(todayStart);
+  const filteredTicks = rawTicks.filter((t) => formatTick(t) !== todayDateStr);
+  const ticks = [...filteredTicks, todayStart].sort((a, b) => a - b);
+
+  // Custom tick renderer to highlight today
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const renderTick = (props: any) => {
+    const { x, y, payload } = props;
+    const isToday = formatTick(payload.value) === todayDateStr;
+    return (
+      <text
+        x={x}
+        y={y + 10}
+        textAnchor="middle"
+        fontSize={10}
+        fill={isToday ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.4)"}
+        fontWeight={isToday ? 500 : 400}
+      >
+        {formatTick(payload.value)}
+      </text>
+    );
+  };
 
   const MARGIN = { top: 4, right: 8, bottom: 0, left: 8 };
 
@@ -413,8 +394,7 @@ function TreasurePodTimeline({
               dataKey="ts"
               type="number"
               domain={[domainStart, domainEnd]}
-              tickFormatter={formatTick}
-              tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
+              tick={renderTick}
               tickLine={false}
               axisLine={{ stroke: "rgba(255,255,255,0.08)" }}
               ticks={ticks}
@@ -451,19 +431,48 @@ function TreasurePodTimeline({
               }}
             />
             {/* Probability zones */}
-            {probabilityZones.map((zone, i) => (
-              <ReferenceArea
-                key={`zone-${i}`}
-                x1={zone.x1}
-                x2={zone.x2}
-                y1={0}
-                y2={2}
-                fill="#fbbf24"
-                fillOpacity={zone.opacity}
-                stroke="rgba(251, 191, 36, 0.2)"
-                strokeWidth={1}
-              />
-            ))}
+            {probabilityZones.map((zone, i) => {
+              const isFirst = i === 0;
+              const isLast = i === probabilityZones.length - 1;
+              return (
+                <ReferenceArea
+                  key={`zone-${i}`}
+                  x1={zone.x1}
+                  x2={zone.x2}
+                  y1={0}
+                  y2={2}
+                  fill="#fbbf24"
+                  fillOpacity={zone.opacity}
+                  stroke="rgba(251, 191, 36, 0.2)"
+                  strokeWidth={1}
+                  shape={(props: Record<string, number>) => {
+                    const { x, y, width, height } = props;
+                    const r = 4;
+                    const tl = isFirst ? r : 0;
+                    const tr = isLast ? r : 0;
+                    // Top-left corner → top-right corner → bottom-right → bottom-left → close
+                    const d = [
+                      `M${x},${y + tl}`,
+                      tl ? `Q${x},${y} ${x + tl},${y}` : "",
+                      `L${x + width - tr},${y}`,
+                      tr ? `Q${x + width},${y} ${x + width},${y + tr}` : "",
+                      `L${x + width},${y + height}`,
+                      `L${x},${y + height}`,
+                      "Z",
+                    ].join(" ");
+                    return (
+                      <path
+                        d={d}
+                        fill="#fbbf24"
+                        fillOpacity={zone.opacity}
+                        stroke="rgba(251, 191, 36, 0.2)"
+                        strokeWidth={1}
+                      />
+                    );
+                  }}
+                />
+              );
+            })}
             {/* Triggered pods */}
             <Scatter data={triggeredPoints} dataKey="y" fill="#22c55e">
               {triggeredPoints.map((pt, i) => (
@@ -517,7 +526,7 @@ function TreasurePodTimeline({
                   zIndex: 10,
                 }}
               >
-                <div style={{ color: "var(--accent)", fontWeight: 600 }}>{zone.probability}% probability</div>
+                <div style={{ color: "var(--accent)", fontWeight: 600 }}>{zone.probability}% chance by {dateTo}</div>
                 <div style={{ color: "var(--text-muted)" }}>{dateFrom} – {dateTo}</div>
                 <div style={{ color: "var(--text-muted)" }}>Tables {zone.tableRange}</div>
               </div>
