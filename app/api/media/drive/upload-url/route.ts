@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { randomUUID } from "crypto";
 import { getPresignedUploadUrl } from "@/lib/r2";
+import { validateFileExtension, sanitizeFilename } from "@/lib/validation";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +21,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate file extension
+    const extError = validateFileExtension(name);
+    if (extError) {
+      return NextResponse.json({ error: extError }, { status: 400 });
+    }
+
     if (size && size > 100 * 1024 * 1024) {
       return NextResponse.json(
         { error: "File exceeds 100MB limit" },
@@ -27,7 +34,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const r2Key = `media/${randomUUID()}-${name}`;
+    const safeName = sanitizeFilename(name);
+    const r2Key = `media/${randomUUID()}-${safeName}`;
     const uploadUrl = await getPresignedUploadUrl(r2Key, mimeType, 900);
 
     return NextResponse.json({ data: { uploadUrl, r2Key } });

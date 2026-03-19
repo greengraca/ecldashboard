@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/api-auth";
 import { getPrizeSummary } from "@/lib/prizes";
 
 export async function GET(request: NextRequest) {
   try {
+    const { session, error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const now = new Date();
     const month =

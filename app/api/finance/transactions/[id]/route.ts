@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { updateTransaction, deleteTransaction } from "@/lib/finance";
+import { transactionUpdateSchema } from "@/lib/validation";
 
 export async function PATCH(
   request: NextRequest,
@@ -14,11 +15,18 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
+    const parsed = transactionUpdateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message || "Invalid input" },
+        { status: 400 }
+      );
+    }
     const userId = session.user.id;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const userName = (session.user as any).username || session.user.name || "unknown";
 
-    await updateTransaction(id, body, userId, userName);
+    await updateTransaction(id, parsed.data, userId, userName);
     return NextResponse.json({ data: { success: true } });
   } catch (err) {
     console.error("PATCH /api/finance/transactions/[id] error:", err);

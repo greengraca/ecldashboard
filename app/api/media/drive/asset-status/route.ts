@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { existsSync } from "fs";
 import { join } from "path";
+import { requireAuth } from "@/lib/api-auth";
 import { REQUIRED_ASSETS } from "@/components/media/shared/brand-constants";
 import { checkAssetStatus } from "@/lib/media-drive";
 
 export async function GET() {
   try {
+    const { error } = await requireAuth();
+    if (error) return error;
+
     const requiredNames = REQUIRED_ASSETS.map(
       (a) => a.path.split("/").pop()!
     );

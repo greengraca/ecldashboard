@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/api-auth";
 import { getItem } from "@/lib/media-drive";
 import { getPresignedDownloadUrl } from "@/lib/r2";
 import { generateAndStoreThumbnail } from "@/lib/thumbnails";
@@ -10,6 +11,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error } = await requireAuth();
+    if (error) return error;
+
     const { id } = await params;
     const item = await getItem(id);
 

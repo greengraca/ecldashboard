@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/api-auth";
 import { getMonthlySummary, getMultiMonthSummary } from "@/lib/finance";
 
 export async function GET(request: NextRequest) {
   try {
+    const { error } = await requireAuth();
+    if (error) return error;
     const { searchParams } = new URL(request.url);
     const months = searchParams.get("months");
     const month = searchParams.get("month");

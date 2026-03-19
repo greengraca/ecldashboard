@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireAuth } from "@/lib/api-auth";
 import { getTransactions, createTransaction } from "@/lib/finance";
+import { transactionCreateSchema } from "@/lib/validation";
 
 export async function GET(request: NextRequest) {
   try {
+    const { error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const now = new Date();
     const month =
@@ -29,14 +34,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { date, type, category, description, amount, tags, paid_by } = body;
-
-    if (!date || !type || !category || !description || amount == null) {
+    const parsed = transactionCreateSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: parsed.error.issues[0]?.message || "Invalid input" },
         { status: 400 }
       );
     }
+    const { date, type, category, description, amount, tags, paid_by } = parsed.data;
 
     const month = date.substring(0, 7); // "YYYY-MM" from "YYYY-MM-DD"
     const userId = session.user.id;

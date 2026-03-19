@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireAuth } from "@/lib/api-auth";
 import { getPrizes, createPrize } from "@/lib/prizes";
+import { prizeCreateSchema } from "@/lib/validation";
 
 export async function GET(request: NextRequest) {
   try {
+    const { session, error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const now = new Date();
     const month =
@@ -29,14 +34,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { month, category, name, value, recipient_type, recipient_name } = body;
-
-    if (!month || !category || !name || value == null || !recipient_type || !recipient_name) {
+    const parsed = prizeCreateSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: parsed.error.issues[0]?.message || "Invalid input" },
         { status: 400 }
       );
     }
+    const { month, category, name, value, recipient_type, recipient_name } = parsed.data;
 
     const userId = session.user.id;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,16 +52,16 @@ export async function POST(request: NextRequest) {
         month,
         category,
         name,
-        description: body.description || "",
-        image_url: body.image_url || null,
+        description: parsed.data.description || "",
+        image_url: parsed.data.image_url || null,
         value: Number(value),
         recipient_type,
-        placement: body.placement ?? null,
-        recipient_uid: body.recipient_uid || null,
+        placement: parsed.data.placement ?? null,
+        recipient_uid: parsed.data.recipient_uid || null,
         recipient_name,
-        recipient_discord_id: body.recipient_discord_id || null,
-        shipping_status: body.shipping_status || "pending",
-        status: body.status || "planned",
+        recipient_discord_id: parsed.data.recipient_discord_id || null,
+        shipping_status: parsed.data.shipping_status || "pending",
+        status: parsed.data.status || "planned",
       },
       userId,
       userName

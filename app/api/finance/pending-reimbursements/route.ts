@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/api-auth";
 import { getAllPendingReimbursements } from "@/lib/finance";
 
 export async function GET() {
   try {
+    const { error } = await requireAuth();
+    if (error) return error;
     const pending = await getAllPendingReimbursements();
     return NextResponse.json({ data: pending });
   } catch (err) {

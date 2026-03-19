@@ -1,16 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
+import { requireAuth } from "@/lib/api-auth";
+import { activityFilterSchema } from "@/lib/validation";
 
 export async function GET(request: NextRequest) {
   try {
+    const { error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20", 10)));
-    const action = searchParams.get("action");
-    const entityType = searchParams.get("entity_type");
-    const userId = searchParams.get("user_id");
-    const from = searchParams.get("from");
-    const to = searchParams.get("to");
+    const parsed = activityFilterSchema.safeParse({
+      page: searchParams.get("page") || undefined,
+      limit: searchParams.get("limit") || undefined,
+      action: searchParams.get("action") || undefined,
+      entity_type: searchParams.get("entity_type") || undefined,
+      user_id: searchParams.get("user_id") || undefined,
+      from: searchParams.get("from") || undefined,
+      to: searchParams.get("to") || undefined,
+    });
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message || "Invalid filter parameters" },
+        { status: 400 }
+      );
+    }
+    const { page, limit, action, entity_type: entityType, user_id: userId, from, to } = parsed.data;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filter: Record<string, any> = {};

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/api-auth";
 import { getTreasurePodData } from "@/lib/treasure-pods";
 
 export async function GET(request: NextRequest) {
   try {
+    const { session, error } = await requireAuth();
+    if (error) return error;
+
     const month = request.nextUrl.searchParams.get("month");
     if (!month) {
       return NextResponse.json({ error: "month is required" }, { status: 400 });

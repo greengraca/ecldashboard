@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { uploadToR2 } from "@/lib/r2";
 import { createFileMetadata } from "@/lib/media-drive";
 import { generateAndStoreThumbnail } from "@/lib/thumbnails";
+import { validateFileExtension, sanitizeFilename } from "@/lib/validation";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +21,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
+    // Validate file extension
+    const extError = validateFileExtension(file.name);
+    if (extError) {
+      return NextResponse.json({ error: extError }, { status: 400 });
+    }
+
     // 4MB limit for server-side proxy
     if (file.size > 4 * 1024 * 1024) {
       return NextResponse.json(
@@ -31,7 +38,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const r2Key = `media/${randomUUID()}-${file.name}`;
+    const safeName = sanitizeFilename(file.name);
+    const r2Key = `media/${randomUUID()}-${safeName}`;
     const buffer = Buffer.from(await file.arrayBuffer());
 
     await uploadToR2(r2Key, buffer, file.type || "application/octet-stream");

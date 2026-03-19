@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireAuth } from "@/lib/api-auth";
 import { getAllRates, createRate } from "@/lib/subscription-rates";
 
 export async function GET() {
   try {
+    const { error } = await requireAuth();
+    if (error) return error;
     const rates = await getAllRates();
     return NextResponse.json({ data: rates });
   } catch (err) {

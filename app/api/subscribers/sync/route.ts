@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { clearMemberCache, fetchGuildMembers } from "@/lib/discord";
+import { requireAuth } from "@/lib/api-auth";
 
 export async function POST() {
   try {
+    const { error } = await requireAuth();
+    if (error) return error;
     clearMemberCache();
     const members = await fetchGuildMembers();
 

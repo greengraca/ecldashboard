@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireAuth } from "@/lib/api-auth";
 import {
   listFolder,
   createFolder,
@@ -10,6 +11,9 @@ import { getPresignedDownloadUrl } from "@/lib/r2";
 
 export async function GET(request: NextRequest) {
   try {
+    const { error } = await requireAuth();
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const parentId = searchParams.get("parentId") || null;
 
