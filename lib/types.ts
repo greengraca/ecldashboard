@@ -443,6 +443,8 @@ export interface TreasurePodTypeStat {
 
 export interface TreasurePodWithClaim extends TreasurePod {
   claim?: TreasurePodClaim | null;
+  triggered_at: string;
+  winner_display_name: string | null;
 }
 
 export interface TreasurePodData {

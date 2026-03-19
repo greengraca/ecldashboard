@@ -1,6 +1,7 @@
-import { ObjectId } from "mongodb";
+import { ObjectId, Long } from "mongodb";
 import { getDb } from "./mongodb";
 import { logActivity } from "./activity";
+import { fetchGuildMembers } from "./discord";
 import { DISCORD_GUILD_ID } from "./constants";
 import type {
   TreasurePodSchedule,
@@ -15,20 +16,46 @@ const CLAIMS_COLLECTION = "dashboard_treasure_pod_claims";
 
 export async function getTreasurePodData(month: string): Promise<TreasurePodData> {
   const db = await getDb();
-  const guildId = DISCORD_GUILD_ID;
+  // guild_id may be stored as string or NumberLong — query for both
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const guildIdFilter: any = DISCORD_GUILD_ID
+    ? { $in: [DISCORD_GUILD_ID, Long.fromString(DISCORD_GUILD_ID)] }
+    : DISCORD_GUILD_ID;
 
   const [schedule, pods, claims] = await Promise.all([
-    db.collection<TreasurePodSchedule>("treasure_pod_schedule").findOne({ guild_id: guildId, month }),
-    db.collection<TreasurePod>("treasure_pods").find({ guild_id: guildId, month }).toArray(),
+    db.collection<TreasurePodSchedule>("treasure_pod_schedule").findOne({ guild_id: guildIdFilter, month }),
+    db.collection<TreasurePod>("treasure_pods").find({ guild_id: guildIdFilter, month }).toArray(),
     db.collection<TreasurePodClaim>(CLAIMS_COLLECTION).find({ month }).toArray(),
   ]);
 
-  // Join claims onto pods
+  // Resolve winner display names via Discord members
+  const members = await fetchGuildMembers();
+  const memberById = new Map(members.map((m) => [m.id, m]));
+
+  // Join claims onto pods, add triggered_at and winner_display_name
   const claimsByPodId = new Map(claims.map((c) => [c.treasure_pod_id, c]));
-  const podsWithClaims: TreasurePodWithClaim[] = pods.map((pod) => ({
-    ...pod,
-    claim: claimsByPodId.get(String(pod._id)) || null,
-  }));
+  const podsWithClaims: TreasurePodWithClaim[] = pods.map((pod) => {
+    // Extract trigger timestamp from ObjectId
+    const oid = pod._id instanceof ObjectId ? pod._id : new ObjectId(String(pod._id));
+    const triggeredAt = oid.getTimestamp().toISOString();
+
+    // Resolve winner display name: use winner_topdeck_uid to find index in arrays, then look up discord member
+    let winnerDisplayName: string | null = null;
+    if (pod.winner_topdeck_uid && pod.player_topdeck_uids && pod.player_discord_ids) {
+      const idx = pod.player_topdeck_uids.indexOf(pod.winner_topdeck_uid);
+      if (idx !== -1 && pod.player_discord_ids[idx]) {
+        const member = memberById.get(pod.player_discord_ids[idx]);
+        if (member) winnerDisplayName = member.display_name;
+      }
+    }
+
+    return {
+      ...pod,
+      claim: claimsByPodId.get(String(pod._id)) || null,
+      triggered_at: triggeredAt,
+      winner_display_name: winnerDisplayName,
+    };
+  });
 
   // Compute per-type stats
   const stats: TreasurePodTypeStat[] = [];

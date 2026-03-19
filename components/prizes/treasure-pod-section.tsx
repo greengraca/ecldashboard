@@ -1,8 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import useSWR from "swr";
 import { ChevronDown, ChevronUp, Gem, X } from "lucide-react";
+import {
+  ScatterChart,
+  Scatter,
+  XAxis,
+  YAxis,
+  Cell,
+  ReferenceArea,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts";
 import type { TreasurePodData, TreasurePodWithClaim } from "@/lib/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -13,6 +23,7 @@ interface TreasurePodSectionProps {
 
 export default function TreasurePodSection({ month }: TreasurePodSectionProps) {
   const [expanded, setExpanded] = useState(false);
+  const [hoveredPodId, setHoveredPodId] = useState<string | null>(null);
 
   const { data, isLoading, mutate } = useSWR<{ data: TreasurePodData }>(
     `/api/prizes/treasure-pods?month=${month}`,
@@ -25,9 +36,7 @@ export default function TreasurePodSection({ month }: TreasurePodSectionProps) {
 
   const totalWon = stats.reduce((s, t) => s + t.won, 0);
   const totalClaimed = stats.reduce((s, t) => s + t.claimed, 0);
-  const hasPods = pods.length > 0 || (podData?.schedule != null);
-
-  if (!hasPods && !isLoading) return null;
+  const hasData = pods.length > 0 || (podData?.schedule != null);
 
   return (
     <div
@@ -47,15 +56,15 @@ export default function TreasurePodSection({ month }: TreasurePodSectionProps) {
         <div className="flex items-center gap-3">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(168, 85, 247, 0.15)" }}
+            style={{ background: "rgba(251, 191, 36, 0.15)" }}
           >
-            <Gem className="w-4 h-4" style={{ color: "#a855f7" }} />
+            <Gem className="w-4 h-4" style={{ color: "var(--accent)" }} />
           </div>
           <div className="text-left">
             <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
               Treasure Pods
             </span>
-            {!isLoading && hasPods && (
+            {!isLoading && hasData && (
               <span className="text-xs ml-2" style={{ color: "var(--text-muted)" }}>
                 {totalWon} won · {totalClaimed} claimed
               </span>
@@ -71,12 +80,23 @@ export default function TreasurePodSection({ month }: TreasurePodSectionProps) {
 
       {/* Expanded content */}
       {expanded && (
-        <div className="px-5 pb-5 space-y-4">
+        <div className="px-5 pb-5 space-y-4 pod-section-enter">
+          <style>{`
+            @keyframes podFadeSlideIn {
+              from { opacity: 0; transform: translateY(-8px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+            .pod-section-enter > * {
+              animation: podFadeSlideIn 0.3s ease-out both;
+            }
+            .pod-section-enter > *:nth-child(2) { animation-delay: 0.05s; }
+            .pod-section-enter > *:nth-child(3) { animation-delay: 0.1s; }
+          `}</style>
           {isLoading ? (
             <div className="text-center py-6">
               <div
                 className="inline-block w-5 h-5 border-2 rounded-full animate-spin"
-                style={{ borderColor: "var(--border)", borderTopColor: "#a855f7" }}
+                style={{ borderColor: "var(--border)", borderTopColor: "var(--accent)" }}
               />
             </div>
           ) : (
@@ -119,11 +139,16 @@ export default function TreasurePodSection({ month }: TreasurePodSectionProps) {
                 </div>
               )}
 
+              {/* Timeline graph */}
+              {pods.length > 0 && (
+                <TreasurePodTimeline pods={pods} month={month} schedule={podData?.schedule ?? null} onHoverPod={setHoveredPodId} />
+              )}
+
               {/* Pod list — only triggered pods */}
               {pods.length > 0 ? (
                 <div className="space-y-2">
                   {pods.map((pod) => (
-                    <PodCard key={String(pod._id)} pod={pod} month={month} onMutate={mutate} />
+                    <PodCard key={String(pod._id)} pod={pod} month={month} onMutate={mutate} highlighted={String(pod._id) === hoveredPodId} />
                   ))}
                 </div>
               ) : (
@@ -139,16 +164,412 @@ export default function TreasurePodSection({ month }: TreasurePodSectionProps) {
   );
 }
 
+// ─── Timeline ───
+
+const STATUS_COLORS: Record<string, string> = {
+  won: "#22c55e",
+  pending: "#9a7dd4",
+  draw: "rgba(255, 255, 255, 0.35)",
+};
+
+const CARD_PRIZE_COLOR = "#34d399"; // emerald — distinct from won green
+
+function cleanPodTitle(title: string): string {
+  return title.replace(/\s*Treasure Pod!?/i, "").trim();
+}
+
+interface TimelinePoint {
+  ts: number;
+  y: number;
+  fill: string;
+  opacity: number;
+  label: string;
+  tooltipDate: string;
+  podId: string;
+}
+
+interface ProbabilityZone {
+  x1: number;
+  x2: number;
+  opacity: number;
+  probability: number; // 0-100%
+  tableRange: string;
+  label: string;
+}
+
+function TreasurePodTimeline({
+  pods,
+  month,
+  schedule,
+  onHoverPod,
+}: {
+  pods: TreasurePodWithClaim[];
+  month: string;
+  schedule: TreasurePodData["schedule"];
+  onHoverPod: (podId: string | null) => void;
+}) {
+  const lastHoveredRef = useRef<string | null>(null);
+
+  const { triggeredPoints, probabilityZones, domainStart, domainEnd, remainingCount } = useMemo(() => {
+    const [year, mon] = month.split("-").map(Number);
+    const dim = new Date(year, mon, 0).getDate();
+    // League ends on penultimate day of the month
+    const leagueEndDay = dim - 1;
+    const start = new Date(year, mon - 1, 1).getTime();
+    const end = new Date(year, mon - 1, leagueEndDay, 23, 59, 59).getTime();
+    const now = new Date();
+    const nowMs = now.getTime();
+    const isCurrentMonth = now.getFullYear() === year && now.getMonth() + 1 === mon;
+
+    // Triggered pods — use precise timestamp for X
+    const triggered: TimelinePoint[] = pods.map((pod) => {
+      const d = new Date(pod.triggered_at);
+      // Card prize gets a distinct green; others use status color
+      const dotColor = pod.pod_type === "card_prize"
+        ? (pod.status === "draw" ? STATUS_COLORS.draw : CARD_PRIZE_COLOR)
+        : (STATUS_COLORS[pod.status] || STATUS_COLORS.pending);
+      return {
+        ts: d.getTime(),
+        y: 1,
+        fill: dotColor,
+        opacity: 1,
+        label: `${cleanPodTitle(pod.pod_title)} — Table ${pod.table}`,
+        tooltipDate: d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+        podId: String(pod._id),
+      };
+    });
+
+    const zones: ProbabilityZone[] = [];
+
+    if (!schedule || !isCurrentMonth) {
+      return { triggeredPoints: triggered, probabilityZones: zones, domainStart: start, domainEnd: end, remainingCount: 0 };
+    }
+
+    const totalExpected = schedule.pod_types_config.reduce((sum, c) => sum + c.count, 0);
+    // Draws are re-rolled — they don't consume a slot
+    const usedSlots = pods.filter((p) => p.status !== "draw").length;
+    const remaining = Math.max(0, totalExpected - usedSlots);
+
+    if (remaining === 0) {
+      return { triggeredPoints: triggered, probabilityZones: zones, domainStart: start, domainEnd: end, remainingCount: 0 };
+    }
+
+    // ─── Table velocity ───
+    // Use fired_tables to get the highest table reached
+    const maxTable = schedule.fired_tables.length > 0
+      ? Math.max(...schedule.fired_tables)
+      : Math.max(...pods.map((p) => p.table), 0);
+    const estimatedTotal = schedule.estimated_total;
+
+    // Tables per ms: from month start to now, how fast are tables being played
+    const elapsedMs = nowMs - start;
+    const tablesPerMs = elapsedMs > 0 ? maxTable / elapsedMs : 0;
+
+    // Days until league close
+    const msUntilEnd = end - nowMs;
+    const daysUntilClose = msUntilEnd / (1000 * 60 * 60 * 24);
+
+    // ─── Probability model ───
+    // Pods were pre-scheduled across the FULL estimatedTotal range at month start
+    // using a two-zone bucket distribution:
+    //   Early zone (~28%): 50% chance of 1 pod
+    //   Late zone (~72%): remaining pods spread in even buckets
+    //
+    // Recalculation pulls any unreachable pods forward into a window:
+    //   >5 days left → 30 tables ahead of current max
+    //   ≤5 days → 15 tables
+    //   ≤3 days → 5 tables
+    //
+    // So remaining pods could be:
+    //   a) In their original scheduled position (anywhere from maxTable+1 to estimatedTotal)
+    //   b) Already recalculated to within the recalc window
+    //
+    // We model this by dividing [maxTable+1, estimatedTotal] into N equal zones
+    // and computing the probability that at least one remaining pod falls in each zone.
+
+    const recalcWindow = daysUntilClose <= 3 ? 5 : daysUntilClose <= 5 ? 15 : 30;
+    const tablesAhead = Math.max(1, estimatedTotal - maxTable);
+
+    // Split remaining table range into zones for visualization
+    // Use more zones for a smoother gradient (but not too many)
+    const NUM_ZONES = Math.min(8, Math.max(3, Math.ceil(tablesAhead / 20)));
+    const zoneTableWidth = tablesAhead / NUM_ZONES;
+
+    for (let i = 0; i < NUM_ZONES; i++) {
+      const zoneStartTable = maxTable + zoneTableWidth * i;
+      const zoneEndTable = maxTable + zoneTableWidth * (i + 1);
+
+      // Probability model:
+      // The bot distributes N remaining pods across tablesAhead tables.
+      // Two effects determine probability density in each zone:
+      //
+      // 1) Original scheduling: pods are in bucket positions across estimatedTotal.
+      //    Within remaining range, roughly uniform: P(pod in zone) ≈ zoneTableWidth / tablesAhead
+      //
+      // 2) Recalculation: if zoneStartTable is within the recalc window of maxTable,
+      //    any pods that were scheduled beyond the window get pulled into it.
+      //    This concentrates probability in the near-term zone.
+      const isInRecalcWindow = zoneStartTable < maxTable + recalcWindow;
+      const zoneWidthFraction = zoneTableWidth / tablesAhead;
+
+      // Base probability: N pods each with zoneWidthFraction chance of being in this zone
+      // P(at least 1 in zone) = 1 - (1 - zoneWidthFraction)^remaining
+      let baseProbPerPod = zoneWidthFraction;
+
+      // Recalculation boost: pods originally beyond the recalc window get pushed into it
+      // Estimate how many table-slots are beyond the window vs inside
+      const tablesInWindow = Math.min(recalcWindow, tablesAhead);
+      const tablesBeyondWindow = Math.max(0, tablesAhead - recalcWindow);
+
+      if (isInRecalcWindow && tablesBeyondWindow > 0 && daysUntilClose <= 11) {
+        // Pods beyond the window would get recalculated into the window
+        // Their probability mass redistributes into the window zones
+        const redistributedFraction = tablesBeyondWindow / tablesAhead;
+        const windowZoneFraction = zoneTableWidth / tablesInWindow;
+        baseProbPerPod = zoneWidthFraction + redistributedFraction * windowZoneFraction;
+      }
+
+      // P(at least 1 pod in this zone)
+      const probability = Math.min(1, 1 - Math.pow(1 - baseProbPerPod, remaining));
+
+      // Convert table range to time range
+      let zoneX1: number, zoneX2: number;
+      if (tablesPerMs > 0) {
+        zoneX1 = nowMs + (zoneStartTable - maxTable) / tablesPerMs;
+        zoneX2 = nowMs + (zoneEndTable - maxTable) / tablesPerMs;
+      } else {
+        // No velocity — spread across remaining time
+        const step = (end - nowMs) / NUM_ZONES;
+        zoneX1 = nowMs + step * i;
+        zoneX2 = nowMs + step * (i + 1);
+      }
+
+      // Clamp to chart bounds
+      zoneX1 = Math.max(zoneX1, nowMs);
+      zoneX2 = Math.min(zoneX2, end);
+
+      // Skip zones that collapse to nothing
+      if (zoneX2 <= zoneX1) continue;
+
+      const zone: ProbabilityZone = {
+        x1: zoneX1,
+        x2: zoneX2,
+        opacity: 0.08 + probability * 0.30,
+        probability: Math.round(probability * 100),
+        tableRange: `~${Math.round(zoneStartTable)}–${Math.round(zoneEndTable)}`,
+        label: `${Math.round(probability * 100)}% chance`,
+      };
+      zones.push(zone);
+    }
+
+    return { triggeredPoints: triggered, probabilityZones: zones, domainStart: start, domainEnd: end, remainingCount: remaining };
+  }, [pods, month, schedule]);
+
+  const formatTick = (ts: number) => {
+    const d = new Date(ts);
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  };
+
+  const tickStep = (domainEnd - domainStart) / 4;
+  const ticks = Array.from({ length: 5 }, (_, i) => Math.round(domainStart + tickStep * i));
+
+  const MARGIN = { top: 4, right: 8, bottom: 0, left: 8 };
+
+  // Pre-compute zone CSS positions as % of the domain range
+  const zonePositions = useMemo(() => {
+    const range = domainEnd - domainStart;
+    if (range <= 0) return [];
+    return probabilityZones.map((zone) => {
+      const leftPct = ((zone.x1 - domainStart) / range) * 100;
+      const widthPct = ((zone.x2 - zone.x1) / range) * 100;
+      const dateFrom = new Date(zone.x1).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+      const dateTo = new Date(zone.x2).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+      return { leftPct, widthPct, dateFrom, dateTo, zone };
+    });
+  }, [probabilityZones, domainStart, domainEnd]);
+
+  return (
+    <div
+      className="rounded-lg px-4 py-3"
+      style={{
+        background: "rgba(255, 255, 255, 0.03)",
+        border: "1px solid rgba(255, 255, 255, 0.06)",
+      }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>
+          Pod triggers across the month
+        </span>
+        {remainingCount > 0 && (
+          <span className="text-[10px]" style={{ color: "var(--accent)" }}>
+            {remainingCount} remaining
+          </span>
+        )}
+      </div>
+      <div style={{ width: "100%", height: 80, position: "relative" }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <ScatterChart margin={MARGIN} onMouseLeave={() => onHoverPod(null)}>
+            <XAxis
+              dataKey="ts"
+              type="number"
+              domain={[domainStart, domainEnd]}
+              tickFormatter={formatTick}
+              tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
+              tickLine={false}
+              axisLine={{ stroke: "rgba(255,255,255,0.08)" }}
+              ticks={ticks}
+            />
+            <YAxis hide domain={[0, 2]} />
+            <Tooltip
+              content={({ payload, active }) => {
+                // Sync hovered pod via ref to avoid render loops
+                const podId = active && payload?.length
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  ? (payload[0].payload as any)?.podId ?? null
+                  : null;
+                if (podId !== lastHoveredRef.current) {
+                  lastHoveredRef.current = podId;
+                  // Defer state update to avoid setting state during render
+                  setTimeout(() => onHoverPod(podId), 0);
+                }
+                if (!active || !payload?.length) return null;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const pt = payload[0].payload as any;
+                return (
+                  <div
+                    className="rounded px-2 py-1 text-[10px]"
+                    style={{
+                      background: "rgba(0,0,0,0.85)",
+                      color: "var(--text-primary)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                    }}
+                  >
+                    {pt.tooltipDate && <div style={{ color: "var(--text-muted)" }}>{pt.tooltipDate}</div>}
+                    {pt.label}
+                  </div>
+                );
+              }}
+            />
+            {/* Probability zones */}
+            {probabilityZones.map((zone, i) => (
+              <ReferenceArea
+                key={`zone-${i}`}
+                x1={zone.x1}
+                x2={zone.x2}
+                y1={0}
+                y2={2}
+                fill="#fbbf24"
+                fillOpacity={zone.opacity}
+                stroke="rgba(251, 191, 36, 0.2)"
+                strokeWidth={1}
+              />
+            ))}
+            {/* Triggered pods */}
+            <Scatter data={triggeredPoints} dataKey="y" fill="#22c55e">
+              {triggeredPoints.map((pt, i) => (
+                <Cell key={i} fill={pt.fill} fillOpacity={pt.opacity} stroke="rgba(255,255,255,0.15)" strokeWidth={1} />
+              ))}
+            </Scatter>
+          </ScatterChart>
+        </ResponsiveContainer>
+        {/* Overlay container matching the chart plot area */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: MARGIN.left,
+            right: MARGIN.right,
+            bottom: 0,
+            pointerEvents: "none",
+          }}
+        >
+          {zonePositions.map(({ leftPct, widthPct, dateFrom, dateTo, zone }, i) => (
+            <div
+              key={`overlay-${i}`}
+              className="zone-hover-target"
+              style={{
+                position: "absolute",
+                left: `${leftPct}%`,
+                top: 0,
+                width: `${widthPct}%`,
+                height: "100%",
+                pointerEvents: "auto",
+                cursor: "default",
+              }}
+            >
+              <div
+                className="zone-tooltip"
+                style={{
+                  position: "absolute",
+                  bottom: "calc(100% + 4px)",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  background: "rgba(0,0,0,0.9)",
+                  color: "var(--text-primary)",
+                  border: "1px solid rgba(251,191,36,0.3)",
+                  borderRadius: 6,
+                  padding: "5px 8px",
+                  fontSize: 10,
+                  whiteSpace: "nowrap",
+                  pointerEvents: "none",
+                  opacity: 0,
+                  transition: "opacity 0.1s",
+                  zIndex: 10,
+                }}
+              >
+                <div style={{ color: "var(--accent)", fontWeight: 600 }}>{zone.probability}% probability</div>
+                <div style={{ color: "var(--text-muted)" }}>{dateFrom} – {dateTo}</div>
+                <div style={{ color: "var(--text-muted)" }}>Tables {zone.tableRange}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <style>{`
+          .zone-hover-target:hover .zone-tooltip { opacity: 1 !important; }
+        `}</style>
+      </div>
+      {/* Legend */}
+      <div className="flex items-center gap-4 mt-1">
+        {[
+          { color: "#22c55e", label: "Won" },
+          { color: "rgba(255,255,255,0.35)", label: "Draw" },
+          { color: "#9a7dd4", label: "Pending" },
+          ...(remainingCount > 0 ? [{ color: "#fbbf24", label: "Probability zone", opacity: 0.25 }] : []),
+        ].map((item) => (
+          <div key={item.label} className="flex items-center gap-1">
+            {"opacity" in item ? (
+              <span
+                className="inline-block w-4 h-2 rounded-sm"
+                style={{ background: item.color, opacity: item.opacity ?? 1 }}
+              />
+            ) : (
+              <span
+                className="inline-block w-2 h-2 rounded-full"
+                style={{ background: item.color }}
+              />
+            )}
+            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+              {item.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Pod Card ───
 
 function PodCard({
   pod,
   month,
   onMutate,
+  highlighted,
 }: {
   pod: TreasurePodWithClaim;
   month: string;
   onMutate: () => void;
+  highlighted?: boolean;
 }) {
   const [claiming, setClaiming] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -198,29 +619,46 @@ function PodCard({
   const statusColor =
     pod.status === "won" ? "#22c55e" :
     pod.status === "draw" ? "var(--text-muted)" :
-    "#f59e0b";
+    "#9a7dd4";
 
   const statusBg =
     pod.status === "won" ? "rgba(34, 197, 94, 0.15)" :
     pod.status === "draw" ? "rgba(255, 255, 255, 0.05)" :
-    "rgba(245, 158, 11, 0.15)";
+    "rgba(154, 125, 212, 0.15)";
+
+  // Winner display: prefer display name with handle in parens
+  const winnerDisplay = pod.winner_discord_handle
+    ? pod.winner_display_name && pod.winner_display_name !== pod.winner_discord_handle
+      ? `${pod.winner_display_name} (${pod.winner_discord_handle})`
+      : pod.winner_discord_handle
+    : null;
 
   return (
     <div
-      className="rounded-lg p-4"
+      className="rounded-lg p-4 transition-colors"
       style={{
         background: "rgba(255, 255, 255, 0.03)",
-        border: "1px solid rgba(255, 255, 255, 0.06)",
+        border: highlighted ? "1px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
       }}
     >
       <div className="flex items-center gap-3">
         {/* Status badge */}
-        <span
-          className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase shrink-0"
-          style={{ background: statusBg, color: statusColor }}
-        >
-          {pod.status}
-        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span
+            className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase"
+            style={{ background: statusBg, color: statusColor }}
+          >
+            {pod.status}
+          </span>
+          {pod.status === "draw" && (
+            <span
+              className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+              style={{ background: "rgba(255, 255, 255, 0.05)", color: "var(--text-muted)" }}
+            >
+              Recalculated
+            </span>
+          )}
+        </div>
 
         {/* Pod info */}
         <div className="flex-1 min-w-0">
@@ -230,9 +668,9 @@ function PodCard({
               Table {pod.table}
             </span>
           </div>
-          {pod.winner_discord_handle && (
+          {winnerDisplay && (
             <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
-              Winner: {pod.winner_discord_handle}
+              Winner: {winnerDisplay}
             </div>
           )}
         </div>
@@ -262,8 +700,14 @@ function PodCard({
             <button
               onClick={handleClaim}
               disabled={loading}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{ background: "rgba(168, 85, 247, 0.15)", color: "#a855f7" }}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+              style={{
+                background: "rgba(251, 191, 36, 0.15)",
+                color: "var(--accent)",
+                border: "1px solid transparent",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; }}
             >
               Mark Claimed
             </button>
@@ -277,9 +721,9 @@ function PodCard({
           <div className="grid grid-cols-2 gap-2">
             <input
               type="text"
-              placeholder="Friend's Discord ID"
-              value={friendDiscordId}
-              onChange={(e) => setFriendDiscordId(e.target.value)}
+              placeholder="Friend's Discord handle"
+              value={friendName}
+              onChange={(e) => setFriendName(e.target.value)}
               className="px-3 py-1.5 rounded-lg text-xs outline-none"
               style={{
                 background: "rgba(255, 255, 255, 0.05)",
@@ -289,9 +733,9 @@ function PodCard({
             />
             <input
               type="text"
-              placeholder="Friend's name"
-              value={friendName}
-              onChange={(e) => setFriendName(e.target.value)}
+              placeholder="Friend's Discord ID"
+              value={friendDiscordId}
+              onChange={(e) => setFriendDiscordId(e.target.value)}
               className="px-3 py-1.5 rounded-lg text-xs outline-none"
               style={{
                 background: "rgba(255, 255, 255, 0.05)",
@@ -317,7 +761,7 @@ function PodCard({
               onClick={handleClaim}
               disabled={loading}
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{ background: "rgba(168, 85, 247, 0.15)", color: "#a855f7" }}
+              style={{ background: "rgba(251, 191, 36, 0.15)", color: "var(--accent)" }}
             >
               {loading ? "Saving..." : "Confirm Claim"}
             </button>
