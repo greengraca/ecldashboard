@@ -9,6 +9,7 @@ import MonthPicker from "@/components/dashboard/month-picker";
 import StandingsTable from "@/components/players/standings-table";
 import LiveStandingsTable from "@/components/players/live-standings-table";
 import TurnOrderSection from "@/components/players/turn-order-section";
+import GamePodsGrid from "@/components/players/game-pods-grid";
 import type { Player, LiveStanding, Standing } from "@/lib/types";
 
 interface PlayersData {
@@ -408,6 +409,7 @@ export default function PlayersPage() {
   const router = useRouter();
   const [month, setMonth] = useState(getCurrentMonth);
   const [filter, setFilter] = useState<"none" | "eligible" | "top16" | "inactive" | "most_games" | "top16_pods" | "top4_pods">("none");
+  const [viewMode, setViewMode] = useState<"standings" | "pods">("standings");
 
   const handleMonthChange = (newMonth: string) => {
     setMonth(newMonth);
@@ -607,8 +609,35 @@ export default function PlayersPage() {
       {/* Turn Order Stats */}
       <TurnOrderSection month={month} />
 
+      {/* View Mode Toggle */}
+      <div className="flex items-center gap-1 mb-6 p-1 rounded-lg w-fit" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+        <button
+          onClick={() => setViewMode("standings")}
+          className="px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors"
+          style={{
+            background: viewMode === "standings" ? "var(--accent)" : "transparent",
+            color: viewMode === "standings" ? "var(--bg-page)" : "var(--text-secondary)",
+          }}
+        >
+          Standings
+        </button>
+        <button
+          onClick={() => setViewMode("pods")}
+          className="px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors"
+          style={{
+            background: viewMode === "pods" ? "var(--accent)" : "transparent",
+            color: viewMode === "pods" ? "var(--bg-page)" : "var(--text-secondary)",
+          }}
+        >
+          Games
+        </button>
+      </div>
+
+      {/* ═══ Games View ═══ */}
+      {viewMode === "pods" && <GamePodsGrid month={month} />}
+
       {/* ═══ Current Month — Live Standings ═══ */}
-      {isCurrentMonth && (
+      {viewMode === "standings" && isCurrentMonth && (
         <>
           {liveError && (
             <div
@@ -769,7 +798,7 @@ export default function PlayersPage() {
       )}
 
       {/* ═══ Past Months — Dump Standings ═══ */}
-      {!isCurrentMonth && (
+      {viewMode === "standings" && !isCurrentMonth && (
         <>
           {/* Champion banner — always visible */}
           {champion && (

@@ -39,11 +39,22 @@ export interface LivePlayerRow {
 const START_POINTS = 1000;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+export interface GamePod {
+  season: number;
+  table: number;
+  players: { uid: string; name: string; discord: string }[];
+  winner: { uid: string; name: string } | null;
+  status: "completed" | "draw" | "in_progress" | "voided";
+  startTime: number | null;
+  endTime: number | null;
+}
+
 export interface LiveStandingsResult {
   rows: LivePlayerRow[];
   totalMatches: number;
   inProgress: number;
   voided: number;
+  gamePods: GamePod[];
 }
 
 // ─── Cache ───
@@ -371,8 +382,47 @@ export async function fetchLiveStandings(bracketId?: string): Promise<LiveStandi
     return 0;
   });
 
+  // Build game pods from matches
+  const gamePods: GamePod[] = matches
+    .filter((m) => m.es.length >= 2)
+    .map((m) => {
+      const podPlayers = m.es.map((eid) => {
+        const uid = entrantToUid.get(eid) ?? String(eid);
+        const pdata = uid && typeof players === "object" && players !== null ? players[uid] : null;
+        return { uid, name: pdata?.name || uid, discord: pdata?.discord || "" };
+      });
+
+      let winner: GamePod["winner"] = null;
+      let status: GamePod["status"];
+
+      if (m.mute) {
+        status = "voided";
+      } else if (m.end === null) {
+        status = "in_progress";
+      } else if (m.winner === "_DRAW_") {
+        status = "draw";
+      } else if (typeof m.winner === "number") {
+        status = "completed";
+        const wUid = entrantToUid.get(m.winner) ?? String(m.winner);
+        const wData = wUid && typeof players === "object" && players !== null ? players[wUid] : null;
+        winner = { uid: wUid, name: wData?.name || wUid };
+      } else {
+        status = "voided";
+      }
+
+      return {
+        season: m.season,
+        table: m.table,
+        players: podPlayers,
+        winner,
+        status,
+        startTime: m.start,
+        endTime: m.end,
+      };
+    });
+
   // Cache
-  const result: LiveStandingsResult = { rows, totalMatches, inProgress, voided };
+  const result: LiveStandingsResult = { rows, totalMatches, inProgress, voided, gamePods };
   cachedResult = result;
   cacheExpires = Date.now() + CACHE_TTL_MS;
 
