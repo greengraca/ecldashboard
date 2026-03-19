@@ -10,6 +10,7 @@ import {
   YAxis,
   Cell,
   ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
@@ -421,33 +422,9 @@ function TreasurePodTimeline({
     return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   };
 
-  // Build ticks: 5 evenly spaced + today, deduplicated by date
-  const nowMs = Date.now();
+  // Build ticks: 7 evenly spaced across the month
   const todayStart = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
-  const rawTicks = Array.from({ length: 5 }, (_, i) => Math.round(domainStart + ((domainEnd - domainStart) / 4) * i));
-  // Replace any tick that falls on the same day as today, or inject today
-  const todayDateStr = formatTick(todayStart);
-  const filteredTicks = rawTicks.filter((t) => formatTick(t) !== todayDateStr);
-  const ticks = [...filteredTicks, todayStart].sort((a, b) => a - b);
-
-  // Custom tick renderer to highlight today
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const renderTick = (props: any) => {
-    const { x, y, payload } = props;
-    const isToday = formatTick(payload.value) === todayDateStr;
-    return (
-      <text
-        x={x}
-        y={y + 10}
-        textAnchor="middle"
-        fontSize={10}
-        fill={isToday ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.4)"}
-        fontWeight={isToday ? 500 : 400}
-      >
-        {formatTick(payload.value)}
-      </text>
-    );
-  };
+  const ticks = Array.from({ length: 7 }, (_, i) => Math.round(domainStart + ((domainEnd - domainStart) / 6) * i));
 
   const MARGIN = { top: 4, right: 8, bottom: 0, left: 8 };
 
@@ -489,7 +466,8 @@ function TreasurePodTimeline({
               dataKey="ts"
               type="number"
               domain={[domainStart, domainEnd]}
-              tick={renderTick}
+              tickFormatter={formatTick}
+              tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
               tickLine={false}
               axisLine={{ stroke: "rgba(255,255,255,0.08)" }}
               ticks={ticks}
@@ -524,6 +502,13 @@ function TreasurePodTimeline({
                   </div>
                 );
               }}
+            />
+            {/* Today line */}
+            <ReferenceLine
+              x={todayStart}
+              stroke="rgba(255,255,255,0.6)"
+              strokeDasharray="4 3"
+              strokeWidth={1}
             />
             {/* Probability zones */}
             {probabilityZones.map((zone, i) => {
