@@ -34,7 +34,7 @@ export default function ActivityPage() {
 
   const params = new URLSearchParams();
   params.set("page", String(page));
-  params.set("limit", "20");
+  params.set("limit", "10");
   if (filters.action) params.set("action", filters.action);
   if (filters.entity_type) params.set("entity_type", filters.entity_type);
   if (filters.from) params.set("from", filters.from);

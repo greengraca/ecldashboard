@@ -5,6 +5,8 @@ import useSWR from "swr";
 import { RefreshCw } from "lucide-react";
 import Select from "@/components/dashboard/select";
 import { useState } from "react";
+import { useSensitiveData } from "@/contexts/SensitiveDataContext";
+import { SensitiveBlock } from "@/components/dashboard/sensitive";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -144,6 +146,7 @@ function renderLine(line: string): React.ReactNode {
 export default function HerokuLogViewer({ active }: HerokuLogViewerProps) {
   const [lineCount, setLineCount] = useState("100");
   const scrollRef = useRef<HTMLPreElement>(null);
+  const { hidden } = useSensitiveData();
 
   const { data, isLoading, mutate } = useSWR<HerokuLogResponse>(
     active ? `/api/heroku-logs?lines=${lineCount}` : null,
@@ -160,6 +163,14 @@ export default function HerokuLogViewer({ active }: HerokuLogViewerProps) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [lines.length]);
+
+  if (hidden) {
+    return (
+      <div className="p-4">
+        <SensitiveBlock message="Heroku logs hidden in privacy mode" height={200} />
+      </div>
+    );
+  }
 
   if (isNotConfigured) {
     return (
