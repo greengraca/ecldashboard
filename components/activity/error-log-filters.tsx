@@ -24,7 +24,6 @@ const LEVELS = [
 
 const SOURCES = [
   { value: "", label: "All Sources" },
-  { value: "rate-limit", label: "Rate Limit" },
 ];
 
 const defaultValues: ErrorLogFilterValues = {

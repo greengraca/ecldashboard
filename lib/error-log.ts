@@ -51,8 +51,3 @@ export function logApiError(source: string, err: unknown): void {
 export function logAuthFailure(source: string, details: Record<string, unknown> | null = null): void {
   logError("warn", source, "Authentication failure", details);
 }
-
-/** Log a rate limit hit (fire-and-forget) */
-export function logRateLimitHit(ip: string, pathname: string): void {
-  logError("info", "rate-limit", `Rate limit exceeded: ${pathname}`, { ip, pathname });
-}
