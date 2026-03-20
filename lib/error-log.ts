@@ -1,0 +1,58 @@
+import { getDb } from "./mongodb";
+import type { ErrorLogLevel } from "./types";
+
+let ttlEnsured = false;
+
+async function ensureTTLIndex() {
+  if (ttlEnsured) return;
+  try {
+    const db = await getDb();
+    await db.collection("dashboard_error_log").createIndex(
+      { created_at: 1 },
+      { expireAfterSeconds: 30 * 24 * 60 * 60, name: "ttl_30d" }
+    );
+    ttlEnsured = true;
+  } catch {
+    // Index may already exist — that's fine
+    ttlEnsured = true;
+  }
+}
+
+export async function logError(
+  level: ErrorLogLevel,
+  source: string,
+  message: string,
+  details: Record<string, unknown> | null = null
+): Promise<void> {
+  try {
+    await ensureTTLIndex();
+    const db = await getDb();
+    await db.collection("dashboard_error_log").insertOne({
+      level,
+      source,
+      message,
+      details,
+      timestamp: new Date().toISOString(),
+      created_at: new Date(),
+    });
+  } catch (err) {
+    console.error("Failed to write error log:", err);
+  }
+}
+
+/** Log an API error (fire-and-forget) */
+export function logApiError(source: string, err: unknown): void {
+  const message = err instanceof Error ? err.message : String(err);
+  const stack = err instanceof Error ? err.stack : undefined;
+  logError("error", source, message, stack ? { stack } : null);
+}
+
+/** Log an auth failure (fire-and-forget) */
+export function logAuthFailure(source: string, details: Record<string, unknown> | null = null): void {
+  logError("warn", source, "Authentication failure", details);
+}
+
+/** Log a rate limit hit (fire-and-forget) */
+export function logRateLimitHit(ip: string, pathname: string): void {
+  logError("info", "rate-limit", `Rate limit exceeded: ${pathname}`, { ip, pathname });
+}

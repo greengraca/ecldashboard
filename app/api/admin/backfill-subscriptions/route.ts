@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { logApiError } from "@/lib/error-log";
 import { backfillPatreon, backfillKofi } from "@/lib/backfill";
 
 export async function POST() {
@@ -22,6 +23,7 @@ export async function POST() {
     });
   } catch (err) {
     console.error("POST /api/admin/backfill-subscriptions error:", err);
+    logApiError("admin/backfill-subscriptions:POST", err);
     const message = err instanceof Error ? err.message : "Backfill failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }

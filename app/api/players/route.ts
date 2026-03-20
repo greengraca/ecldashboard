@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logApiError } from "@/lib/error-log";
 import { getPlayers } from "@/lib/players";
 import { fetchGuildMembers } from "@/lib/discord";
 import { fetchPublicPData } from "@/lib/topdeck-cache";
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: { players: enriched, month: month || null, bracket_id } });
   } catch (err) {
     console.error("GET /api/players error:", err);
+    logApiError("players:GET", err);
     return NextResponse.json(
       { error: "Failed to fetch players" },
       { status: 500 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logApiError } from "@/lib/error-log";
 import { getStandings } from "@/lib/players";
 
 export async function GET(request: NextRequest) {
@@ -11,6 +12,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: { standings, month: resolvedMonth, totalPlayers } });
   } catch (err) {
     console.error("GET /api/players/standings error:", err);
+    logApiError("players/standings:GET", err);
     return NextResponse.json(
       { error: "Failed to fetch standings" },
       { status: 500 }

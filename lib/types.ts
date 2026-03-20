@@ -453,6 +453,20 @@ export interface TreasurePodData {
   stats: TreasurePodTypeStat[];
 }
 
+// ─── Error Log Types ───
+
+export type ErrorLogLevel = "error" | "warn" | "info";
+
+export interface ErrorLogEntry {
+  _id?: ObjectId | string;
+  level: ErrorLogLevel;
+  source: string;
+  message: string;
+  details: Record<string, unknown> | null;
+  timestamp: string;
+  created_at: Date;
+}
+
 // ─── Media Drive Types ───
 
 export interface MediaFile {

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuthWithRateLimit } from "@/lib/api-auth";
+import { logApiError } from "@/lib/error-log";
 import { getSubscriptionIncomeBreakdown } from "@/lib/subscription-income";
 
 export async function GET(request: NextRequest) {
   try {
-    const { error } = await requireAuth();
+    const { error } = await requireAuthWithRateLimit(request);
     if (error) return error;
     const month = request.nextUrl.searchParams.get("month");
     if (!month) {
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: breakdown });
   } catch (err) {
     console.error("GET /api/finance/subscription-income/breakdown error:", err);
+    logApiError("finance/subscription-income/breakdown:GET", err);
     return NextResponse.json(
       { error: "Failed to fetch subscription income breakdown" },
       { status: 500 }

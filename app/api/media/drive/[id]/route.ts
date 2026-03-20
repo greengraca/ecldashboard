@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuthWithRateLimit } from "@/lib/api-auth";
+import { logApiError } from "@/lib/error-log";
 import {
   getItem,
   renameItem,
@@ -12,11 +13,11 @@ import {
 import { deleteManyFromR2 } from "@/lib/r2";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { error } = await requireAuth();
+    const { error } = await requireAuthWithRateLimit(request);
     if (error) return error;
 
     const { id } = await params;
@@ -27,6 +28,7 @@ export async function GET(
     return NextResponse.json({ data: item });
   } catch (err) {
     console.error("GET /api/media/drive/[id] error:", err);
+    logApiError("media/drive/[id]:GET", err);
     return NextResponse.json({ error: "Failed to get item" }, { status: 500 });
   }
 }
@@ -68,6 +70,7 @@ export async function PATCH(
     );
   } catch (err) {
     console.error("PATCH /api/media/drive/[id] error:", err);
+    logApiError("media/drive/[id]:PATCH", err);
     return NextResponse.json(
       { error: "Failed to update item" },
       { status: 500 }
@@ -102,6 +105,7 @@ export async function DELETE(
     return NextResponse.json({ data: { deleted: true } });
   } catch (err) {
     console.error("DELETE /api/media/drive/[id] error:", err);
+    logApiError("media/drive/[id]:DELETE", err);
     return NextResponse.json(
       { error: "Failed to delete item" },
       { status: 500 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { requireAuthWithRateLimit } from "@/lib/api-auth";
 import { logApiError } from "@/lib/error-log";
-import { activityFilterSchema } from "@/lib/validation";
+import { errorLogFilterSchema } from "@/lib/validation";
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,12 +10,11 @@ export async function GET(request: NextRequest) {
     if (error) return error;
 
     const { searchParams } = new URL(request.url);
-    const parsed = activityFilterSchema.safeParse({
+    const parsed = errorLogFilterSchema.safeParse({
       page: searchParams.get("page") || undefined,
       limit: searchParams.get("limit") || undefined,
-      action: searchParams.get("action") || undefined,
-      entity_type: searchParams.get("entity_type") || undefined,
-      user_id: searchParams.get("user_id") || undefined,
+      level: searchParams.get("level") || undefined,
+      source: searchParams.get("source") || undefined,
       from: searchParams.get("from") || undefined,
       to: searchParams.get("to") || undefined,
     });
@@ -25,15 +24,12 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
-    const { page, limit, action, entity_type: entityType, user_id: userId, from, to } = parsed.data;
+    const { page, limit, level, source, from, to } = parsed.data;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filter: Record<string, any> = {};
-
-    if (action) filter.action = action;
-    if (entityType) filter.entity_type = entityType;
-    if (userId) filter.user_id = userId;
-
+    if (level) filter.level = level;
+    if (source) filter.source = source;
     if (from || to) {
       filter.timestamp = {};
       if (from) (filter.timestamp as Record<string, string>).$gte = new Date(from).toISOString();
@@ -41,7 +37,7 @@ export async function GET(request: NextRequest) {
     }
 
     const db = await getDb();
-    const collection = db.collection("dashboard_activity_log");
+    const collection = db.collection("dashboard_error_log");
 
     const [total, data] = await Promise.all([
       collection.countDocuments(filter),
@@ -55,17 +51,12 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(total / limit) || 1;
 
-    return NextResponse.json({
-      data,
-      total,
-      page,
-      totalPages,
-    });
+    return NextResponse.json({ data, total, page, totalPages });
   } catch (err) {
-    console.error("GET /api/activity error:", err);
-    logApiError("activity:GET", err);
+    console.error("GET /api/error-log error:", err);
+    logApiError("error-log:GET", err);
     return NextResponse.json(
-      { error: "Failed to fetch activity log" },
+      { error: "Failed to fetch error log" },
       { status: 500 }
     );
   }

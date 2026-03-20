@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { requireAuth } from "@/lib/api-auth";
+import { logApiError } from "@/lib/error-log";
+import { requireAuthWithRateLimit } from "@/lib/api-auth";
 import { getPrizeBudget, upsertPrizeBudget } from "@/lib/prizes";
 
 export async function GET(request: NextRequest) {
   try {
-    const { session, error } = await requireAuth();
+    const { session, error } = await requireAuthWithRateLimit(request);
     if (error) return error;
 
     const { searchParams } = new URL(request.url);
@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: budget });
   } catch (err) {
     console.error("GET /api/prizes/budget error:", err);
+    logApiError("prizes/budget:GET", err);
     return NextResponse.json(
       { error: "Failed to fetch budget" },
       { status: 500 }
@@ -27,10 +28,8 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session: sess, error: authErr } = await requireAuthWithRateLimit(request);
+    if (authErr) return authErr;
 
     const body = await request.json();
     const { month, total_budget, allocations, notes } = body;
@@ -42,9 +41,9 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const userId = session.user.id;
+    const userId = sess!.user!.id!;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userName = (session.user as any).username || session.user.name || "unknown";
+    const userName = (sess!.user as any).username || sess!.user!.name || "unknown";
 
     const budget = await upsertPrizeBudget(
       month,
@@ -56,6 +55,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ data: budget });
   } catch (err) {
     console.error("PUT /api/prizes/budget error:", err);
+    logApiError("prizes/budget:PUT", err);
     return NextResponse.json(
       { error: "Failed to save budget" },
       { status: 500 }

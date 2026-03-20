@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuthWithRateLimit } from "@/lib/api-auth";
+import { logApiError } from "@/lib/error-log";
 import { getMonthlySummary, getMultiMonthSummary } from "@/lib/finance";
 
 export async function GET(request: NextRequest) {
   try {
-    const { error } = await requireAuth();
+    const { error } = await requireAuthWithRateLimit(request);
     if (error) return error;
     const { searchParams } = new URL(request.url);
     const months = searchParams.get("months");
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: summary });
   } catch (err) {
     console.error("GET /api/finance/summary error:", err);
+    logApiError("finance/summary:GET", err);
     return NextResponse.json(
       { error: "Failed to fetch summary" },
       { status: 500 }

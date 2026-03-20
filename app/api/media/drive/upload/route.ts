@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { logApiError } from "@/lib/error-log";
 import { randomUUID } from "crypto";
 import { uploadToR2 } from "@/lib/r2";
 import { createFileMetadata } from "@/lib/media-drive";
@@ -71,6 +72,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: metadata }, { status: 201 });
   } catch (err) {
     console.error("POST /api/media/drive/upload error:", err);
+    logApiError("media/drive/upload:POST", err);
     return NextResponse.json(
       { error: "Failed to upload file" },
       { status: 500 }

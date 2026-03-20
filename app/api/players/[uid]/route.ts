@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logApiError } from "@/lib/error-log";
 import { getPlayerDetail } from "@/lib/players";
 
 export async function GET(
@@ -19,6 +20,7 @@ export async function GET(
     return NextResponse.json({ data: player });
   } catch (err) {
     console.error("GET /api/players/[uid] error:", err);
+    logApiError("players/[uid]:GET", err);
     return NextResponse.json(
       { error: "Failed to fetch player detail" },
       { status: 500 }

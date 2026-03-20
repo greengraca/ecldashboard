@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { logApiError } from "@/lib/error-log";
 import { getTopDeckCacheStatus } from "@/lib/topdeck-cache";
 
 export async function GET() {

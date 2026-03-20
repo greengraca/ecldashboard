@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { logApiError } from "@/lib/error-log";
 import { headR2Object } from "@/lib/r2";
 import { createFileMetadata } from "@/lib/media-drive";
 
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: metadata }, { status: 201 });
   } catch (err) {
     console.error("POST /api/media/drive/upload-confirm error:", err);
+    logApiError("media/drive/upload-confirm:POST", err);
     return NextResponse.json(
       { error: "Failed to confirm upload" },
       { status: 500 }

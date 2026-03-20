@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logApiError } from "@/lib/error-log";
 import { TOPDECK_BRACKET_ID, FIRESTORE_DOC_URL_TEMPLATE } from "@/lib/constants";
 import { fetchPublicPData } from "@/lib/topdeck-cache";
 import { getHistoricalMonths, reassembleMonthDump } from "@/lib/topdeck";
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
     }
   } catch (err) {
     console.error("GET /api/players/turn-order-stats error:", err);
+    logApiError("players/turn-order-stats:GET", err);
     return NextResponse.json(
       { error: "Failed to compute turn order stats" },
       { status: 500 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAuthWithRateLimit } from "@/lib/api-auth";
+import { logApiError } from "@/lib/error-log";
 import { markManualPaid, unmarkManualPaid } from "@/lib/manual-payments";
 
 export async function POST(
@@ -7,10 +8,8 @@ export async function POST(
   { params }: { params: Promise<{ discordId: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, error } = await requireAuthWithRateLimit(request);
+    if (error) return error;
 
     const { discordId } = await params;
     const { searchParams } = new URL(request.url);
@@ -23,15 +22,16 @@ export async function POST(
       );
     }
 
-    const userId = session.user.id;
+    const userId = session!.user!.id!;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const userName =
-      (session.user as any).username || session.user.name || "unknown";
+      (session!.user as any).username || session!.user!.name || "unknown";
 
     const result = await markManualPaid(month, discordId, userId, userName);
     return NextResponse.json({ data: result }, { status: 201 });
   } catch (err) {
     console.error("POST manual-payment error:", err);
+    logApiError("subscribers/[discordId]/manual-payment:POST", err);
     return NextResponse.json(
       { error: "Failed to mark manual payment" },
       { status: 500 }
@@ -44,10 +44,8 @@ export async function DELETE(
   { params }: { params: Promise<{ discordId: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, error } = await requireAuthWithRateLimit(request);
+    if (error) return error;
 
     const { discordId } = await params;
     const { searchParams } = new URL(request.url);
@@ -60,15 +58,16 @@ export async function DELETE(
       );
     }
 
-    const userId = session.user.id;
+    const userId = session!.user!.id!;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const userName =
-      (session.user as any).username || session.user.name || "unknown";
+      (session!.user as any).username || session!.user!.name || "unknown";
 
     await unmarkManualPaid(month, discordId, userId, userName);
     return NextResponse.json({ data: { success: true } });
   } catch (err) {
     console.error("DELETE manual-payment error:", err);
+    logApiError("subscribers/[discordId]/manual-payment:DELETE", err);
     return NextResponse.json(
       { error: "Failed to unmark manual payment" },
       { status: 500 }

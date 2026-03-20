@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logApiError } from "@/lib/error-log";
 
 const ALLOWED_HOSTS = [
   "cards.scryfall.io",
@@ -44,7 +45,9 @@ export async function GET(req: NextRequest) {
         "Access-Control-Allow-Origin": process.env.NEXTAUTH_URL || "",
       },
     });
-  } catch {
+  } catch (err) {
+    console.error("GET /api/media/proxy error:", err);
+    logApiError("media/proxy:GET", err);
     return NextResponse.json({ error: "Proxy fetch failed" }, { status: 502 });
   }
 }

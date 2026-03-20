@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { ChevronLeft, ChevronRight, ScrollText } from "lucide-react";
+import { ChevronLeft, ChevronRight, ScrollText, Terminal, AlertTriangle } from "lucide-react";
 import ActivityTable from "@/components/activity/activity-table";
 import ActivityFilters, {
   ActivityFilterValues,
 } from "@/components/activity/activity-filters";
+import Accordion from "@/components/dashboard/accordion";
+import HerokuLogViewer from "@/components/activity/heroku-log-viewer";
+import ErrorLogViewer from "@/components/activity/error-log-viewer";
 import type { ActivityEntry } from "@/lib/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -26,6 +29,8 @@ export default function ActivityPage() {
     from: "",
     to: "",
   });
+  const [herokuOpen, setHerokuOpen] = useState(false);
+  const [errorLogOpen, setErrorLogOpen] = useState(false);
 
   const params = new URLSearchParams();
   params.set("page", String(page));
@@ -136,6 +141,28 @@ export default function ActivityPage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Heroku Logs Accordion */}
+      <div className="mt-6">
+        <Accordion
+          title="Heroku Logs (eclBot)"
+          icon={<Terminal className="w-4 h-4" />}
+          onToggle={setHerokuOpen}
+        >
+          <HerokuLogViewer active={herokuOpen} />
+        </Accordion>
+      </div>
+
+      {/* Dashboard Error Log Accordion */}
+      <div className="mt-4">
+        <Accordion
+          title="Dashboard Error Log"
+          icon={<AlertTriangle className="w-4 h-4" />}
+          onToggle={setErrorLogOpen}
+        >
+          <ErrorLogViewer active={errorLogOpen} />
+        </Accordion>
       </div>
     </div>
   );

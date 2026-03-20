@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { logApiError } from "@/lib/error-log";
 import { upsertCaptionTemplate, deleteCaptionTemplate } from "@/lib/caption-templates";
 
 export async function PUT(
@@ -22,6 +23,7 @@ export async function PUT(
     return NextResponse.json({ data: { templateId, captionTemplate } });
   } catch (err) {
     console.error("PUT /api/media/caption-templates/[templateId] error:", err);
+    logApiError("media/caption-templates/[templateId]:PUT", err);
     return NextResponse.json(
       { error: "Failed to save caption template" },
       { status: 500 },
@@ -47,6 +49,7 @@ export async function DELETE(
     return NextResponse.json({ data: { templateId, reset: true } });
   } catch (err) {
     console.error("DELETE /api/media/caption-templates/[templateId] error:", err);
+    logApiError("media/caption-templates/[templateId]:DELETE", err);
     return NextResponse.json(
       { error: "Failed to delete caption template" },
       { status: 500 },

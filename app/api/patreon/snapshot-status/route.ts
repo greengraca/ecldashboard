@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { logApiError } from "@/lib/error-log";
+import { requireAuthWithRateLimit } from "@/lib/api-auth";
 import { getDb } from "@/lib/mongodb";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, error } = await requireAuthWithRateLimit(request);
+    if (error) return error;
 
     const { searchParams } = new URL(request.url);
     const now = new Date();
@@ -48,6 +47,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (err) {
     console.error("GET /api/patreon/snapshot-status error:", err);
+    logApiError("patreon/snapshot-status:GET", err);
     return NextResponse.json(
       { error: "Failed to fetch snapshot status" },
       { status: 500 }

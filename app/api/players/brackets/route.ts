@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { logApiError } from "@/lib/error-log";
+import { requireAuthWithRateLimit } from "@/lib/api-auth";
 import { getDb } from "@/lib/mongodb";
 import { logActivity } from "@/lib/activity";
 
@@ -25,10 +26,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { session, error } = await requireAuthWithRateLimit(req);
+  if (error) return error;
 
   const body = await req.json();
   const { month, top16_winners, top4_order, top4_winner } = body;
@@ -51,7 +50,7 @@ export async function PUT(req: NextRequest) {
         top4_order: top4_order || [],
         top4_winner: top4_winner || null,
         updated_at: new Date().toISOString(),
-        updated_by: session.user.name || session.user.id,
+        updated_by: session!.user!.name || session!.user!.id,
       },
     },
     { upsert: true }
@@ -62,8 +61,8 @@ export async function PUT(req: NextRequest) {
     "bracket",
     month,
     { top16_winners, top4_order, top4_winner },
-    session.user.id || "",
-    session.user.name || ""
+    session!.user!.id || "",
+    session!.user!.name || ""
   );
 
   return NextResponse.json({ data: { success: true } });

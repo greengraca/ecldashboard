@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { logApiError } from "@/lib/error-log";
 import { randomUUID } from "crypto";
 import { getPresignedUploadUrl } from "@/lib/r2";
 import { validateFileExtension, sanitizeFilename } from "@/lib/validation";
@@ -41,6 +42,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: { uploadUrl, r2Key } });
   } catch (err) {
     console.error("POST /api/media/drive/upload-url error:", err);
+    logApiError("media/drive/upload-url:POST", err);
     return NextResponse.json(
       { error: "Failed to generate upload URL" },
       { status: 500 }

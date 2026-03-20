@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { requireAuth } from "@/lib/api-auth";
+import { logApiError } from "@/lib/error-log";
+import { requireAuthWithRateLimit } from "@/lib/api-auth";
 import { getPrizes, createPrize } from "@/lib/prizes";
 import { prizeCreateSchema } from "@/lib/validation";
 
 export async function GET(request: NextRequest) {
   try {
-    const { session, error } = await requireAuth();
+    const { session, error } = await requireAuthWithRateLimit(request);
     if (error) return error;
 
     const { searchParams } = new URL(request.url);
@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: prizes });
   } catch (err) {
     console.error("GET /api/prizes error:", err);
+    logApiError("prizes:GET", err);
     return NextResponse.json(
       { error: "Failed to fetch prizes" },
       { status: 500 }
@@ -28,10 +29,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, error } = await requireAuthWithRateLimit(request);
+    if (error) return error;
 
     const body = await request.json();
     const parsed = prizeCreateSchema.safeParse(body);
@@ -43,9 +42,9 @@ export async function POST(request: NextRequest) {
     }
     const { month, category, name, value, recipient_type, recipient_name } = parsed.data;
 
-    const userId = session.user.id;
+    const userId = session!.user!.id!;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userName = (session.user as any).username || session.user.name || "unknown";
+    const userName = (session!.user as any).username || session!.user!.name || "unknown";
 
     const prize = await createPrize(
       {
@@ -70,6 +69,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: prize }, { status: 201 });
   } catch (err) {
     console.error("POST /api/prizes error:", err);
+    logApiError("prizes:POST", err);
     return NextResponse.json(
       { error: "Failed to create prize" },
       { status: 500 }

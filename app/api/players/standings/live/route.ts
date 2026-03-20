@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { logApiError } from "@/lib/error-log";
 import { fetchLiveStandings } from "@/lib/topdeck-live";
 import { fetchGuildMembers } from "@/lib/discord";
 import { getDb } from "@/lib/mongodb";
@@ -36,7 +37,7 @@ async function getOnlineGameCounts(): Promise<Map<string, number>> {
   return counts;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const [liveResult, onlineCounts, guildMembers] = await Promise.all([
       fetchLiveStandings(),
@@ -97,6 +98,7 @@ export async function GET() {
     });
   } catch (err) {
     console.error("GET /api/players/standings/live error:", err);
+    logApiError("players/standings/live:GET", err);
     return NextResponse.json(
       { error: "Failed to fetch live standings" },
       { status: 500 }

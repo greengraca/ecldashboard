@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuthWithRateLimit } from "@/lib/api-auth";
+import { logApiError } from "@/lib/error-log";
 import { getItem } from "@/lib/media-drive";
 import { getPresignedDownloadUrl } from "@/lib/r2";
 import { generateAndStoreThumbnail } from "@/lib/thumbnails";
@@ -7,11 +8,11 @@ import { getDb } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { error } = await requireAuth();
+    const { error } = await requireAuthWithRateLimit(request);
     if (error) return error;
 
     const { id } = await params;
@@ -54,6 +55,7 @@ export async function GET(
     });
   } catch (err) {
     console.error("GET /api/media/drive/[id]/thumbnail error:", err);
+    logApiError("media/drive/[id]/thumbnail:GET", err);
     return NextResponse.json(
       { error: "Failed to generate thumbnail" },
       { status: 500 }

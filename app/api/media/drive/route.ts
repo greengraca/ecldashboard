@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuthWithRateLimit } from "@/lib/api-auth";
+import { logApiError } from "@/lib/error-log";
 import {
   listFolder,
   createFolder,
@@ -11,7 +12,7 @@ import { getPresignedDownloadUrl } from "@/lib/r2";
 
 export async function GET(request: NextRequest) {
   try {
-    const { error } = await requireAuth();
+    const { error } = await requireAuthWithRateLimit(request);
     if (error) return error;
 
     const { searchParams } = new URL(request.url);
@@ -79,6 +80,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: withPreviews, breadcrumbs });
   } catch (err) {
     console.error("GET /api/media/drive error:", err);
+    logApiError("media/drive:GET", err);
     return NextResponse.json(
       { error: "Failed to list folder" },
       { status: 500 }
@@ -111,6 +113,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: folder }, { status: 201 });
   } catch (err) {
     console.error("POST /api/media/drive error:", err);
+    logApiError("media/drive:POST", err);
     return NextResponse.json(
       { error: "Failed to create folder" },
       { status: 500 }

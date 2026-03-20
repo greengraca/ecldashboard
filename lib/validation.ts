@@ -90,6 +90,17 @@ const ACTIVITY_ENTITY_TYPES = [
   "treasure_pod", "reimbursement",
 ] as const;
 
+const ERROR_LOG_LEVELS = ["error", "warn", "info"] as const;
+
+export const errorLogFilterSchema = z.object({
+  page: z.coerce.number().int().min(1).max(1000).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+  level: z.enum(ERROR_LOG_LEVELS).optional(),
+  source: z.string().max(100).optional(),
+  from: z.string().date().optional(),
+  to: z.string().date().optional(),
+});
+
 export const activityFilterSchema = z.object({
   page: z.coerce.number().int().min(1).max(1000).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),

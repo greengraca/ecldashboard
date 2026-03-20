@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { logApiError } from "@/lib/error-log";
 import { logActivity } from "@/lib/activity";
 import { TOPDECK_BRACKET_ID } from "@/lib/constants";
 import {

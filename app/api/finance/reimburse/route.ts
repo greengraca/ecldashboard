@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAuthWithRateLimit } from "@/lib/api-auth";
+import { logApiError } from "@/lib/error-log";
 import { reimburseExpense, unreimburseExpense } from "@/lib/finance";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, error } = await requireAuthWithRateLimit(request);
+    if (error) return error;
 
     const body = await request.json();
     const { id, source, reimbursed } = body;
@@ -26,9 +25,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userId = session.user.id;
+    const userId = session!.user!.id!;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userName = (session.user as any).username || session.user.name || "unknown";
+    const userName = (session!.user as any).username || session!.user!.name || "unknown";
 
     if (reimbursed) {
       await reimburseExpense(id, source, userId, userName);
@@ -39,6 +38,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: { success: true } });
   } catch (err) {
     console.error("POST /api/finance/reimburse error:", err);
+    logApiError("finance/reimburse:POST", err);
     return NextResponse.json(
       { error: "Failed to update reimbursement" },
       { status: 500 }

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getManualPayments } from "@/lib/manual-payments";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuthWithRateLimit } from "@/lib/api-auth";
+import { logApiError } from "@/lib/error-log";
 
 export async function GET(request: NextRequest) {
   try {
-    const { error } = await requireAuth();
+    const { error } = await requireAuthWithRateLimit(request);
     if (error) return error;
     const { searchParams } = new URL(request.url);
     const now = new Date();
@@ -16,6 +17,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: payments });
   } catch (err) {
     console.error("GET /api/subscribers/manual-payments error:", err);
+    logApiError("subscribers/manual-payments:GET", err);
     return NextResponse.json(
       { error: "Failed to fetch manual payments" },
       { status: 500 }

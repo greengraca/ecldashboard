@@ -1,13 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { existsSync } from "fs";
 import { join } from "path";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuthWithRateLimit } from "@/lib/api-auth";
+import { logApiError } from "@/lib/error-log";
 import { REQUIRED_ASSETS } from "@/components/media/shared/brand-constants";
 import { checkAssetStatus } from "@/lib/media-drive";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const { error } = await requireAuth();
+    const { error } = await requireAuthWithRateLimit(request);
     if (error) return error;
 
     const requiredNames = REQUIRED_ASSETS.map(
@@ -33,6 +34,7 @@ export async function GET() {
     return NextResponse.json({ data: results });
   } catch (err) {
     console.error("GET /api/media/drive/asset-status error:", err);
+    logApiError("media/drive/asset-status:GET", err);
     return NextResponse.json(
       { error: "Failed to check asset status" },
       { status: 500 }
