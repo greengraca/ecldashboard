@@ -217,7 +217,7 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
   // Build lookup maps
   const accessByUser = new Map<string, Record<string, unknown>>();
   for (const rec of accessRecords) {
-    accessByUser.set(String(rec.user_id), rec);
+    accessByUser.set(rec.user_id?.toString() ?? String(rec.user_id), rec);
   }
 
   const freeEntryByUser = new Map<string, Record<string, unknown>>();

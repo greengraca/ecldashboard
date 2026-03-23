@@ -240,8 +240,9 @@ export function computeStandings(
 
   // Process each valid completed match
   for (const match of matches) {
-    // Valid completed: winner !== null and es.length >= 2
+    // Valid completed: winner !== null, es.length >= 2, and not muted
     if (match.winner === null || match.es.length < 2) continue;
+    if (match.raw?.Mute === true) continue;
 
     const participants = match.es;
 

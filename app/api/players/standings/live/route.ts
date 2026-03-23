@@ -3,11 +3,11 @@ import { logApiError } from "@/lib/error-log";
 import { fetchLiveStandings } from "@/lib/topdeck-live";
 import { fetchGuildMembers } from "@/lib/discord";
 import { getDb } from "@/lib/mongodb";
-import { TOPDECK_BRACKET_ID } from "@/lib/constants";
+import { TOPDECK_BRACKET_ID, TOP16_MIN_ONLINE_GAMES, TOP16_MIN_TOTAL_GAMES } from "@/lib/constants";
 import type { LiveStanding } from "@/lib/types";
 
-const MIN_ONLINE_GAMES = 10;
-const MIN_TOTAL_GAMES = 10;
+const MIN_ONLINE_GAMES = TOP16_MIN_ONLINE_GAMES;
+const MIN_TOTAL_GAMES = TOP16_MIN_TOTAL_GAMES;
 
 async function getOnlineGameCounts(): Promise<Map<string, number>> {
   const db = await getDb();

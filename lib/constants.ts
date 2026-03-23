@@ -37,6 +37,10 @@ export const ALL_SUB_ROLE_IDS = new Set([
 export const FIRESTORE_DOC_URL_TEMPLATE = process.env.FIRESTORE_DOC_URL_TEMPLATE || "";
 export const WAGER_RATE = parseFloat(process.env.WAGER_RATE || "0.07");
 
+// ─── Top16 Eligibility Thresholds ───
+export const TOP16_MIN_ONLINE_GAMES = parseInt(process.env.TOP16_MIN_ONLINE_GAMES || "10", 10);
+export const TOP16_MIN_TOTAL_GAMES = parseInt(process.env.TOP16_MIN_TOTAL_GAMES || "10", 10);
+
 // ─── Subscription Income ───
 
 export const ECL_ELIGIBLE_PATREON_TIERS = ["ECL Grinder", "Gold", "Diamond", "Bronze", "Silver"];
