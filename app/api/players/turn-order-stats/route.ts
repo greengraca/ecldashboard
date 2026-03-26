@@ -1,35 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logApiError } from "@/lib/error-log";
+import { withAuthRead } from "@/lib/api-helpers";
 import { TOPDECK_BRACKET_ID, FIRESTORE_DOC_URL_TEMPLATE } from "@/lib/constants";
 import { fetchPublicPData } from "@/lib/topdeck-cache";
 import { getHistoricalMonths, reassembleMonthDump } from "@/lib/topdeck";
 import { computeTurnOrderStats } from "@/lib/turn-order-stats";
+import { getCurrentMonth } from "@/lib/utils";
 
-function getCurrentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
+export const GET = withAuthRead(async (request: NextRequest) => {
+  const { searchParams } = new URL(request.url);
+  const month = searchParams.get("month") || getCurrentMonth();
+  const isCurrentMonth = month === getCurrentMonth();
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const month = searchParams.get("month") || getCurrentMonth();
-    const isCurrentMonth = month === getCurrentMonth();
-
-    if (isCurrentMonth) {
-      return await handleCurrentMonth();
-    } else {
-      return await handlePastMonth(month);
-    }
-  } catch (err) {
-    console.error("GET /api/players/turn-order-stats error:", err);
-    logApiError("players/turn-order-stats:GET", err);
-    return NextResponse.json(
-      { error: "Failed to compute turn order stats" },
-      { status: 500 }
-    );
+  if (isCurrentMonth) {
+    return await handleCurrentMonth();
+  } else {
+    return await handlePastMonth(month);
   }
-}
+}, "players/turn-order-stats:GET");
 
 async function handleCurrentMonth() {
   const bid = TOPDECK_BRACKET_ID;

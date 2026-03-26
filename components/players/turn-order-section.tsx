@@ -4,8 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { ChevronDown, ChevronUp, BarChart3, Crown, Frown } from "lucide-react";
 import type { TurnOrderStats } from "@/lib/turn-order-stats";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher } from "@/lib/fetcher";
 
 interface TurnOrderSectionProps {
   month: string;

@@ -9,18 +9,13 @@ import MonthPicker from "@/components/dashboard/month-picker";
 import SubscriberTable from "@/components/subscribers/subscriber-table";
 import type { Subscriber, SubscriberSummary } from "@/lib/types";
 import { Sensitive } from "@/components/dashboard/sensitive";
+import { fetcher } from "@/lib/fetcher";
+import { getCurrentMonth } from "@/lib/utils";
 
 interface SubscriberData {
   subscribers: Subscriber[];
   summary: SubscriberSummary;
   month: string;
-}
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
-
-function getCurrentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
 type SourceFilter = "all" | "patreon" | "kofi" | "free" | "manual" | "paying_not_playing";

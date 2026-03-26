@@ -3,6 +3,12 @@ import { getDb } from "./mongodb";
 
 const COLLECTION = "dashboard_media_files";
 
+/** Validate and convert a string to ObjectId, throwing a descriptive error on invalid input */
+function toObjectId(id: string): ObjectId {
+  if (!ObjectId.isValid(id)) throw new Error("Invalid ID format");
+  return new ObjectId(id);
+}
+
 async function col() {
   const db = await getDb();
   return db.collection(COLLECTION);
@@ -25,7 +31,7 @@ async function resolveNameCollision(
   name: string
 ): Promise<string> {
   const c = await col();
-  const pid = parentId ? new ObjectId(parentId) : null;
+  const pid = parentId ? toObjectId(parentId) : null;
   const existing = await c.findOne({ parentId: pid, name });
   if (!existing) return name;
 
@@ -49,7 +55,7 @@ async function buildPath(
 ): Promise<string> {
   if (!parentId) return `/${name}`;
   const c = await col();
-  const parent = await c.findOne({ _id: new ObjectId(parentId) });
+  const parent = await c.findOne({ _id: toObjectId(parentId) });
   if (!parent) return `/${name}`;
   return `${parent.path}/${name}`;
 }
@@ -66,7 +72,7 @@ function serialize(item: any) {
 /** Get the next sortOrder value for a given parent */
 async function nextSortOrder(parentId: string | null): Promise<number> {
   const c = await col();
-  const pid = parentId ? new ObjectId(parentId) : null;
+  const pid = parentId ? toObjectId(parentId) : null;
   const last = await c
     .find({ parentId: pid })
     .sort({ sortOrder: -1 })
@@ -80,7 +86,7 @@ async function nextSortOrder(parentId: string | null): Promise<number> {
 export async function listFolder(parentId: string | null) {
   await ensureIndexes();
   const c = await col();
-  const pid = parentId ? new ObjectId(parentId) : null;
+  const pid = parentId ? toObjectId(parentId) : null;
   const items = await c
     .find({ parentId: pid })
     .sort({ type: -1, sortOrder: 1, name: 1 }) // folders first, then sortOrder, then name as tiebreaker
@@ -97,7 +103,7 @@ export async function getFolderPreviews(
 ): Promise<Record<string, { r2Key: string; thumbR2Key?: string; _id: string }[]>> {
   if (folderIds.length === 0) return {};
   const c = await col();
-  const objectIds = folderIds.map((id) => new ObjectId(id));
+  const objectIds = folderIds.map((id) => toObjectId(id));
 
   // Get up to 4 image files per folder using aggregation
   const pipeline = [
@@ -144,7 +150,7 @@ export async function getFolderPreviews(
 /** Get a single item by ID */
 export async function getItem(id: string) {
   const c = await col();
-  const item = await c.findOne({ _id: new ObjectId(id) });
+  const item = await c.findOne({ _id: toObjectId(id) });
   if (!item) return null;
   return serialize(item);
 }
@@ -153,7 +159,7 @@ export async function getItem(id: string) {
 export async function getBreadcrumbs(id: string) {
   const crumbs: { _id: string; name: string }[] = [];
   const c = await col();
-  let current = await c.findOne({ _id: new ObjectId(id) });
+  let current = await c.findOne({ _id: toObjectId(id) });
   while (current) {
     crumbs.unshift({ _id: current._id.toString(), name: current.name });
     if (!current.parentId) break;
@@ -177,7 +183,7 @@ export async function createFolder(
   const doc = {
     name: resolvedName,
     type: "folder" as const,
-    parentId: parentId ? new ObjectId(parentId) : null,
+    parentId: parentId ? toObjectId(parentId) : null,
     path,
     sortOrder,
     uploadedBy,
@@ -211,7 +217,7 @@ export async function createFileMetadata(params: {
     size: params.size,
     r2Key: params.r2Key,
     ...(params.thumbR2Key ? { thumbR2Key: params.thumbR2Key } : {}),
-    parentId: params.parentId ? new ObjectId(params.parentId) : null,
+    parentId: params.parentId ? toObjectId(params.parentId) : null,
     path,
     sortOrder,
     uploadedBy: params.uploadedBy,
@@ -229,7 +235,7 @@ export async function createFileMetadata(params: {
 /** Rename an item — updates its path and all descendants' paths */
 export async function renameItem(id: string, newName: string) {
   const c = await col();
-  const item = await c.findOne({ _id: new ObjectId(id) });
+  const item = await c.findOne({ _id: toObjectId(id) });
   if (!item) throw new Error("Item not found");
 
   const resolvedName = await resolveNameCollision(
@@ -241,7 +247,7 @@ export async function renameItem(id: string, newName: string) {
   const newPath = `${parentPath}/${resolvedName}`;
 
   await c.updateOne(
-    { _id: new ObjectId(id) },
+    { _id: toObjectId(id) },
     { $set: { name: resolvedName, path: newPath, updatedAt: new Date() } }
   );
 
@@ -270,16 +276,16 @@ export async function renameItem(id: string, newName: string) {
 /** Move an item to a new parent folder */
 export async function moveItem(id: string, newParentId: string | null) {
   const c = await col();
-  const item = await c.findOne({ _id: new ObjectId(id) });
+  const item = await c.findOne({ _id: toObjectId(id) });
   if (!item) throw new Error("Item not found");
 
   const resolvedName = await resolveNameCollision(newParentId, item.name);
   const oldPath = item.path as string;
   const newPath = await buildPath(newParentId, resolvedName);
-  const newPid = newParentId ? new ObjectId(newParentId) : null;
+  const newPid = newParentId ? toObjectId(newParentId) : null;
 
   await c.updateOne(
-    { _id: new ObjectId(id) },
+    { _id: toObjectId(id) },
     {
       $set: {
         name: resolvedName,
@@ -316,7 +322,7 @@ export async function moveItem(id: string, newParentId: string | null) {
 /** Collect R2 keys for an item (and descendants if folder). Does NOT delete anything. */
 export async function collectR2Keys(id: string): Promise<string[]> {
   const c = await col();
-  const item = await c.findOne({ _id: new ObjectId(id) });
+  const item = await c.findOne({ _id: toObjectId(id) });
   if (!item) throw new Error("Item not found");
 
   const r2Keys: string[] = [];
@@ -343,7 +349,7 @@ export async function collectR2Keys(id: string): Promise<string[]> {
 /** Delete item from DB (and descendants if folder). Call AFTER R2 deletion. */
 export async function deleteItemFromDb(id: string): Promise<void> {
   const c = await col();
-  const item = await c.findOne({ _id: new ObjectId(id) });
+  const item = await c.findOne({ _id: toObjectId(id) });
   if (!item) throw new Error("Item not found");
 
   if (item.type === "folder") {
@@ -353,7 +359,7 @@ export async function deleteItemFromDb(id: string): Promise<void> {
     );
     await c.deleteMany({ path: { $regex: `^${escapedPath}/` } });
   }
-  await c.deleteOne({ _id: new ObjectId(id) });
+  await c.deleteOne({ _id: toObjectId(id) });
 }
 
 /**
@@ -366,7 +372,7 @@ export async function reorderItem(
   afterId: string | null
 ): Promise<void> {
   const c = await col();
-  const item = await c.findOne({ _id: new ObjectId(id) });
+  const item = await c.findOne({ _id: toObjectId(id) });
   if (!item) throw new Error("Item not found");
 
   // Get all siblings of the same type in order
@@ -376,14 +382,14 @@ export async function reorderItem(
     .toArray();
 
   // Build the new ordered list
-  const filtered = siblings.filter((s) => !s._id.equals(new ObjectId(id)));
+  const filtered = siblings.filter((s) => !s._id.equals(toObjectId(id)));
 
   let insertIdx: number;
   if (afterId === null) {
     insertIdx = 0;
   } else {
     const afterIdx = filtered.findIndex((s) =>
-      s._id.equals(new ObjectId(afterId))
+      s._id.equals(toObjectId(afterId))
     );
     insertIdx = afterIdx === -1 ? filtered.length : afterIdx + 1;
   }

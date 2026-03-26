@@ -8,13 +8,8 @@ import ProfitSplitTable from "@/components/finance/profit-split-table";
 import { Users, Wallet, Swords, Activity, CheckCircle, Clock, List, Group } from "lucide-react";
 import type { ActivityEntry, ActivityAction, PendingReimbursement } from "@/lib/types";
 import { Sensitive } from "@/components/dashboard/sensitive";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
-
-function getCurrentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
+import { fetcher } from "@/lib/fetcher";
+import { getCurrentMonth } from "@/lib/utils";
 
 function timeAgo(date: string): string {
   const now = Date.now();

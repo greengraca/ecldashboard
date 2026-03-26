@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { logApiError } from "@/lib/error-log";
+import { getUserName } from "@/lib/auth";
+import { withAuth } from "@/lib/api-helpers";
 import { logActivity } from "@/lib/activity";
 import { TOPDECK_BRACKET_ID } from "@/lib/constants";
 import {
@@ -10,13 +10,9 @@ import {
   recordManualRefresh,
   getTopDeckCacheStatus,
 } from "@/lib/topdeck-cache";
+import type { Session } from "next-auth";
 
-export async function POST() {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const POST = withAuth(async (session: Session) => {
   if (!canManualRefresh()) {
     const status = getTopDeckCacheStatus();
     return NextResponse.json(
@@ -47,8 +43,8 @@ export async function POST() {
     "all",
     { refreshed_at: refreshedAt },
     user.discordId || user.id || "unknown",
-    user.username || user.name || "unknown"
+    getUserName(session)
   );
 
   return NextResponse.json({ data: { refreshed_at: refreshedAt } });
-}
+}, "topdeck/refresh:POST");

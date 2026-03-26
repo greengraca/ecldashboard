@@ -5,8 +5,7 @@ import useSWR from "swr";
 import type { SubscriptionRate } from "@/lib/types";
 import { Sensitive } from "@/components/dashboard/sensitive";
 import { useSensitiveData } from "@/contexts/SensitiveDataContext";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher } from "@/lib/fetcher";
 
 export default function SubscriptionRatesManager() {
   const { data, mutate } = useSWR<{ data: SubscriptionRate[] }>(

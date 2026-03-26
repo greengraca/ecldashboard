@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithRateLimit } from "@/lib/api-auth";
+import { getUserName } from "@/lib/auth";
 import { logApiError } from "@/lib/error-log";
 import { markManualPaid, unmarkManualPaid } from "@/lib/manual-payments";
 
@@ -23,9 +24,7 @@ export async function POST(
     }
 
     const userId = session!.user!.id!;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userName =
-      (session!.user as any).username || session!.user!.name || "unknown";
+    const userName = getUserName(session!);
 
     const result = await markManualPaid(month, discordId, userId, userName);
     return NextResponse.json({ data: result }, { status: 201 });
@@ -59,9 +58,7 @@ export async function DELETE(
     }
 
     const userId = session!.user!.id!;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userName =
-      (session!.user as any).username || session!.user!.name || "unknown";
+    const userName = getUserName(session!);
 
     await unmarkManualPaid(month, discordId, userId, userName);
     return NextResponse.json({ data: { success: true } });

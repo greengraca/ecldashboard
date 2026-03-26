@@ -16,8 +16,7 @@ import {
   Tooltip,
 } from "recharts";
 import type { TreasurePodData, TreasurePodWithClaim } from "@/lib/types";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher } from "@/lib/fetcher";
 
 interface TreasurePodSectionProps {
   month: string;

@@ -4,8 +4,7 @@ import { useState, useMemo } from "react";
 import useSWR from "swr";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search } from "lucide-react";
 import type { GamePod } from "@/lib/topdeck-live";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher } from "@/lib/fetcher";
 
 type StatusFilter = "all" | "completed" | "draw" | "in_progress" | "voided";
 

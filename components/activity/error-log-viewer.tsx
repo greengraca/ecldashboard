@@ -6,8 +6,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import ErrorLogTable from "./error-log-table";
 import ErrorLogFilters, { ErrorLogFilterValues } from "./error-log-filters";
 import type { ErrorLogEntry } from "@/lib/types";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher } from "@/lib/fetcher";
 
 interface ErrorLogResponse {
   data: ErrorLogEntry[];

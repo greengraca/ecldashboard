@@ -21,13 +21,8 @@ import type {
   TransactionType,
   TransactionCategory,
 } from "@/lib/types";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
-
-function getCurrentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
+import { fetcher } from "@/lib/fetcher";
+import { getCurrentMonth } from "@/lib/utils";
 
 export default function FinancePage() {
   const [month, setMonth] = useState(getCurrentMonth);

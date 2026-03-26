@@ -8,8 +8,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher } from "@/lib/fetcher";
 
 interface AssetCheck {
   key: string;

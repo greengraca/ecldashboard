@@ -6,8 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import PlayerDetailComponent from "@/components/players/player-detail";
 import type { PlayerDetail } from "@/lib/types";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher } from "@/lib/fetcher";
 
 export default function PlayerDetailPage({
   params,

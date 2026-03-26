@@ -15,13 +15,8 @@ import AutoPopulateButton from "@/components/prizes/auto-populate-button";
 import TreasurePodSection from "@/components/prizes/treasure-pod-section";
 import ConfirmModal from "@/components/dashboard/confirm-modal";
 import type { Prize, PrizeBudget, PrizeBudgetAllocations, PrizeSummary } from "@/lib/types";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
-
-function getCurrentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
+import { fetcher } from "@/lib/fetcher";
+import { getCurrentMonth } from "@/lib/utils";
 
 type Tab = "awarded" | "planning" | "shipping";
 

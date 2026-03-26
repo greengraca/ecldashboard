@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logApiError } from "@/lib/error-log";
 import { requireAuthWithRateLimit } from "@/lib/api-auth";
+import { getUserName } from "@/lib/auth";
 import { updatePrize, deletePrize } from "@/lib/prizes";
 
 export async function PATCH(
@@ -14,8 +15,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
     const userId = session!.user!.id!;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userName = (session!.user as any).username || session!.user!.name || "unknown";
+    const userName = getUserName(session!);
 
     const prize = await updatePrize(id, body, userId, userName);
     if (!prize) {
@@ -43,8 +43,7 @@ export async function DELETE(
 
     const { id } = await params;
     const userId = session!.user!.id!;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userName = (session!.user as any).username || session!.user!.name || "unknown";
+    const userName = getUserName(session!);
 
     await deletePrize(id, userId, userName);
     return NextResponse.json({ data: { deleted: true } });

@@ -9,14 +9,18 @@ export async function logActivity(
   userId: string,
   userName: string
 ): Promise<void> {
-  const db = await getDb();
-  await db.collection("dashboard_activity_log").insertOne({
-    action,
-    entity_type: entityType,
-    entity_id: entityId,
-    details,
-    user_id: userId,
-    user_name: userName,
-    timestamp: new Date().toISOString(),
-  });
+  try {
+    const db = await getDb();
+    await db.collection("dashboard_activity_log").insertOne({
+      action,
+      entity_type: entityType,
+      entity_id: entityId,
+      details,
+      user_id: userId,
+      user_name: userName,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("Failed to log activity:", err);
+  }
 }

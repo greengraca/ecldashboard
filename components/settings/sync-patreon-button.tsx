@@ -3,11 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 import MonthPicker from "@/components/dashboard/month-picker";
-
-function getCurrentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
+import { getCurrentMonth } from "@/lib/utils";
 
 function getPreviousMonth(): string {
   const now = new Date();

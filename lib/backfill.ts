@@ -1,6 +1,7 @@
 import { getDb } from "./mongodb";
 import { logActivity } from "./activity";
 import { ECL_ELIGIBLE_PATREON_TIERS } from "./constants";
+import { getCurrentMonth } from "./utils";
 import { readFileSync } from "fs";
 
 function parseCSV(content: string): Record<string, string>[] {
@@ -101,8 +102,7 @@ export async function backfillPatreon(
 
     let endMonth: string;
     if (status === "Active patron" && lastChargeStatus === "Paid") {
-      const currentDate = new Date();
-      endMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
+      endMonth = getCurrentMonth();
     } else if (lastChargeDate) {
       endMonth = lastChargeDate.substring(0, 7);
     } else {

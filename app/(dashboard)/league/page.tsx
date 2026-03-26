@@ -11,6 +11,8 @@ import LiveStandingsTable from "@/components/players/live-standings-table";
 import TurnOrderSection from "@/components/players/turn-order-section";
 import GamePodsGrid from "@/components/players/game-pods-grid";
 import type { Player, LiveStanding, Standing } from "@/lib/types";
+import { fetcher } from "@/lib/fetcher";
+import { getCurrentMonth } from "@/lib/utils";
 
 interface PlayersData {
   players: Player[];
@@ -31,13 +33,6 @@ interface BracketData {
   top16_winners: string[];
   top4_order: string[];
   top4_winner: string | null;
-}
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
-
-function getCurrentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
 // Snake-draft seeding into 4 pods (same pattern as TopDeck)

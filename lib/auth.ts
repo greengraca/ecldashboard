@@ -1,6 +1,19 @@
 import NextAuth from "next-auth";
+import type { Session } from "next-auth";
 import Discord from "next-auth/providers/discord";
 import { ALLOWED_DISCORD_IDS } from "./constants";
+
+declare module "next-auth" {
+  interface User {
+    username?: string;
+    discordId?: string;
+  }
+}
+
+export function getUserName(session: Session): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (session.user as any).username || session.user?.name || "unknown";
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [

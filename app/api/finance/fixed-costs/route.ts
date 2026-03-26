@@ -1,64 +1,40 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireAuthWithRateLimit } from "@/lib/api-auth";
-import { logApiError } from "@/lib/error-log";
+import { NextResponse } from "next/server";
+import { withAuth, withAuthRead } from "@/lib/api-helpers";
+import { getUserName } from "@/lib/auth";
 import { getFixedCosts, createFixedCost } from "@/lib/finance";
 
-export async function GET(request: NextRequest) {
-  try {
-    const { error } = await requireAuthWithRateLimit(request);
-    if (error) return error;
-    const fixedCosts = await getFixedCosts();
-    return NextResponse.json({ data: fixedCosts });
-  } catch (err) {
-    console.error("GET /api/finance/fixed-costs error:", err);
-    logApiError("finance/fixed-costs:GET", err);
+export const GET = withAuthRead(async () => {
+  const fixedCosts = await getFixedCosts();
+  return NextResponse.json({ data: fixedCosts });
+}, "finance/fixed-costs:GET");
+
+export const POST = withAuth(async (session, request) => {
+  const body = await request.json();
+  const { name, amount, category, active, start_month, end_month, paid_by } = body;
+
+  if (!name || amount == null || !category || !start_month) {
     return NextResponse.json(
-      { error: "Failed to fetch fixed costs" },
-      { status: 500 }
+      { error: "Missing required fields" },
+      { status: 400 }
     );
   }
-}
 
-export async function POST(request: NextRequest) {
-  try {
-    const { session, error } = await requireAuthWithRateLimit(request);
-    if (error) return error;
+  const userId = session.user!.id!;
+  const userName = getUserName(session);
 
-    const body = await request.json();
-    const { name, amount, category, active, start_month, end_month, paid_by } = body;
+  const fixedCost = await createFixedCost(
+    {
+      name,
+      amount: Number(amount),
+      category,
+      active: active ?? true,
+      start_month,
+      end_month: end_month || null,
+      paid_by: paid_by || null,
+    },
+    userId,
+    userName
+  );
 
-    if (!name || amount == null || !category || !start_month) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
-    const userId = session!.user!.id!;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userName = (session!.user as any).username || session!.user!.name || "unknown";
-
-    const fixedCost = await createFixedCost(
-      {
-        name,
-        amount: Number(amount),
-        category,
-        active: active ?? true,
-        start_month,
-        end_month: end_month || null,
-        paid_by: paid_by || null,
-      },
-      userId,
-      userName
-    );
-
-    return NextResponse.json({ data: fixedCost }, { status: 201 });
-  } catch (err) {
-    console.error("POST /api/finance/fixed-costs error:", err);
-    logApiError("finance/fixed-costs:POST", err);
-    return NextResponse.json(
-      { error: "Failed to create fixed cost" },
-      { status: 500 }
-    );
-  }
-}
+  return NextResponse.json({ data: fixedCost }, { status: 201 });
+}, "finance/fixed-costs:POST");

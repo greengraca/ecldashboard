@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logApiError } from "@/lib/error-log";
 import { requireAuthWithRateLimit } from "@/lib/api-auth";
+import { getUserName } from "@/lib/auth";
 import { claimTreasurePod, unclaimTreasurePod } from "@/lib/treasure-pods";
 
 export async function POST(
@@ -14,8 +15,7 @@ export async function POST(
     const { podId } = await params;
     const body = await request.json();
     const userId = session!.user!.id!;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userName = (session!.user as any).username || session!.user!.name || "unknown";
+    const userName = getUserName(session!);
 
     const claim = await claimTreasurePod(podId, body, userId, userName);
     return NextResponse.json({ data: claim });
@@ -37,8 +37,7 @@ export async function DELETE(
 
     const { podId } = await params;
     const userId = session!.user!.id!;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userName = (session!.user as any).username || session!.user!.name || "unknown";
+    const userName = getUserName(session!);
 
     await unclaimTreasurePod(podId, userId, userName);
     return NextResponse.json({ data: { ok: true } });

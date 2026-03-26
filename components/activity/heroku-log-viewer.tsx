@@ -7,8 +7,7 @@ import Select from "@/components/dashboard/select";
 import { useState } from "react";
 import { useSensitiveData } from "@/contexts/SensitiveDataContext";
 import { SensitiveBlock } from "@/components/dashboard/sensitive";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher } from "@/lib/fetcher";
 
 interface HerokuLogResponse {
   data?: { lines: string; fetchedAt: string };

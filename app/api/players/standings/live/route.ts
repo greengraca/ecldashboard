@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logApiError } from "@/lib/error-log";
+import { withAuthRead } from "@/lib/api-helpers";
 import { fetchLiveStandings } from "@/lib/topdeck-live";
 import { fetchGuildMembers } from "@/lib/discord";
 import { getDb } from "@/lib/mongodb";
@@ -71,79 +71,70 @@ async function getRecentGameUids(): Promise<Set<string>> {
   return uids;
 }
 
-export async function GET(request: NextRequest) {
-  try {
-    const [liveResult, onlineCounts, recentUids, guildMembers] = await Promise.all([
-      fetchLiveStandings(),
-      getOnlineGameCounts(),
-      getRecentGameUids(),
-      fetchGuildMembers(),
-    ]);
+export const GET = withAuthRead(async () => {
+  const [liveResult, onlineCounts, recentUids, guildMembers] = await Promise.all([
+    fetchLiveStandings(),
+    getOnlineGameCounts(),
+    getRecentGameUids(),
+    fetchGuildMembers(),
+  ]);
 
-    // Build discord username → avatar_url lookup
-    const avatarByUsername = new Map<string, string>();
-    for (const m of guildMembers) {
-      if (m.avatar_url) {
-        avatarByUsername.set(m.username.toLowerCase(), m.avatar_url);
-        avatarByUsername.set(m.display_name.toLowerCase(), m.avatar_url);
-      }
+  // Build discord username → avatar_url lookup
+  const avatarByUsername = new Map<string, string>();
+  for (const m of guildMembers) {
+    if (m.avatar_url) {
+      avatarByUsername.set(m.username.toLowerCase(), m.avatar_url);
+      avatarByUsername.set(m.display_name.toLowerCase(), m.avatar_url);
     }
-
-    // Build standings with eligibility
-    let rank = 0;
-    const standings: LiveStanding[] = liveResult.rows.map((r) => {
-      rank++;
-      const onlineGames = r.uid ? (onlineCounts.get(r.uid) ?? 0) : 0;
-      // Recency: 20+ online games skip check, 10-19 need a game after day 20
-      const meetsRecency =
-        onlineGames >= NO_RECENCY_GAMES ||
-        onlineGames < MIN_ONLINE_GAMES ||
-        (r.uid ? recentUids.has(r.uid) : false);
-      const eligible =
-        !r.dropped &&
-        r.games >= MIN_TOTAL_GAMES &&
-        onlineGames >= MIN_ONLINE_GAMES &&
-        meetsRecency;
-
-      // Match discord handle to guild member avatar
-      const discordLower = r.discord?.toLowerCase().trim() || "";
-      const avatar = avatarByUsername.get(discordLower) || null;
-
-      return {
-        rank,
-        uid: r.uid || r.entrant_id.toString(),
-        name: r.name,
-        discord: r.discord,
-        avatar_url: avatar,
-        points: r.points,
-        games: r.games,
-        wins: r.wins,
-        losses: r.losses,
-        draws: r.draws,
-        win_pct: r.win_pct,
-        ow_pct: r.ow_pct,
-        online_games: onlineGames,
-        dropped: r.dropped,
-        eligible,
-        meets_recency: meetsRecency,
-      };
-    });
-
-    return NextResponse.json({
-      data: {
-        standings,
-        total_matches: liveResult.totalMatches,
-        in_progress: liveResult.inProgress,
-        voided: liveResult.voided,
-        bracket_id: TOPDECK_BRACKET_ID,
-      },
-    });
-  } catch (err) {
-    console.error("GET /api/players/standings/live error:", err);
-    logApiError("players/standings/live:GET", err);
-    return NextResponse.json(
-      { error: "Failed to fetch live standings" },
-      { status: 500 }
-    );
   }
-}
+
+  // Build standings with eligibility
+  let rank = 0;
+  const standings: LiveStanding[] = liveResult.rows.map((r) => {
+    rank++;
+    const onlineGames = r.uid ? (onlineCounts.get(r.uid) ?? 0) : 0;
+    // Recency: 20+ online games skip check, 10-19 need a game after day 20
+    const meetsRecency =
+      onlineGames >= NO_RECENCY_GAMES ||
+      onlineGames < MIN_ONLINE_GAMES ||
+      (r.uid ? recentUids.has(r.uid) : false);
+    const eligible =
+      !r.dropped &&
+      r.games >= MIN_TOTAL_GAMES &&
+      onlineGames >= MIN_ONLINE_GAMES &&
+      meetsRecency;
+
+    // Match discord handle to guild member avatar
+    const discordLower = r.discord?.toLowerCase().trim() || "";
+    const avatar = avatarByUsername.get(discordLower) || null;
+
+    return {
+      rank,
+      uid: r.uid || r.entrant_id.toString(),
+      name: r.name,
+      discord: r.discord,
+      avatar_url: avatar,
+      points: r.points,
+      games: r.games,
+      wins: r.wins,
+      losses: r.losses,
+      draws: r.draws,
+      win_pct: r.win_pct,
+      ow_pct: r.ow_pct,
+      online_games: onlineGames,
+      dropped: r.dropped,
+      eligible,
+      meets_recency: meetsRecency,
+    };
+  });
+
+  return NextResponse.json({
+    data: {
+      standings,
+      total_matches: liveResult.totalMatches,
+      in_progress: liveResult.inProgress,
+      voided: liveResult.voided,
+      bracket_id: TOPDECK_BRACKET_ID,
+    },
+  });
+}, "players/standings/live:GET");

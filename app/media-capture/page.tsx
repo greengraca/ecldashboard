@@ -14,8 +14,7 @@ import ResultsDropTop4v2 from "@/components/media/templates/ResultsDropTop4v2";
 import ResultsDropWinner from "@/components/media/templates/ResultsDropWinner";
 import EventHype from "@/components/media/templates/EventHype";
 import { TEMPLATES } from "@/components/media/template-registry";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher } from "@/lib/fetcher";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const COMPONENT_MAP: Record<string, React.ComponentType<{ data: any }>> = {

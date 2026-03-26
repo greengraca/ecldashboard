@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logApiError } from "@/lib/error-log";
-import { requireAuthWithRateLimit } from "@/lib/api-auth";
+import { withAuthRead, withAuth } from "@/lib/api-helpers";
 import { getDb } from "@/lib/mongodb";
 import { logActivity } from "@/lib/activity";
+import type { Session } from "next-auth";
 
-export async function GET(req: NextRequest) {
+export const GET = withAuthRead(async (req: NextRequest) => {
   const month = req.nextUrl.searchParams.get("month");
   if (!month) {
     return NextResponse.json({ error: "month is required" }, { status: 400 });
@@ -23,12 +23,9 @@ export async function GET(req: NextRequest) {
         }
       : null,
   });
-}
+}, "players/brackets:GET");
 
-export async function PUT(req: NextRequest) {
-  const { session, error } = await requireAuthWithRateLimit(req);
-  if (error) return error;
-
+export const PUT = withAuth(async (session: Session, req: NextRequest) => {
   const body = await req.json();
   const { month, top16_winners, top4_order, top4_winner } = body;
 
@@ -66,4 +63,4 @@ export async function PUT(req: NextRequest) {
   );
 
   return NextResponse.json({ data: { success: true } });
-}
+}, "players/brackets:PUT");

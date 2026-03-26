@@ -17,6 +17,7 @@ import type {
   Standing,
   SubscriptionSource,
 } from "./types";
+import { getCurrentMonth } from "./utils";
 
 // ─── Helpers ───
 
@@ -321,8 +322,7 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
       if (livePlayer.discord) {
         livePlayerDiscord = livePlayer.discord.toLowerCase().trim();
       }
-      const now = new Date();
-      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const currentMonth = getCurrentMonth();
       // Only add if not already covered by dump data
       if (!monthlyHistory.some((h) => h.month === currentMonth)) {
         // Compute rank from all live rows

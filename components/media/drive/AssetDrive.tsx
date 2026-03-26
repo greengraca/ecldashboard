@@ -9,8 +9,7 @@ import DriveDropZone from "./DriveDropZone";
 import DriveFileGrid from "./DriveFileGrid";
 import DrivePreviewModal from "./DrivePreviewModal";
 import DriveConfirmModal from "./DriveConfirmModal";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher } from "@/lib/fetcher";
 
 export default function AssetDrive() {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);

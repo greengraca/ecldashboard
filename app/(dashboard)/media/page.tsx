@@ -8,13 +8,8 @@ import TemplatePreview from "@/components/media/TemplatePreview";
 import TemplateEditor from "@/components/media/TemplateEditor";
 import AssetDrive from "@/components/media/drive/AssetDrive";
 import { TEMPLATES } from "@/components/media/template-registry";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
-
-function getCurrentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
+import { fetcher } from "@/lib/fetcher";
+import { getCurrentMonth } from "@/lib/utils";
 
 // Templates that need prize data
 const PRIZE_TEMPLATES = new Set<string>([]);

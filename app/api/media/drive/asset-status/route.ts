@@ -1,43 +1,30 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { existsSync } from "fs";
 import { join } from "path";
-import { requireAuthWithRateLimit } from "@/lib/api-auth";
-import { logApiError } from "@/lib/error-log";
+import { withAuthRead } from "@/lib/api-helpers";
 import { REQUIRED_ASSETS } from "@/components/media/shared/brand-constants";
 import { checkAssetStatus } from "@/lib/media-drive";
 
-export async function GET(request: NextRequest) {
-  try {
-    const { error } = await requireAuthWithRateLimit(request);
-    if (error) return error;
+export const GET = withAuthRead(async () => {
+  const requiredNames = REQUIRED_ASSETS.map(
+    (a) => a.path.split("/").pop()!
+  );
 
-    const requiredNames = REQUIRED_ASSETS.map(
-      (a) => a.path.split("/").pop()!
-    );
+  // Check drive (MongoDB)
+  const driveStatus = await checkAssetStatus(requiredNames);
 
-    // Check drive (MongoDB)
-    const driveStatus = await checkAssetStatus(requiredNames);
+  // Check repo (public/ folder on disk)
+  const results = REQUIRED_ASSETS.map((asset, i) => {
+    const inDrive = driveStatus[i].exists;
+    const inRepo = existsSync(join(process.cwd(), "public", asset.path));
+    return {
+      key: asset.key,
+      label: asset.label,
+      path: asset.path,
+      exists: inRepo || inDrive,
+      source: inRepo ? "repo" : inDrive ? "drive" : null,
+    };
+  });
 
-    // Check repo (public/ folder on disk)
-    const results = REQUIRED_ASSETS.map((asset, i) => {
-      const inDrive = driveStatus[i].exists;
-      const inRepo = existsSync(join(process.cwd(), "public", asset.path));
-      return {
-        key: asset.key,
-        label: asset.label,
-        path: asset.path,
-        exists: inRepo || inDrive,
-        source: inRepo ? "repo" : inDrive ? "drive" : null,
-      };
-    });
-
-    return NextResponse.json({ data: results });
-  } catch (err) {
-    console.error("GET /api/media/drive/asset-status error:", err);
-    logApiError("media/drive/asset-status:GET", err);
-    return NextResponse.json(
-      { error: "Failed to check asset status" },
-      { status: 500 }
-    );
-  }
-}
+  return NextResponse.json({ data: results });
+}, "media/drive/asset-status:GET");

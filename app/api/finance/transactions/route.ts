@@ -1,65 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthWithRateLimit } from "@/lib/api-auth";
-import { logApiError } from "@/lib/error-log";
+import { withAuth, withAuthRead } from "@/lib/api-helpers";
+import { getUserName } from "@/lib/auth";
 import { getTransactions, createTransaction } from "@/lib/finance";
 import { transactionCreateSchema } from "@/lib/validation";
+import { getCurrentMonth } from "@/lib/utils";
 
-export async function GET(request: NextRequest) {
-  try {
-    const { error } = await requireAuthWithRateLimit(request);
-    if (error) return error;
+export const GET = withAuthRead(async (request) => {
+  const { searchParams } = new URL(request.url);
+  const month = searchParams.get("month") || getCurrentMonth();
 
-    const { searchParams } = new URL(request.url);
-    const now = new Date();
-    const month =
-      searchParams.get("month") ||
-      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const transactions = await getTransactions(month);
+  return NextResponse.json({ data: transactions });
+}, "finance/transactions:GET");
 
-    const transactions = await getTransactions(month);
-    return NextResponse.json({ data: transactions });
-  } catch (err) {
-    console.error("GET /api/finance/transactions error:", err);
-    logApiError("finance/transactions:GET", err);
+export const POST = withAuth(async (session, request) => {
+  const body = await request.json();
+  const parsed = transactionCreateSchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Failed to fetch transactions" },
-      { status: 500 }
+      { error: parsed.error.issues[0]?.message || "Invalid input" },
+      { status: 400 }
     );
   }
-}
+  const { date, type, category, description, amount, tags, paid_by } = parsed.data;
 
-export async function POST(request: NextRequest) {
-  try {
-    const { session, error } = await requireAuthWithRateLimit(request);
-    if (error) return error;
+  const month = date.substring(0, 7); // "YYYY-MM" from "YYYY-MM-DD"
+  const userId = session.user!.id!;
+  const userName = getUserName(session);
 
-    const body = await request.json();
-    const parsed = transactionCreateSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.issues[0]?.message || "Invalid input" },
-        { status: 400 }
-      );
-    }
-    const { date, type, category, description, amount, tags, paid_by } = parsed.data;
+  const transaction = await createTransaction(
+    { month, date, type, category, description, amount: Number(amount), tags: tags || [], paid_by: paid_by || null },
+    userId,
+    userName
+  );
 
-    const month = date.substring(0, 7); // "YYYY-MM" from "YYYY-MM-DD"
-    const userId = session!.user!.id!;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userName = (session!.user as any).username || session!.user!.name || "unknown";
-
-    const transaction = await createTransaction(
-      { month, date, type, category, description, amount: Number(amount), tags: tags || [], paid_by: paid_by || null },
-      userId,
-      userName
-    );
-
-    return NextResponse.json({ data: transaction }, { status: 201 });
-  } catch (err) {
-    console.error("POST /api/finance/transactions error:", err);
-    logApiError("finance/transactions:POST", err);
-    return NextResponse.json(
-      { error: "Failed to create transaction" },
-      { status: 500 }
-    );
-  }
-}
+  return NextResponse.json({ data: transaction }, { status: 201 });
+}, "finance/transactions:POST");

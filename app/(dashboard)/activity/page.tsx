@@ -11,8 +11,7 @@ import Accordion from "@/components/dashboard/accordion";
 import HerokuLogViewer from "@/components/activity/heroku-log-viewer";
 import ErrorLogViewer from "@/components/activity/error-log-viewer";
 import type { ActivityEntry } from "@/lib/types";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher } from "@/lib/fetcher";
 
 interface ActivityResponse {
   data: ActivityEntry[];
