@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import {
   BarChart,
   Bar,
@@ -166,7 +167,7 @@ export default function MonthlyBreakdownChart({
                 tickLine={false}
                 width={90}
               />
-              <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+              {!refLineHover && <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />}
               {subscriptionHalf !== null && (
                 <ReferenceLine
                   x={subscriptionHalf}
@@ -204,7 +205,7 @@ export default function MonthlyBreakdownChart({
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-          {refLineHover && subscriptionHalf !== null && (
+          {refLineHover && subscriptionHalf !== null && createPortal(
             <div
               className="rounded-lg px-3 py-2 text-xs border pointer-events-none"
               style={{
@@ -213,13 +214,14 @@ export default function MonthlyBreakdownChart({
                 top: refLineHover.y - 16,
                 background: "var(--bg-page)",
                 borderColor: "var(--border)",
-                zIndex: 50,
+                zIndex: 9999,
               }}
             >
               <p style={{ color: "var(--accent)" }}>
                 {"\u20AC"}{subscriptionHalf.toFixed(2)}
               </p>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       )}
