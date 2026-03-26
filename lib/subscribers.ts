@@ -264,6 +264,31 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
   // Get registered players for this month (null = no filtering)
   const registeredUsernames = await getRegisteredDiscordUsernames(month);
 
+  // Build set of Discord IDs with Ko-fi activity for this month
+  const kofiActiveIds = new Set<string>();
+  const [kofiEvents, kofiBackfill] = await Promise.all([
+    db.collection("subs_kofi_events")
+      .find({ purchase_month: month }, { projection: { user_id: 1 } })
+      .toArray(),
+    db.collection("dashboard_kofi_backfill")
+      .find({ month }, { projection: { discord_username: 1 } })
+      .toArray(),
+  ]);
+  for (const evt of kofiEvents) {
+    kofiActiveIds.add(evt.user_id?.toString() ?? "");
+  }
+  // Backfill uses discord_username — resolve to IDs via guild members
+  if (kofiBackfill.length > 0) {
+    const backfillUsernames = new Set(
+      kofiBackfill.map((b) => (b.discord_username as string).toLowerCase().trim())
+    );
+    for (const m of members) {
+      if (backfillUsernames.has(m.username.toLowerCase().trim())) {
+        kofiActiveIds.add(m.id);
+      }
+    }
+  }
+
   // Build discord_id → patreon tier lookup (always — used for tier display + Gold/Diamond filtering)
   const patreonTierById = new Map<string, string>();
   const patreonSnapshots = await db
@@ -317,6 +342,9 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
         continue;
       }
     }
+
+    // Skip Ko-fi role holders without activity for this month
+    if (source === "kofi" && !kofiActiveIds.has(member.id)) continue;
 
     processedIds.add(member.id);
 
