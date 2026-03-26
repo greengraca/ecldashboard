@@ -37,9 +37,19 @@ export default function GamePodsGrid({ month }: { month: string }) {
   const filtered = useMemo(() => {
     let f = statusFilter === "all" ? pods : pods.filter((p) => p.status === statusFilter);
     if (podSearch.trim()) {
-      const num = parseInt(podSearch.trim(), 10);
-      if (!isNaN(num)) {
+      const q = podSearch.trim();
+      const num = parseInt(q, 10);
+      if (!isNaN(num) && String(num) === q) {
         f = f.filter((p) => p.table === num);
+      } else {
+        const lower = q.toLowerCase();
+        f = f.filter((p) =>
+          p.players.some(
+            (pl) =>
+              pl.name.toLowerCase().includes(lower) ||
+              pl.discord.toLowerCase().includes(lower)
+          )
+        );
       }
     }
     // Sort by table number descending (most recent first)
@@ -90,10 +100,10 @@ export default function GamePodsGrid({ month }: { month: string }) {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
           <input
             type="text"
-            placeholder="Pod #"
+            placeholder="Pod # or player"
             value={podSearch}
             onChange={(e) => { setPodSearch(e.target.value); setPage(0); }}
-            className="pl-8 pr-2 py-1.5 rounded-lg text-xs sm:text-sm w-20 sm:w-24"
+            className="pl-8 pr-2 py-1.5 rounded-lg text-xs sm:text-sm w-36 sm:w-48"
             style={{
               background: "var(--bg-card)",
               color: "var(--text-primary)",
