@@ -1,10 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import useSWR from "swr";
 import StatCard from "@/components/dashboard/stat-card";
 import FinanceOverview from "@/components/finance/finance-overview";
 import ProfitSplitTable from "@/components/finance/profit-split-table";
-import { Users, Wallet, Swords, Activity, CheckCircle, Clock } from "lucide-react";
+import { Users, Wallet, Swords, Activity, CheckCircle, Clock, List, Group } from "lucide-react";
 import type { ActivityEntry, ActivityAction, PendingReimbursement } from "@/lib/types";
 import { Sensitive } from "@/components/dashboard/sensitive";
 
@@ -88,6 +89,8 @@ export default function HomePage() {
     "/api/finance/pending-reimbursements",
     fetcher
   );
+
+  const [reimbursementsGrouped, setReimbursementsGrouped] = useState(false);
 
   const summary = subData?.data?.summary;
   const finance = financeData?.data;
@@ -309,12 +312,37 @@ export default function HomePage() {
             boxShadow: "var(--surface-shadow)",
           }}
         >
-          <h2
-            className="text-sm font-medium uppercase tracking-wider mb-4"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Pending Reimbursements
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <h2
+                className="text-sm font-medium uppercase tracking-wider"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Pending Reimbursements
+              </h2>
+              {!pendingLoading && pendingReimbursements.length > 0 && (
+                <span className="text-sm font-bold" style={{ color: "var(--error)" }}>
+                  <Sensitive placeholder="€•••••">
+                    &euro;{pendingReimbursements.reduce((s, r) => s + r.amount, 0).toFixed(2)}
+                  </Sensitive>
+                </span>
+              )}
+            </div>
+            {!pendingLoading && pendingReimbursements.length > 0 && (
+              <button
+                onClick={() => setReimbursementsGrouped(!reimbursementsGrouped)}
+                className="flex items-center justify-center w-7 h-7 rounded-lg transition-colors"
+                style={{
+                  background: reimbursementsGrouped ? "var(--accent-light)" : "transparent",
+                  color: reimbursementsGrouped ? "var(--accent)" : "var(--text-muted)",
+                  border: "1px solid var(--border)",
+                }}
+                title={reimbursementsGrouped ? "Show flat list" : "Group by person"}
+              >
+                {reimbursementsGrouped ? <List className="w-3.5 h-3.5" /> : <Group className="w-3.5 h-3.5" />}
+              </button>
+            )}
+          </div>
 
           {pendingLoading ? (
             <div className="space-y-3">
@@ -332,7 +360,7 @@ export default function HomePage() {
                 All caught up — no pending reimbursements
               </p>
             </div>
-          ) : (
+          ) : !reimbursementsGrouped ? (
             <div className="overflow-y-auto space-y-1 pr-1" style={{ maxHeight: "320px" }}>
               {pendingReimbursements.map((item) => (
                 <div
@@ -372,7 +400,72 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
-          )}
+          ) : (() => {
+            const grouped = new Map<string, PendingReimbursement[]>();
+            for (const item of pendingReimbursements) {
+              const key = item.paid_by_name;
+              if (!grouped.has(key)) grouped.set(key, []);
+              grouped.get(key)!.push(item);
+            }
+            return (
+              <div className="overflow-y-auto space-y-4 pr-1" style={{ maxHeight: "320px" }}>
+                {[...grouped.entries()].map(([name, items]) => {
+                  const personTotal = items.reduce((sum, r) => sum + r.amount, 0);
+                  return (
+                    <div key={name}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+                          <Sensitive>{name}</Sensitive>
+                        </span>
+                        <span className="text-xs font-medium tabular-nums" style={{ color: "var(--error)" }}>
+                          <Sensitive placeholder="€•••••">&euro;{personTotal.toFixed(2)}</Sensitive>
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        {items.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex items-center gap-3 py-1.5 border-b last:border-b-0"
+                            style={{ borderColor: "var(--border-subtle)" }}
+                          >
+                            <Clock
+                              className="w-3.5 h-3.5 flex-shrink-0"
+                              style={{ color: "var(--warning, #f59e0b)" }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p
+                                className="text-sm truncate"
+                                style={{ color: "var(--text-primary)" }}
+                              >
+                                <Sensitive>{item.description}</Sensitive>
+                              </p>
+                              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                                {item.date}
+                              </p>
+                            </div>
+                            <span
+                              className="text-sm font-medium flex-shrink-0 tabular-nums"
+                              style={{ color: "var(--error)" }}
+                            >
+                              <Sensitive placeholder="€•••••">&euro;{item.amount.toFixed(2)}</Sensitive>
+                            </span>
+                            <button
+                              onClick={() => handleReimburse(item)}
+                              className="p-1.5 rounded-lg transition-colors flex-shrink-0"
+                              style={{ color: "var(--success)" }}
+                              title="Mark as reimbursed"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

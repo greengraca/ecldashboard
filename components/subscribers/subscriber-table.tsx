@@ -271,6 +271,7 @@ export default function SubscriberTable({
         keyField="discord_id"
         emptyMessage="No subscribers found for this month"
         rowHover
+        bare
         onRowClick={onPlayerClick ? (row) => onPlayerClick(row.discord_id as string) : undefined}
         defaultSortKey="is_playing"
         defaultSortDir="desc"

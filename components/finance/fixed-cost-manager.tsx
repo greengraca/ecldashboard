@@ -70,9 +70,14 @@ export default function FixedCostManager({
 
   async function handleAdd() {
     if (!form.name || !form.amount) return;
+    const amt = parseFloat(form.amount);
+    const ok = window.confirm(
+      `Add fixed cost "${form.name}" (€${amt.toFixed(2)}/month, ${form.category}) starting ${form.start_month}?`
+    );
+    if (!ok) return;
     await onAdd({
       name: form.name,
-      amount: parseFloat(form.amount),
+      amount: amt,
       category: form.category,
       active: true,
       start_month: form.start_month,
@@ -138,16 +143,22 @@ export default function FixedCostManager({
           onClick={() => setAdding(!adding)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
           style={{
-            background: "rgba(251, 191, 36, 0.15)",
-            color: "var(--accent)",
-            border: "1px solid rgba(251, 191, 36, 0.35)",
+            background: adding ? "transparent" : "rgba(251, 191, 36, 0.15)",
+            color: adding ? "var(--text-muted)" : "var(--accent)",
+            border: adding ? "1px solid var(--border)" : "1px solid rgba(251, 191, 36, 0.35)",
             backdropFilter: "blur(8px)",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(251, 191, 36, 0.25)"; e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.5)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(251, 191, 36, 0.15)"; e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.35)"; }}
+          onMouseEnter={(e) => {
+            if (adding) { e.currentTarget.style.background = "var(--bg-hover)"; }
+            else { e.currentTarget.style.background = "rgba(251, 191, 36, 0.25)"; e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.5)"; }
+          }}
+          onMouseLeave={(e) => {
+            if (adding) { e.currentTarget.style.background = "transparent"; }
+            else { e.currentTarget.style.background = "rgba(251, 191, 36, 0.15)"; e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.35)"; }
+          }}
         >
-          <Plus className="w-3.5 h-3.5" />
-          Add
+          {adding ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+          {adding ? "Cancel" : "Add"}
         </button>
       </div>
 
@@ -218,13 +229,6 @@ export default function FixedCostManager({
             </div>
           </div>
           <div className="flex gap-2 justify-end">
-            <button
-              onClick={() => setAdding(false)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Cancel
-            </button>
             <button
               onClick={handleAdd}
               className="px-3 py-1.5 rounded-lg text-xs font-medium"

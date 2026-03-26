@@ -167,6 +167,7 @@ export default function TransactionTable({
         columns={columns as unknown as Column<Record<string, unknown>>[]}
         data={transactions as unknown as Record<string, unknown>[]}
         keyField="_id"
+        bare
         emptyMessage="No transactions for this month"
         renderMobileCard={(row) => {
           const tx = row as unknown as Transaction;

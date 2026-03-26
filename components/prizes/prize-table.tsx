@@ -162,6 +162,7 @@ export default function PrizeTable({ prizes, onRowClick }: PrizeTableProps) {
         data={prizes as (Prize & Record<string, unknown>)[]}
         keyField="_id"
         emptyMessage="No prizes for this month"
+        bare
         onRowClick={onRowClick as ((row: Prize & Record<string, unknown>) => void) | undefined}
         rowHover
         renderMobileCard={(p) => (

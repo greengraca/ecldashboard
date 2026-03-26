@@ -22,6 +22,7 @@ interface DataTableProps<T> {
   defaultSortKey?: string | null;
   defaultSortDir?: "asc" | "desc";
   renderMobileCard?: (row: T) => React.ReactNode;
+  bare?: boolean;
 }
 
 export default function DataTable<T extends Record<string, unknown>>({
@@ -34,6 +35,7 @@ export default function DataTable<T extends Record<string, unknown>>({
   defaultSortKey = null,
   defaultSortDir = "asc",
   renderMobileCard,
+  bare,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(defaultSortKey);
   const [sortDir, setSortDir] = useState<"asc" | "desc">(defaultSortDir);
@@ -91,10 +93,10 @@ export default function DataTable<T extends Record<string, unknown>>({
 
       {/* Desktop table view */}
       <div
-        className={`overflow-hidden rounded-[var(--radius)] ${renderMobileCard ? "hidden sm:block" : ""}`}
+        className={`overflow-hidden ${bare ? "" : "rounded-[var(--radius)]"} ${renderMobileCard ? "hidden sm:block" : ""}`}
         style={{
           background: "rgba(255, 255, 255, 0.015)",
-          border: "1px solid var(--border)",
+          border: bare ? undefined : "1px solid var(--border)",
         }}
       >
         <div className="overflow-x-auto">
