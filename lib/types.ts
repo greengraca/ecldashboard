@@ -518,6 +518,7 @@ export interface UserMapping {
   firebase_uid: string;
   display_name: string;
   color: TeamMemberColor;
+  avatar_url?: string | null;
   created_at: string;
 }
 
@@ -529,6 +530,7 @@ export interface MeetingAttendee {
   discord_id: string;
   display_name: string;
   color: TeamMemberColor;
+  avatar_url?: string | null;
   joined_at: string;
 }
 

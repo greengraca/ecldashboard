@@ -1,7 +1,8 @@
 "use client";
 
-import { Clock, Users } from "lucide-react";
-import type { Meeting } from "@/lib/types";
+import { Clock, Users, Trash2 } from "lucide-react";
+import { Sensitive } from "@/components/dashboard/sensitive";
+import type { Meeting, UserMapping } from "@/lib/types";
 
 const COLOR_MAP: Record<string, string> = {
   amber: "#fbbf24",
@@ -13,7 +14,9 @@ const COLOR_MAP: Record<string, string> = {
 
 interface MeetingHistoryProps {
   meetings: Meeting[];
+  allMembers: UserMapping[];
   onSelectMeeting: (id: string) => void;
+  onDeleteMeeting: (id: string) => void;
 }
 
 function formatDuration(startedAt: string, endedAt?: string): string {
@@ -38,9 +41,18 @@ function formatDate(date: string): string {
 
 export default function MeetingHistory({
   meetings,
+  allMembers,
   onSelectMeeting,
+  onDeleteMeeting,
 }: MeetingHistoryProps) {
   const ended = meetings.filter((m) => m.status === "ended");
+
+  // Enrich attendees with avatars from user mappings
+  function enrichAvatar(attendee: Meeting["attendees"][0]) {
+    if (attendee.avatar_url) return attendee;
+    const mapping = allMembers.find((m) => m.discord_id === attendee.discord_id);
+    return { ...attendee, avatar_url: mapping?.avatar_url || null };
+  }
 
   return (
     <div
@@ -109,14 +121,34 @@ export default function MeetingHistory({
               >
                 #{meeting.number}
               </span>
-              <span
-                style={{
-                  fontSize: "11px",
-                  color: "var(--text-muted)",
-                }}
-              >
-                {formatDate(meeting.date)}
-              </span>
+              <div className="flex items-center gap-2">
+                <span
+                  style={{
+                    fontSize: "11px",
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  {formatDate(meeting.date)}
+                </span>
+                <span
+                  className="p-1 rounded transition-colors"
+                  style={{ color: "var(--text-muted)" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteMeeting(String(meeting._id));
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = "var(--error)";
+                    e.currentTarget.style.background = "var(--error-light)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = "var(--text-muted)";
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </span>
+              </div>
             </div>
 
             <p
@@ -146,30 +178,35 @@ export default function MeetingHistory({
 
               {/* Stacked avatars */}
               <div className="flex" style={{ marginLeft: "auto" }}>
-                {meeting.attendees.slice(0, 5).map((attendee, i) => {
+                {meeting.attendees.slice(0, 5).map((raw, i) => {
+                  const attendee = enrichAvatar(raw);
                   const color = COLOR_MAP[attendee.color] || COLOR_MAP.amber;
                   return (
-                    <div
-                      key={attendee.discord_id}
-                      style={{
-                        width: "22px",
-                        height: "22px",
-                        borderRadius: "50%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "9px",
-                        fontWeight: 700,
-                        color,
-                        background: `rgba(${hexToRgb(color)}, 0.15)`,
-                        border: `1.5px solid ${color}`,
-                        marginLeft: i > 0 ? "-6px" : "0",
-                        zIndex: 5 - i,
-                        position: "relative",
-                      }}
-                    >
-                      {attendee.display_name.charAt(0).toUpperCase()}
-                    </div>
+                    <Sensitive key={attendee.discord_id} placeholder="">
+                      <div
+                        style={{
+                          width: "22px",
+                          height: "22px",
+                          borderRadius: "50%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "9px",
+                          fontWeight: 700,
+                          color,
+                          background: attendee.avatar_url
+                            ? `url(${attendee.avatar_url}) center/cover`
+                            : `rgba(${hexToRgb(color)}, 0.15)`,
+                          border: `1.5px solid ${color}`,
+                          marginLeft: i > 0 ? "-6px" : "0",
+                          zIndex: 5 - i,
+                          position: "relative",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {!attendee.avatar_url && attendee.display_name.charAt(0).toUpperCase()}
+                      </div>
+                    </Sensitive>
                   );
                 })}
               </div>

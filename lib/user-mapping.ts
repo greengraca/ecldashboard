@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { getDb } from "./mongodb";
 import { logActivity } from "./activity";
+import { fetchGuildMembers } from "./discord";
 import type { UserMapping, TeamMemberColor } from "./types";
 
 const COLLECTION = "dashboard_user_mapping";
@@ -22,7 +23,20 @@ async function ensureIndexes() {
 export async function getAllMappings(): Promise<UserMapping[]> {
   await ensureIndexes();
   const db = await getDb();
-  return db.collection<UserMapping>(COLLECTION).find().sort({ display_name: 1 }).toArray();
+  const mappings = await db.collection<UserMapping>(COLLECTION).find().sort({ display_name: 1 }).toArray();
+
+  // Enrich with Discord avatar URLs
+  try {
+    const members = await fetchGuildMembers();
+    const memberMap = new Map(members.map((m) => [m.id, m.avatar_url]));
+    for (const mapping of mappings) {
+      mapping.avatar_url = memberMap.get(mapping.discord_id) || null;
+    }
+  } catch {
+    // Discord API unavailable — avatars stay null
+  }
+
+  return mappings;
 }
 
 export async function getMappingByDiscordId(discordId: string): Promise<UserMapping | null> {

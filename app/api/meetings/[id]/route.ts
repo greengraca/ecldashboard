@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAuthParams, withAuthReadParams } from "@/lib/api-helpers";
 import { getUserName } from "@/lib/auth";
-import { getMeetingById, endMeeting, updateMeeting } from "@/lib/meetings";
+import { getMeetingById, endMeeting, updateMeeting, deleteMeeting } from "@/lib/meetings";
 
 export const GET = withAuthReadParams<{ id: string }>(async (_req, { id }) => {
   const meeting = await getMeetingById(id);
@@ -36,3 +36,11 @@ export const PATCH = withAuthParams<{ id: string }>(async (session, request, { i
   }
   return NextResponse.json({ data: meeting });
 }, "meetings/[id]:PATCH");
+
+export const DELETE = withAuthParams<{ id: string }>(async (session, _request, { id }) => {
+  const userId = session.user!.id!;
+  const userName = getUserName(session);
+
+  await deleteMeeting(id, userId, userName);
+  return NextResponse.json({ data: { deleted: true } });
+}, "meetings/[id]:DELETE");

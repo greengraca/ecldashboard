@@ -1,8 +1,11 @@
 "use client";
 
-import { Clock, Users, FileText, CheckCircle } from "lucide-react";
+import { Clock, Users, FileText, CheckCircle, Trash2 } from "lucide-react";
+import { Sensitive } from "@/components/dashboard/sensitive";
 import MeetingItemCard from "./MeetingItemCard";
-import type { Meeting, MeetingItem } from "@/lib/types";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
+import type { Meeting, MeetingItem, UserMapping } from "@/lib/types";
 
 const COLOR_MAP: Record<string, string> = {
   amber: "#fbbf24",
@@ -18,6 +21,7 @@ interface DetectionPanelProps {
   onItemUpdate: (id: string, status: string) => void;
   onConfirm: () => void;
   onSaveAsDoc: () => void;
+  onDiscard: () => void;
 }
 
 function formatDuration(startedAt: string, endedAt?: string): string {
@@ -45,7 +49,17 @@ export default function DetectionPanel({
   onItemUpdate,
   onConfirm,
   onSaveAsDoc,
+  onDiscard,
 }: DetectionPanelProps) {
+  // Enrich attendees with avatars from user mappings (in case stored data lacks avatar_url)
+  const { data: mappingsData } = useSWR<{ data: UserMapping[] }>("/api/user-mapping", fetcher);
+  const mappings = mappingsData?.data || [];
+  const enrichedAttendees = meeting.attendees.map((a) => {
+    if (a.avatar_url) return a;
+    const mapping = mappings.find((m) => m.discord_id === a.discord_id);
+    return { ...a, avatar_url: mapping?.avatar_url || null };
+  });
+
   return (
     <div
       className="rounded-2xl"
@@ -93,30 +107,34 @@ export default function DetectionPanel({
             style={{ color: "var(--text-muted)" }}
           />
           <div className="flex">
-            {meeting.attendees.map((a, i) => {
+            {enrichedAttendees.map((a, i) => {
               const color = COLOR_MAP[a.color] || COLOR_MAP.amber;
               return (
-                <div
-                  key={a.discord_id}
-                  style={{
-                    width: "24px",
-                    height: "24px",
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "10px",
-                    fontWeight: 700,
-                    color,
-                    background: `rgba(${hexToRgb(color)}, 0.15)`,
-                    border: `1.5px solid ${color}`,
-                    marginLeft: i > 0 ? "-5px" : "0",
-                    zIndex: 5 - i,
-                    position: "relative",
-                  }}
-                >
-                  {a.display_name.charAt(0).toUpperCase()}
-                </div>
+                <Sensitive key={a.discord_id} placeholder="">
+                  <div
+                    style={{
+                      width: "24px",
+                      height: "24px",
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      color,
+                      background: a.avatar_url
+                        ? `url(${a.avatar_url}) center/cover`
+                        : `rgba(${hexToRgb(color)}, 0.15)`,
+                      border: `1.5px solid ${color}`,
+                      marginLeft: i > 0 ? "-5px" : "0",
+                      zIndex: 5 - i,
+                      position: "relative",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {!a.avatar_url && a.display_name.charAt(0).toUpperCase()}
+                  </div>
+                </Sensitive>
               );
             })}
           </div>
@@ -147,33 +165,47 @@ export default function DetectionPanel({
 
       {/* Bottom actions */}
       <div
-        className="px-5 py-4 border-t flex items-center justify-end gap-3"
+        className="px-5 py-4 border-t flex items-center justify-between"
         style={{ borderColor: "var(--border)" }}
       >
         <button
-          onClick={onSaveAsDoc}
+          onClick={onDiscard}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
           style={{
-            background: "transparent",
-            color: "var(--text-secondary)",
-            border: "1px solid var(--border)",
+            background: "rgba(252,165,165,0.08)",
+            color: "var(--error)",
+            border: "1px solid rgba(252,165,165,0.2)",
           }}
         >
-          <FileText className="w-4 h-4" />
-          Save as Document Only
+          <Trash2 className="w-4 h-4" />
+          Discard Meeting
         </button>
-        <button
-          onClick={onConfirm}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
-          style={{
-            background: "rgba(52,211,153,0.12)",
-            color: "var(--success)",
-            border: "1px solid rgba(52,211,153,0.25)",
-          }}
-        >
-          <CheckCircle className="w-4 h-4" />
-          Confirm & Create
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onSaveAsDoc}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{
+              background: "transparent",
+              color: "var(--text-secondary)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <FileText className="w-4 h-4" />
+            Save as Document Only
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{
+              background: "rgba(52,211,153,0.12)",
+              color: "var(--success)",
+              border: "1px solid rgba(52,211,153,0.25)",
+            }}
+          >
+            <CheckCircle className="w-4 h-4" />
+            Confirm & Create
+          </button>
+        </div>
       </div>
     </div>
   );

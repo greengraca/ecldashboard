@@ -2,11 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import useSWR from "swr";
+import ConfirmModal from "@/components/dashboard/confirm-modal";
+import { Sensitive } from "@/components/dashboard/sensitive";
 import {
   Users2,
   ArrowLeft,
   Radio,
   Square,
+  Trash2,
 } from "lucide-react";
 import MeetingTable from "@/components/meetings/MeetingTable";
 import MeetingNotes from "@/components/meetings/MeetingNotes";
@@ -102,6 +105,7 @@ export default function MeetingsPage() {
   // Detection items
   const [detectionItems, setDetectionItems] = useState<MeetingItem[]>([]);
   const [detectionMeeting, setDetectionMeeting] = useState<Meeting | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Resolved data
   const active = activeMeetingData?.data || meetingsData?.data?.active || null;
@@ -227,6 +231,27 @@ export default function MeetingsPage() {
     setView("history-detail");
   }, []);
 
+  const handleDeleteMeeting = useCallback((id: string) => {
+    setDeleteConfirmId(id);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteConfirmId) return;
+    try {
+      await fetch(`/api/meetings/${deleteConfirmId}`, { method: "DELETE" });
+      await mutateMeetings();
+      // Always go back to lobby after deleting
+      setSelectedMeetingId(null);
+      setDetectionMeeting(null);
+      setDetectionItems([]);
+      setView("lobby");
+    } catch (err) {
+      console.error("Failed to delete meeting:", err);
+    } finally {
+      setDeleteConfirmId(null);
+    }
+  }, [deleteConfirmId, mutateMeetings]);
+
   const handleBackToLobby = useCallback(() => {
     setSelectedMeetingId(null);
     setView("lobby");
@@ -277,7 +302,9 @@ export default function MeetingsPage() {
           />
           <MeetingHistory
             meetings={history}
+            allMembers={allMembers}
             onSelectMeeting={handleSelectHistoryMeeting}
+            onDeleteMeeting={handleDeleteMeeting}
           />
         </div>
       )}
@@ -370,25 +397,40 @@ export default function MeetingsPage() {
           onItemUpdate={handleItemUpdate}
           onConfirm={handleConfirmDetection}
           onSaveAsDoc={handleSaveAsDoc}
+          onDiscard={() => handleDeleteMeeting(String(detectionMeeting._id))}
         />
       )}
 
       {/* ─── History Detail View ─── */}
       {view === "history-detail" && selectedMeeting && (
         <div>
-          {/* Back button */}
-          <button
-            onClick={handleBackToLobby}
-            className="flex items-center gap-2 mb-4 px-3 py-1.5 rounded-lg text-sm transition-all"
-            style={{
-              color: "var(--text-secondary)",
-              background: "transparent",
-              border: "none",
-            }}
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Lobby
-          </button>
+          {/* Back + Discard */}
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={handleBackToLobby}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all"
+              style={{
+                color: "var(--text-secondary)",
+                background: "transparent",
+                border: "none",
+              }}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Lobby
+            </button>
+            <button
+              onClick={() => handleDeleteMeeting(String(selectedMeeting._id))}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+              style={{
+                background: "rgba(252,165,165,0.08)",
+                color: "var(--error)",
+                border: "1px solid rgba(252,165,165,0.2)",
+              }}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Discard Meeting
+            </button>
+          </div>
 
           {/* Meeting info header */}
           <div
@@ -432,7 +474,7 @@ export default function MeetingsPage() {
                     color: getColorHex(a.color),
                   }}
                 >
-                  {a.display_name}
+                  <Sensitive>{a.display_name}</Sensitive>
                 </span>
               ))}
             </div>
@@ -485,7 +527,7 @@ export default function MeetingsPage() {
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-semibold" style={{ color }}>
-                          {note.author_name}
+                          <Sensitive>{note.author_name}</Sensitive>
                         </span>
                         <span className="text-xs" style={{ color: "var(--text-muted)" }}>
                           {new Date(note.timestamp).toLocaleTimeString([], {
@@ -544,6 +586,17 @@ export default function MeetingsPage() {
           </div>
         </div>
       )}
+
+      {/* Delete confirmation modal */}
+      <ConfirmModal
+        open={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={handleConfirmDelete}
+        title="Discard Meeting"
+        message="This will permanently delete this meeting, all its notes, and any detected items. This action cannot be undone."
+        confirmLabel="Discard"
+        variant="danger"
+      />
     </div>
   );
 }

@@ -101,6 +101,7 @@ export async function startMeeting(
         discord_id: userId,
         display_name: userName,
         color: mapping?.color || "amber",
+        avatar_url: mapping?.avatar_url || null,
         joined_at: now,
       },
     ],
@@ -195,6 +196,31 @@ export async function updateMeeting(
   return result;
 }
 
+export async function deleteMeeting(
+  id: string,
+  userId: string,
+  userName: string
+): Promise<void> {
+  await ensureIndexes();
+  const db = await getDb();
+
+  const meeting = await db.collection<Meeting>(MEETINGS).findOne({ _id: new ObjectId(id) });
+
+  // Delete notes and items for this meeting
+  await db.collection(NOTES).deleteMany({ meeting_id: id });
+  await db.collection(ITEMS).deleteMany({ meeting_id: id });
+  await db.collection(MEETINGS).deleteOne({ _id: new ObjectId(id) });
+
+  await logActivity(
+    "delete",
+    "meeting",
+    id,
+    { number: meeting?.number, title: meeting?.title },
+    userId,
+    userName
+  );
+}
+
 export async function joinMeeting(
   id: string,
   userId: string,
@@ -225,6 +251,7 @@ export async function joinMeeting(
           discord_id: userId,
           display_name: userName,
           color: mapping?.color || "amber",
+          avatar_url: mapping?.avatar_url || null,
           joined_at: now,
         },
       },

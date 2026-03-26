@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Send } from "lucide-react";
+import { Sensitive } from "@/components/dashboard/sensitive";
 import type { MeetingNote } from "@/lib/types";
 
 const COLOR_MAP: Record<string, string> = {
@@ -127,7 +128,7 @@ export default function MeetingNotes({
                   className="text-xs font-semibold"
                   style={{ color }}
                 >
-                  {note.author_name}
+                  <Sensitive>{note.author_name}</Sensitive>
                 </span>
                 <span
                   className="text-xs"
