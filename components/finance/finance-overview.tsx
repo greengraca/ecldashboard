@@ -62,6 +62,7 @@ interface ChartDataPoint {
   income: number;
   expenses: number;
   fixed_costs: number;
+  total_expenses: number;
   net: number;
   balance: number;
 }
@@ -121,6 +122,7 @@ export default function FinanceOverview() {
         income: s.income,
         expenses: s.expenses,
         fixed_costs: s.fixed_costs,
+        total_expenses: s.expenses + s.fixed_costs,
         net: s.net,
         balance: parseFloat(cumulative.toFixed(2)),
       };
@@ -321,13 +323,8 @@ export default function FinanceOverview() {
                   radius={[4, 4, 0, 0]}
                   opacity={0.85}
                 />
-                <Bar
-                  dataKey="expenses"
-                  name="Expenses"
-                  fill="#fca5a5"
-                  radius={[4, 4, 0, 0]}
-                  opacity={0.85}
-                />
+                <Bar dataKey="expenses" name="Expenses" stackId="costs" fill="#fca5a5" opacity={0.85} />
+                <Bar dataKey="fixed_costs" name="Fixed Costs" stackId="costs" fill="#fbbf24" radius={[4, 4, 0, 0]} opacity={0.7} />
                 <Line
                   type="monotone"
                   dataKey="balance"
