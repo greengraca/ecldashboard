@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import ConfirmModal from "@/components/dashboard/confirm-modal";
 import { Sensitive } from "@/components/dashboard/sensitive";
@@ -53,6 +54,9 @@ function formatElapsed(startedAt: string): string {
 }
 
 export default function MeetingsPage() {
+  const { data: sessionData } = useSession();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const currentUserId = (sessionData?.user as any)?.discordId || sessionData?.user?.id || null;
   const [view, setView] = useState<ViewState>("lobby");
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   const [elapsedText, setElapsedText] = useState("");
@@ -113,12 +117,17 @@ export default function MeetingsPage() {
   const allMembers = mappingsData?.data || [];
   const notes = notesData?.data || [];
 
-  // Auto-switch to active view if a session exists on load
+  // Auto-switch to active view only if the current user is already an attendee
   useEffect(() => {
-    if (meetingsData?.data?.active && view === "lobby") {
-      setView("active");
+    if (meetingsData?.data?.active && view === "lobby" && currentUserId) {
+      const isAttendee = meetingsData.data.active.attendees.some(
+        (a) => a.discord_id === currentUserId
+      );
+      if (isAttendee) {
+        setView("active");
+      }
     }
-  }, [meetingsData?.data?.active, view]);
+  }, [meetingsData?.data?.active, view, currentUserId]);
 
   // Elapsed time ticker
   useEffect(() => {

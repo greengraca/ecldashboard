@@ -271,6 +271,15 @@ export default function MeetingTable({
 
         {isActive && onJoinSession && (
           <div className="flex flex-col items-center gap-3 mt-2">
+            <p
+              style={{
+                color: "var(--text-muted)",
+                fontSize: "13px",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              There&apos;s a meeting in progress
+            </p>
             <button
               onClick={onJoinSession}
               className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
