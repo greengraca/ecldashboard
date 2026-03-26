@@ -165,12 +165,12 @@ export default function DetectionPanel({
 
       {/* Bottom actions */}
       <div
-        className="px-5 py-4 border-t flex items-center justify-between"
+        className="px-5 py-4 border-t flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3"
         style={{ borderColor: "var(--border)" }}
       >
         <button
           onClick={onDiscard}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+          className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
           style={{
             background: "rgba(252,165,165,0.08)",
             color: "var(--error)",
@@ -180,10 +180,10 @@ export default function DetectionPanel({
           <Trash2 className="w-4 h-4" />
           Discard Meeting
         </button>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <button
             onClick={onSaveAsDoc}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
             style={{
               background: "transparent",
               color: "var(--text-secondary)",
@@ -195,7 +195,7 @@ export default function DetectionPanel({
           </button>
           <button
             onClick={onConfirm}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
             style={{
               background: "rgba(52,211,153,0.12)",
               color: "var(--success)",

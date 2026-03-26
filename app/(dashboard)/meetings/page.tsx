@@ -301,7 +301,7 @@ export default function MeetingsPage() {
 
       {/* ─── Lobby View ─── */}
       {view === "lobby" && (
-        <div className="grid gap-6" style={{ gridTemplateColumns: "300px 1fr" }}>
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-[300px_1fr]">
           <MeetingTable
             attendees={active?.attendees || []}
             allMembers={allMembers}
@@ -323,14 +323,14 @@ export default function MeetingsPage() {
         <div>
           {/* Top bar */}
           <div
-            className="rounded-xl px-4 py-3 mb-4 flex items-center justify-between"
+            className="rounded-xl px-4 py-3 mb-4 flex flex-wrap items-center justify-between gap-3"
             style={{
               background: "var(--surface-gradient)",
               backdropFilter: "var(--surface-blur)",
               border: "var(--surface-border)",
             }}
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 md:gap-4 flex-wrap">
               <span
                 style={{
                   fontFamily: "var(--font-mono)",
@@ -383,7 +383,7 @@ export default function MeetingsPage() {
           </div>
 
           {/* Two-column: table + notes */}
-          <div className="grid gap-6" style={{ gridTemplateColumns: "280px 1fr" }}>
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-[280px_1fr]">
             <MeetingTable
               attendees={active.attendees}
               allMembers={allMembers}
@@ -473,7 +473,7 @@ export default function MeetingsPage() {
             >
               {selectedMeeting.title}
             </h2>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
               {selectedMeeting.attendees.map((a) => (
                 <span
                   key={a.discord_id}
@@ -490,7 +490,7 @@ export default function MeetingsPage() {
           </div>
 
           {/* Notes (read-only) */}
-          <div className="grid gap-6" style={{ gridTemplateColumns: historyItemsData?.data?.length ? "1fr 360px" : "1fr" }}>
+          <div className={`grid gap-6 grid-cols-1 ${historyItemsData?.data?.length ? "md:grid-cols-[1fr_360px]" : ""}`}>
             <div
               className="rounded-2xl"
               style={{

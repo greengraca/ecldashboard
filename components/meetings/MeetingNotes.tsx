@@ -78,7 +78,7 @@ export default function MeetingNotes({
         border: "var(--surface-border)",
         boxShadow: "var(--surface-shadow)",
         height: "100%",
-        minHeight: "400px",
+        minHeight: "300px",
       }}
     >
       {/* Header */}
@@ -104,7 +104,7 @@ export default function MeetingNotes({
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto p-4 space-y-3"
-        style={{ maxHeight: "calc(100vh - 360px)" }}
+        style={{ maxHeight: "calc(100vh - 300px)" }}
       >
         {notes.length === 0 && (
           <p

@@ -116,7 +116,7 @@ export default function MeetingTable({
 
   return (
     <div
-      className="rounded-2xl p-8"
+      className="rounded-2xl p-4 sm:p-8"
       style={{
         background: "var(--surface-gradient)",
         backdropFilter: "var(--surface-blur)",
@@ -144,8 +144,8 @@ export default function MeetingTable({
               top: "50%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              width: "130px",
-              height: "180px",
+              width: "40.6%",
+              height: "47.4%",
               borderRadius: "50%",
               background: "linear-gradient(135deg, rgba(251,191,36,0.06), rgba(251,191,36,0.02))",
               border: "1.5px solid rgba(251,191,36,0.15)",
