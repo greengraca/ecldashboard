@@ -1,10 +1,9 @@
-import { NextResponse } from "next/server";
-import { withAuth } from "@/lib/api-helpers";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthParams } from "@/lib/api-helpers";
 import { getUserName } from "@/lib/auth";
 import { updateFixedCost, deleteFixedCost } from "@/lib/finance";
 
-export const PATCH = withAuth(async (session, request) => {
-  const id = request.nextUrl.pathname.split("/").pop()!;
+export const PATCH = withAuthParams<{ id: string }>(async (session, request, { id }) => {
   const body = await request.json();
   const userId = session.user!.id!;
   const userName = getUserName(session);
@@ -13,8 +12,7 @@ export const PATCH = withAuth(async (session, request) => {
   return NextResponse.json({ data: { success: true } });
 }, "finance/fixed-costs/[id]:PATCH");
 
-export const DELETE = withAuth(async (session, request) => {
-  const id = request.nextUrl.pathname.split("/").pop()!;
+export const DELETE = withAuthParams<{ id: string }>(async (session, _request, { id }) => {
   const userId = session.user!.id!;
   const userName = getUserName(session);
 

@@ -35,7 +35,14 @@ export async function getDb(): Promise<Db> {
     cached.promise = MongoClient.connect(uri);
   }
 
-  cached.client = await cached.promise;
+  try {
+    cached.client = await cached.promise;
+  } catch (err) {
+    // Clear so the next call retries instead of awaiting a rejected promise forever
+    cached.promise = null;
+    throw err;
+  }
+
   cached.db = cached.client.db(MONGODB_DB_NAME);
   return cached.db;
 }

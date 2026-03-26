@@ -3,7 +3,6 @@ import {
   getHistoricalMonths,
   reassembleMonthDump,
   computeStandings,
-  getPlayerStatsFromDump,
 } from "./topdeck";
 import type { MonthDumpPayload, EntrantStats } from "./topdeck";
 import { fetchPublicPData } from "./topdeck-cache";
@@ -254,57 +253,64 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
     monthGroups.set(mi.month, existing);
   }
 
-  // Process each historical month
+  // Process each historical month — compute rank inline to avoid O(N²)
   for (const [monthStr, monthInfos] of monthGroups.entries()) {
-    let totalPoints = 0;
-    let totalGames = 0;
-    let totalWins = 0;
-    let totalLosses = 0;
-    let totalDraws = 0;
-    let found = false;
+    // Aggregate all UIDs' stats across brackets for this month
+    const allUidStats = new Map<string, EntrantStats>();
 
     for (const mi of monthInfos) {
       try {
         const dump = await reassembleMonthDump(mi);
-        const stats = getPlayerStatsFromDump(dump, uid);
-        if (stats) {
-          found = true;
-          totalPoints += stats.points;
-          totalGames += stats.games;
-          totalWins += stats.wins;
-          totalLosses += stats.losses;
-          totalDraws += stats.draws;
+        const allEntrantIds = Object.keys(dump.entrant_to_uid).map(Number);
+        const standings = computeStandings(dump.matches, allEntrantIds);
+
+        for (const [eidStr, uidKey] of Object.entries(dump.entrant_to_uid)) {
+          const eid = Number(eidStr);
+          const stats = standings.get(eid);
+          if (!stats) continue;
+
+          const existing = allUidStats.get(uidKey);
+          if (existing) {
+            existing.points += stats.points;
+            existing.games += stats.games;
+            existing.wins += stats.wins;
+            existing.losses += stats.losses;
+            existing.draws += stats.draws;
+          } else {
+            allUidStats.set(uidKey, { ...stats });
+          }
         }
       } catch (err) {
         console.error(`Failed to load dump for ${mi.bracket_id}/${mi.month}:`, err);
       }
     }
 
-    if (found) {
-      // Compute rank for this month
-      let rank: number | null = null;
-      try {
-        const { players: playersThisMonth } = await getPlayers(monthStr);
-        const playerInList = playersThisMonth.find((p) => p.uid === uid);
-        if (playerInList) rank = playerInList.rank;
-      } catch {
-        // rank will be null
-      }
+    const playerStats = allUidStats.get(uid);
+    if (!playerStats || playerStats.games === 0) continue;
 
-      monthlyHistory.push({
-        month: monthStr,
-        games: totalGames,
-        wins: totalWins,
-        losses: totalLosses,
-        draws: totalDraws,
-        points: Math.round(totalPoints * 100) / 100,
-        win_pct:
-          totalGames > 0
-            ? Math.round((totalWins / totalGames) * 10000) / 100
-            : 0,
-        rank,
+    // Compute rank by sorting all UIDs by (-points, -games)
+    const sortedUids = Array.from(allUidStats.entries())
+      .map(([u, s]) => ({ uid: u, points: Math.round(s.points * 100) / 100, games: s.games }))
+      .sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        return b.games - a.games;
       });
-    }
+    const rankIdx = sortedUids.findIndex((s) => s.uid === uid);
+    const rank = rankIdx >= 0 ? rankIdx + 1 : null;
+
+    monthlyHistory.push({
+      month: monthStr,
+      games: playerStats.games,
+      wins: playerStats.wins,
+      losses: playerStats.losses,
+      draws: playerStats.draws,
+      points: Math.round(playerStats.points * 100) / 100,
+      win_pct:
+        playerStats.games > 0
+          ? Math.round((playerStats.wins / playerStats.games) * 10000) / 100
+          : 0,
+      rank,
+    });
   }
 
   // Try live standings for current month data

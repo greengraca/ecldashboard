@@ -78,8 +78,8 @@ async function getGamesFromDump(month: string): Promise<Map<string, number>> {
   return gamesPerDiscord;
 }
 
-function roleSetHasAny(memberRoles: string[], roleSet: Set<number>): boolean {
-  return memberRoles.some((r) => roleSet.has(Number(r)));
+function roleSetHasAny(memberRoles: string[], roleSet: Set<string>): boolean {
+  return memberRoles.some((r) => roleSet.has(r));
 }
 
 function determineSource(roles: string[]): SubscriptionSource | null {

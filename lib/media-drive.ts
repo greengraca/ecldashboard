@@ -256,13 +256,20 @@ export async function renameItem(id: string, newName: string) {
     const descendants = await c
       .find({ path: { $regex: `^${escapedOldPath}/` } })
       .toArray();
-    for (const desc of descendants) {
-      const updatedPath =
-        newPath + (desc.path as string).substring(oldPath.length);
-      await c.updateOne(
-        { _id: desc._id },
-        { $set: { path: updatedPath, updatedAt: new Date() } }
-      );
+    if (descendants.length > 0) {
+      const now = new Date();
+      const ops = descendants.map((desc) => ({
+        updateOne: {
+          filter: { _id: desc._id },
+          update: {
+            $set: {
+              path: newPath + (desc.path as string).substring(oldPath.length),
+              updatedAt: now,
+            },
+          },
+        },
+      }));
+      await c.bulkWrite(ops);
     }
   }
 
@@ -301,13 +308,20 @@ export async function moveItem(id: string, newParentId: string | null) {
     const descendants = await c
       .find({ path: { $regex: `^${escapedOldPath}/` } })
       .toArray();
-    for (const desc of descendants) {
-      const updatedPath =
-        newPath + (desc.path as string).substring(oldPath.length);
-      await c.updateOne(
-        { _id: desc._id },
-        { $set: { path: updatedPath, updatedAt: new Date() } }
-      );
+    if (descendants.length > 0) {
+      const now = new Date();
+      const ops = descendants.map((desc) => ({
+        updateOne: {
+          filter: { _id: desc._id },
+          update: {
+            $set: {
+              path: newPath + (desc.path as string).substring(oldPath.length),
+              updatedAt: now,
+            },
+          },
+        },
+      }));
+      await c.bulkWrite(ops);
     }
   }
 

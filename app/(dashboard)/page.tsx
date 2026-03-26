@@ -105,12 +105,21 @@ export default function HomePage() {
   const pendingReimbursements: PendingReimbursement[] = pendingData?.data || [];
 
   async function handleReimburse(item: PendingReimbursement) {
-    await fetch("/api/finance/reimburse", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: item.id, source: item.source, reimbursed: true }),
-    });
-    mutatePending();
+    try {
+      const res = await fetch("/api/finance/reimburse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.id, source: item.source, reimbursed: true }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        console.error("Reimburse failed:", body?.error || res.status);
+        return;
+      }
+      mutatePending();
+    } catch (err) {
+      console.error("Reimburse failed:", err);
+    }
   }
 
   return (

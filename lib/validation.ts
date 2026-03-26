@@ -77,6 +77,21 @@ export const prizeCreateSchema = z.object({
   status: z.enum(["planned", "confirmed", "awarded"]).optional(),
 });
 
+export const prizeUpdateSchema = z.object({
+  category: z.enum(["mtg_single", "sponsor", "treasure_pod", "ticket", "ring", "other"]).optional(),
+  name: z.string().min(1).max(200).optional(),
+  value: z.number().min(0).optional(),
+  recipient_type: z.enum(["placement", "most_games", "treasure_pod", "top16", "custom"]).optional(),
+  recipient_name: z.string().min(1).max(200).optional(),
+  description: z.string().max(500).optional(),
+  image_url: z.string().url().max(500).nullable().optional(),
+  placement: z.number().int().nullable().optional(),
+  recipient_uid: z.string().max(100).nullable().optional(),
+  recipient_discord_id: z.string().max(50).nullable().optional(),
+  shipping_status: z.enum(["not_applicable", "pending", "shipped", "delivered"]).optional(),
+  status: z.enum(["planned", "confirmed", "awarded"]).optional(),
+});
+
 /** Whitelist for activity log filter values */
 const ACTIVITY_ACTIONS = [
   "create", "update", "delete", "sync", "backfill",

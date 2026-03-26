@@ -1,58 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logApiError } from "@/lib/error-log";
-import { requireAuthWithRateLimit } from "@/lib/api-auth";
+import { withAuthParams } from "@/lib/api-helpers";
 import { getUserName } from "@/lib/auth";
 import { updatePrize, deletePrize } from "@/lib/prizes";
+import { prizeUpdateSchema } from "@/lib/validation";
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { session, error } = await requireAuthWithRateLimit(request);
-    if (error) return error;
-
-    const { id } = await params;
-    const body = await request.json();
-    const userId = session!.user!.id!;
-    const userName = getUserName(session!);
-
-    const prize = await updatePrize(id, body, userId, userName);
-    if (!prize) {
-      return NextResponse.json({ error: "Prize not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({ data: prize });
-  } catch (err) {
-    console.error("PATCH /api/prizes/[id] error:", err);
-    logApiError("prizes/[id]:PATCH", err);
+export const PATCH = withAuthParams<{ id: string }>(async (session, request, { id }) => {
+  const body = await request.json();
+  const parsed = prizeUpdateSchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Failed to update prize" },
-      { status: 500 }
+      { error: parsed.error.issues[0]?.message || "Invalid input" },
+      { status: 400 }
     );
   }
-}
+  const userId = session.user!.id!;
+  const userName = getUserName(session);
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { session, error } = await requireAuthWithRateLimit(request);
-    if (error) return error;
-
-    const { id } = await params;
-    const userId = session!.user!.id!;
-    const userName = getUserName(session!);
-
-    await deletePrize(id, userId, userName);
-    return NextResponse.json({ data: { deleted: true } });
-  } catch (err) {
-    console.error("DELETE /api/prizes/[id] error:", err);
-    logApiError("prizes/[id]:DELETE", err);
-    return NextResponse.json(
-      { error: "Failed to delete prize" },
-      { status: 500 }
-    );
+  const prize = await updatePrize(id, parsed.data, userId, userName);
+  if (!prize) {
+    return NextResponse.json({ error: "Prize not found" }, { status: 404 });
   }
-}
+
+  return NextResponse.json({ data: prize });
+}, "prizes/[id]:PATCH");
+
+export const DELETE = withAuthParams<{ id: string }>(async (session, _request, { id }) => {
+  const userId = session.user!.id!;
+  const userName = getUserName(session);
+
+  await deletePrize(id, userId, userName);
+  return NextResponse.json({ data: { deleted: true } });
+}, "prizes/[id]:DELETE");

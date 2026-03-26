@@ -9,23 +9,9 @@ type AuthResult =
 
 /**
  * Require authentication for an API route.
- * Returns the session if authenticated, or a 401 NextResponse if not.
+ * Logs auth failures with IP and pathname for monitoring.
  */
-export async function requireAuth(): Promise<AuthResult> {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return {
-      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
-    };
-  }
-  return { session };
-}
-
-/**
- * Require authentication for an API route.
- * Accepts request for future extensibility. Logs auth failures to error log.
- */
-export async function requireAuthWithRateLimit(
+export async function requireAuth(
   request: NextRequest
 ): Promise<AuthResult> {
   const ip =

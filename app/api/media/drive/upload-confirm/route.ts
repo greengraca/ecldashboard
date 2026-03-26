@@ -17,6 +17,13 @@ export const POST = withAuth(async (session: Session, request: NextRequest) => {
     );
   }
 
+  if (!r2Key.startsWith("media/")) {
+    return NextResponse.json(
+      { error: "Invalid r2Key prefix" },
+      { status: 400 }
+    );
+  }
+
   const extError = validateFileExtension(name);
   if (extError) {
     return NextResponse.json({ error: extError }, { status: 400 });

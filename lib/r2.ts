@@ -104,7 +104,7 @@ export async function getPresignedDownloadUrl(
     Bucket: bucket(),
     Key: key,
     ...(asAttachment
-      ? { ResponseContentDisposition: `attachment; filename="${asAttachment}"` }
+      ? { ResponseContentDisposition: `attachment; filename="${asAttachment.replace(/[\\"]/g, "\\$&")}"` }
       : {}),
   });
   return getSignedUrl(getClient(), command, { expiresIn });

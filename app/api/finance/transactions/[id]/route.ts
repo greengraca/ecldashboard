@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withAuth } from "@/lib/api-helpers";
+import { withAuthParams } from "@/lib/api-helpers";
 import { getUserName } from "@/lib/auth";
 import { updateTransaction, deleteTransaction } from "@/lib/finance";
 import { transactionUpdateSchema } from "@/lib/validation";
 
-export const PATCH = withAuth(async (session, request) => {
-  const id = request.nextUrl.pathname.split("/").pop()!;
+export const PATCH = withAuthParams<{ id: string }>(async (session, request, { id }) => {
   const body = await request.json();
   const parsed = transactionUpdateSchema.safeParse(body);
   if (!parsed.success) {
@@ -21,8 +20,7 @@ export const PATCH = withAuth(async (session, request) => {
   return NextResponse.json({ data: { success: true } });
 }, "finance/transactions/[id]:PATCH");
 
-export const DELETE = withAuth(async (session, request) => {
-  const id = request.nextUrl.pathname.split("/").pop()!;
+export const DELETE = withAuthParams<{ id: string }>(async (session, _request, { id }) => {
   const userId = session.user!.id!;
   const userName = getUserName(session);
 

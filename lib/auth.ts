@@ -30,9 +30,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async signIn({ account }) {
       if (!account?.providerAccountId) return false;
-      const discordId = parseInt(account.providerAccountId, 10);
       if (ALLOWED_DISCORD_IDS.size === 0) return true;
-      return ALLOWED_DISCORD_IDS.has(discordId);
+      return ALLOWED_DISCORD_IDS.has(account.providerAccountId);
     },
     async jwt({ token, account, profile }) {
       if (account && profile) {

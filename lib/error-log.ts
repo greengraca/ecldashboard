@@ -3,17 +3,22 @@ import type { ErrorLogLevel } from "./types";
 
 let ttlEnsured = false;
 
-async function ensureTTLIndex() {
+async function ensureIndexes() {
   if (ttlEnsured) return;
   try {
     const db = await getDb();
-    await db.collection("dashboard_error_log").createIndex(
+    const col = db.collection("dashboard_error_log");
+    await col.createIndex(
       { created_at: 1 },
       { expireAfterSeconds: 30 * 24 * 60 * 60, name: "ttl_30d" }
     );
+    await col.createIndex(
+      { level: 1, timestamp: -1 },
+      { name: "level_timestamp" }
+    );
     ttlEnsured = true;
   } catch {
-    // Index may already exist — that's fine
+    // Indexes may already exist — that's fine
     ttlEnsured = true;
   }
 }
@@ -25,7 +30,7 @@ export async function logError(
   details: Record<string, unknown> | null = null
 ): Promise<void> {
   try {
-    await ensureTTLIndex();
+    await ensureIndexes();
     const db = await getDb();
     await db.collection("dashboard_error_log").insertOne({
       level,

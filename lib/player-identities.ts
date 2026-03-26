@@ -59,29 +59,32 @@ export async function syncPlayerIdentities(): Promise<number> {
   // Join: uid → discord_username → discord_id
   const now = new Date().toISOString();
   const col = db.collection(COLLECTION);
-  let upserted = 0;
 
+  const ops = [];
   for (const [uid, discordUsername] of uidToDiscord) {
     const member = usernameToMember.get(discordUsername);
     if (!member) continue;
 
-    await col.updateOne(
-      { discord_id: member.id },
-      {
-        $set: {
-          discord_id: member.id,
-          discord_username: discordUsername,
-          topdeck_uid: uid,
-          display_name: uidToName.get(uid) || member.display_name,
-          updated_at: now,
+    ops.push({
+      updateOne: {
+        filter: { discord_id: member.id },
+        update: {
+          $set: {
+            discord_id: member.id,
+            discord_username: discordUsername,
+            topdeck_uid: uid,
+            display_name: uidToName.get(uid) || member.display_name,
+            updated_at: now,
+          },
         },
+        upsert: true,
       },
-      { upsert: true }
-    );
-    upserted++;
+    });
   }
 
-  return upserted;
+  if (ops.length === 0) return 0;
+  const result = await col.bulkWrite(ops);
+  return result.upsertedCount + result.modifiedCount;
 }
 
 /**
