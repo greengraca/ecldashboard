@@ -114,6 +114,12 @@ export default function MeetingsPage() {
   const allMembers = mappingsData?.data || [];
   const notes = notesData?.data || [];
 
+  // Enrich attendees with current avatars from user-mappings
+  const enrichedAttendees = (active?.attendees || []).map((a) => {
+    const mapping = allMembers.find((m) => m.discord_id === a.discord_id);
+    return mapping?.avatar_url ? { ...a, avatar_url: mapping.avatar_url } : a;
+  });
+
   // Elapsed time ticker
   useEffect(() => {
     if (view !== "active" || !active?.started_at) return;
@@ -296,7 +302,7 @@ export default function MeetingsPage() {
       {view === "lobby" && (
         <div className="grid gap-6 grid-cols-1 md:grid-cols-[300px_1fr]">
           <MeetingTable
-            attendees={active?.attendees || []}
+            attendees={enrichedAttendees}
             isActive={!!active}
             isInRoom={false}
             onStartSession={!active ? handleStartSession : undefined}
@@ -378,7 +384,7 @@ export default function MeetingsPage() {
           {/* Two-column: table + notes */}
           <div className="grid gap-6 grid-cols-1 md:grid-cols-[280px_1fr]">
             <MeetingTable
-              attendees={active.attendees}
+              attendees={enrichedAttendees}
               isActive={true}
               isInRoom={true}
             />
