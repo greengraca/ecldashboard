@@ -12,6 +12,7 @@ import {
   Trophy,
   Activity,
   Image,
+  MessageCircle,
   Settings,
   PanelLeftClose,
   PanelLeft,
@@ -40,6 +41,12 @@ const navSections = [
     items: [
       { href: "/finance", label: "Finance", icon: Wallet },
       { href: "/prizes", label: "Prizes", icon: Trophy },
+    ],
+  },
+  {
+    label: "TEAM",
+    items: [
+      { href: "/meetings", label: "Meetings", icon: MessageCircle },
     ],
   },
   {

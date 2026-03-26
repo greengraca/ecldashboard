@@ -346,7 +346,7 @@ export interface PrizeSummary {
 
 // ─── Activity Types ───
 
-export type ActivityAction = "create" | "update" | "delete" | "sync";
+export type ActivityAction = "create" | "update" | "delete" | "sync" | "join" | "detect" | "end";
 
 export interface ActivityEntry {
   _id?: ObjectId | string;
@@ -466,6 +466,137 @@ export interface ErrorLogEntry {
   details: Record<string, unknown> | null;
   timestamp: string;
   created_at: Date;
+}
+
+// ─── Calendar Types ───
+
+export type CalendarEventType = "league" | "feature" | "deadline" | "urgent" | "meeting";
+
+export interface RecurrencePattern {
+  day_of_month: number;
+  months?: string[];
+}
+
+export interface CalendarEventSource {
+  type: "meeting" | "manual";
+  meeting_id?: string;
+}
+
+export interface CalendarEvent {
+  _id?: ObjectId | string;
+  title: string;
+  date: string;
+  type: CalendarEventType;
+  recurring: boolean;
+  recurrence_pattern?: RecurrencePattern;
+  template_id?: string;
+  source?: CalendarEventSource;
+  created_by: string;
+  created_by_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CalendarTemplate {
+  _id?: ObjectId | string;
+  title: string;
+  type: CalendarEventType;
+  day_of_month: number;
+  active: boolean;
+  created_by: string;
+  created_at: string;
+}
+
+// ─── User Mapping Types ───
+
+export type TeamMemberColor = "amber" | "blue" | "green" | "purple" | "red";
+
+export interface UserMapping {
+  _id?: ObjectId | string;
+  discord_id: string;
+  discord_username: string;
+  firebase_uid: string;
+  display_name: string;
+  color: TeamMemberColor;
+  created_at: string;
+}
+
+// ─── Meeting Types ───
+
+export type MeetingStatus = "active" | "ended";
+
+export interface MeetingAttendee {
+  discord_id: string;
+  display_name: string;
+  color: TeamMemberColor;
+  joined_at: string;
+}
+
+export interface Meeting {
+  _id?: ObjectId | string;
+  number: number;
+  title: string;
+  date: string;
+  started_at: string;
+  ended_at?: string;
+  status: MeetingStatus;
+  attendees: MeetingAttendee[];
+  created_by: string;
+  created_at: string;
+}
+
+export interface MeetingNote {
+  _id?: ObjectId | string;
+  meeting_id: string;
+  author_discord_id: string;
+  author_name: string;
+  author_color: TeamMemberColor;
+  content: string;
+  timestamp: string;
+}
+
+export type MeetingItemType = "task" | "deadline" | "prize";
+export type MeetingItemStatus = "pending" | "accepted" | "dismissed";
+
+export interface MeetingItemMetadata {
+  assignee_discord_id?: string;
+  assignee_name?: string;
+  due_date?: string;
+  date?: string;
+  event_type?: string;
+  budget?: number;
+  breakdown?: Record<string, number | string>;
+}
+
+export interface MeetingItem {
+  _id?: ObjectId | string;
+  meeting_id: string;
+  type: MeetingItemType;
+  title: string;
+  status: MeetingItemStatus;
+  metadata: MeetingItemMetadata;
+  source_quote: string;
+  created_entity_id?: string;
+  created_entity_type?: string;
+  resolved_by?: string;
+  resolved_at?: string;
+  created_at: string;
+}
+
+// ─── Taskpad Types ───
+
+export interface TaskpadTask {
+  id: string;
+  text: string;
+  done: boolean;
+  deleted?: boolean;
+  createdByUid: string;
+  createdByEmail?: string | null;
+  ts: number;
+  order?: number;
+  updatedAt?: number;
+  source_meeting_id?: string;
+  source_meeting_number?: number;
 }
 
 // ─── Media Drive Types ───

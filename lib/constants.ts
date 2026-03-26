@@ -61,6 +61,10 @@ export const DEFAULT_PATREON_NET = 5.79;
 export const DEFAULT_KOFI_NET = 5.63;
 export const DEFAULT_MANUAL_NET = 6.50;
 
+// ─── Firebase / Taskpad ───
+export const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "";
+export const TASKPAD_TEAM_ID = process.env.TASKPAD_TEAM_ID || "";
+
 export const PATREON_CREATOR_TOKEN = process.env.PATREON_CREATOR_TOKEN || "";
 export const PATREON_CLIENT_ID = process.env.PATREON_CLIENT_ID || "";
 export const PATREON_CLIENT_SECRET = process.env.PATREON_CLIENT_SECRET || "";

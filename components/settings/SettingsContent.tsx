@@ -7,6 +7,7 @@ import TopDeckRefreshButton from "@/components/settings/topdeck-refresh-button";
 import SyncDiscordButton from "@/components/settings/sync-discord-button";
 import SyncPatreonButton from "@/components/settings/sync-patreon-button";
 import SubscriptionRatesManager from "./SubscriptionRatesManager";
+import TeamMemberManager from "./TeamMemberManager";
 
 function mask(value: string, showChars = 4): string {
   if (!value) return "Not set";
@@ -295,6 +296,11 @@ export default function SettingsContent({
               }
             />
           </Section>
+        </div>
+
+        {/* Team Members */}
+        <div className="mb-8">
+          <TeamMemberManager />
         </div>
       </div>
     </div>

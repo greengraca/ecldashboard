@@ -92,10 +92,82 @@ export const prizeUpdateSchema = z.object({
   status: z.enum(["planned", "confirmed", "awarded"]).optional(),
 });
 
+// --- Calendar & Meeting schemas ---
+
+const calendarEventType = z.enum(["league", "feature", "deadline", "urgent", "meeting"]);
+
+export const calendarEventCreateSchema = z.object({
+  title: z.string().min(1).max(200),
+  date: z.string().min(1),
+  type: calendarEventType,
+  recurring: z.boolean().optional().default(false),
+  recurrence_pattern: z.object({
+    day_of_month: z.number().int().min(1).max(31),
+    months: z.array(z.string()).optional(),
+  }).optional(),
+  template_id: z.string().optional(),
+  source: z.object({
+    type: z.enum(["meeting", "manual"]),
+    meeting_id: z.string().optional(),
+  }).optional(),
+});
+
+export const calendarEventUpdateSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  date: z.string().min(1).optional(),
+  type: calendarEventType.optional(),
+  recurring: z.boolean().optional(),
+  recurrence_pattern: z.object({
+    day_of_month: z.number().int().min(1).max(31),
+    months: z.array(z.string()).optional(),
+  }).optional().nullable(),
+});
+
+export const calendarTemplateCreateSchema = z.object({
+  title: z.string().min(1).max(200),
+  type: calendarEventType,
+  day_of_month: z.number().int().min(1).max(31),
+});
+
+export const calendarTemplateUpdateSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  type: calendarEventType.optional(),
+  day_of_month: z.number().int().min(1).max(31).optional(),
+  active: z.boolean().optional(),
+});
+
+export const meetingNoteCreateSchema = z.object({
+  content: z.string().min(1).max(5000),
+});
+
+export const meetingItemUpdateSchema = z.object({
+  status: z.enum(["pending", "accepted", "dismissed"]).optional(),
+  title: z.string().min(1).max(200).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+const teamMemberColor = z.enum(["amber", "blue", "green", "purple", "red"]);
+
+export const userMappingCreateSchema = z.object({
+  discord_id: z.string().min(1).max(50),
+  discord_username: z.string().min(1).max(100),
+  firebase_uid: z.string().min(1).max(200),
+  display_name: z.string().min(1).max(100),
+  color: teamMemberColor,
+});
+
+export const userMappingUpdateSchema = z.object({
+  discord_username: z.string().min(1).max(100).optional(),
+  firebase_uid: z.string().min(1).max(200).optional(),
+  display_name: z.string().min(1).max(100).optional(),
+  color: teamMemberColor.optional(),
+});
+
 /** Whitelist for activity log filter values */
 const ACTIVITY_ACTIONS = [
   "create", "update", "delete", "sync", "backfill",
   "auto_populate", "claim", "unclaim", "ship", "budget_update",
+  "join", "detect", "end",
 ] as const;
 
 const ACTIVITY_ENTITY_TYPES = [
@@ -103,6 +175,8 @@ const ACTIVITY_ENTITY_TYPES = [
   "manual_payment", "subscription_rate", "player_identity",
   "bracket", "media", "folder", "caption_template",
   "treasure_pod", "reimbursement",
+  "calendar_event", "calendar_template", "meeting",
+  "meeting_note", "meeting_item", "user_mapping", "taskpad_task",
 ] as const;
 
 const ERROR_LOG_LEVELS = ["error", "warn", "info"] as const;

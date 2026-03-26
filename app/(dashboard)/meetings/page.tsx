@@ -1,0 +1,615 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import useSWR from "swr";
+import {
+  Users2,
+  ArrowLeft,
+  Radio,
+  Square,
+} from "lucide-react";
+import MeetingTable from "@/components/meetings/MeetingTable";
+import MeetingNotes from "@/components/meetings/MeetingNotes";
+import MeetingHistory from "@/components/meetings/MeetingHistory";
+import DetectionPanel from "@/components/meetings/DetectionPanel";
+import { fetcher } from "@/lib/fetcher";
+import type { Meeting, MeetingNote, MeetingItem, UserMapping } from "@/lib/types";
+
+type ViewState = "lobby" | "active" | "detection" | "history-detail";
+
+interface MeetingsResponse {
+  data: {
+    active: Meeting | null;
+    history: Meeting[];
+  };
+}
+
+interface NotesResponse {
+  data: MeetingNote[];
+}
+
+interface MeetingResponse {
+  data: Meeting;
+}
+
+interface ItemsResponse {
+  data: MeetingItem[];
+}
+
+interface MappingsResponse {
+  data: UserMapping[];
+}
+
+function formatElapsed(startedAt: string): string {
+  const elapsed = Date.now() - new Date(startedAt).getTime();
+  const mins = Math.floor(elapsed / 60000);
+  const hrs = Math.floor(mins / 60);
+  const rem = mins % 60;
+  if (hrs > 0) return `${hrs}h ${rem}m`;
+  return `${mins}m`;
+}
+
+export default function MeetingsPage() {
+  const [view, setView] = useState<ViewState>("lobby");
+  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
+  const [elapsedText, setElapsedText] = useState("");
+
+  // Data fetching
+  const { data: meetingsData, mutate: mutateMeetings } = useSWR<MeetingsResponse>(
+    "/api/meetings",
+    fetcher
+  );
+
+  const { data: mappingsData } = useSWR<MappingsResponse>(
+    "/api/user-mapping",
+    fetcher
+  );
+
+  const activeId = meetingsData?.data?.active
+    ? String(meetingsData.data.active._id)
+    : null;
+
+  // Poll active meeting every 30s
+  const { data: activeMeetingData } = useSWR<MeetingResponse>(
+    view === "active" && activeId ? `/api/meetings/${activeId}` : null,
+    fetcher,
+    { refreshInterval: 30000 }
+  );
+
+  // Poll notes every 5s during active session
+  const { data: notesData, mutate: mutateNotes } = useSWR<NotesResponse>(
+    view === "active" && activeId ? `/api/meetings/${activeId}/notes` : null,
+    fetcher,
+    { refreshInterval: 5000 }
+  );
+
+  // History detail notes (no polling)
+  const { data: historyNotesData } = useSWR<NotesResponse>(
+    view === "history-detail" && selectedMeetingId
+      ? `/api/meetings/${selectedMeetingId}/notes`
+      : null,
+    fetcher
+  );
+
+  // History detail items
+  const { data: historyItemsData } = useSWR<ItemsResponse>(
+    view === "history-detail" && selectedMeetingId
+      ? `/api/meetings/${selectedMeetingId}/items`
+      : null,
+    fetcher
+  );
+
+  // Detection items
+  const [detectionItems, setDetectionItems] = useState<MeetingItem[]>([]);
+  const [detectionMeeting, setDetectionMeeting] = useState<Meeting | null>(null);
+
+  // Resolved data
+  const active = activeMeetingData?.data || meetingsData?.data?.active || null;
+  const history = meetingsData?.data?.history || [];
+  const allMembers = mappingsData?.data || [];
+  const notes = notesData?.data || [];
+
+  // Auto-switch to active view if a session exists on load
+  useEffect(() => {
+    if (meetingsData?.data?.active && view === "lobby") {
+      setView("active");
+    }
+  }, [meetingsData?.data?.active, view]);
+
+  // Elapsed time ticker
+  useEffect(() => {
+    if (view !== "active" || !active?.started_at) return;
+    const tick = () => setElapsedText(formatElapsed(active.started_at));
+    tick();
+    const interval = setInterval(tick, 30000);
+    return () => clearInterval(interval);
+  }, [view, active?.started_at]);
+
+  // History detail meeting
+  const selectedMeeting = selectedMeetingId
+    ? history.find((m) => String(m._id) === selectedMeetingId) || null
+    : null;
+
+  // Actions
+  const handleStartSession = useCallback(async () => {
+    try {
+      const res = await fetch("/api/meetings", { method: "POST" });
+      if (res.ok) {
+        await mutateMeetings();
+        setView("active");
+      }
+    } catch (err) {
+      console.error("Failed to start session:", err);
+    }
+  }, [mutateMeetings]);
+
+  const handleJoinSession = useCallback(async () => {
+    if (!activeId) return;
+    try {
+      await fetch(`/api/meetings/${activeId}/join`, { method: "POST" });
+      await mutateMeetings();
+      setView("active");
+    } catch (err) {
+      console.error("Failed to join session:", err);
+    }
+  }, [activeId, mutateMeetings]);
+
+  const handleEndSession = useCallback(async () => {
+    if (!activeId) return;
+    try {
+      // End the meeting
+      const res = await fetch(`/api/meetings/${activeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "ended" }),
+      });
+      if (!res.ok) return;
+
+      const endedMeeting = (await res.json()).data as Meeting;
+
+      // Run detection (Phase 5 stub — returns [])
+      const detectRes = await fetch(`/api/meetings/${activeId}/detect`, {
+        method: "POST",
+      });
+      const detected = detectRes.ok ? (await detectRes.json()).data : [];
+
+      setDetectionMeeting(endedMeeting);
+      setDetectionItems(detected);
+      setView("detection");
+      await mutateMeetings();
+    } catch (err) {
+      console.error("Failed to end session:", err);
+    }
+  }, [activeId, mutateMeetings]);
+
+  const handleItemUpdate = useCallback(
+    async (itemId: string, status: string) => {
+      if (!detectionMeeting) return;
+      const meetingId = String(detectionMeeting._id);
+      try {
+        const res = await fetch(
+          `/api/meetings/${meetingId}/items/${itemId}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status }),
+          }
+        );
+        if (res.ok) {
+          const updated = (await res.json()).data as MeetingItem;
+          setDetectionItems((prev) =>
+            prev.map((it) => (String(it._id) === itemId ? updated : it))
+          );
+        }
+      } catch (err) {
+        console.error("Failed to update item:", err);
+      }
+    },
+    [detectionMeeting]
+  );
+
+  const handleConfirmDetection = useCallback(() => {
+    setDetectionMeeting(null);
+    setDetectionItems([]);
+    setView("lobby");
+    mutateMeetings();
+  }, [mutateMeetings]);
+
+  const handleSaveAsDoc = useCallback(() => {
+    setDetectionMeeting(null);
+    setDetectionItems([]);
+    setView("lobby");
+    mutateMeetings();
+  }, [mutateMeetings]);
+
+  const handleSelectHistoryMeeting = useCallback((id: string) => {
+    setSelectedMeetingId(id);
+    setView("history-detail");
+  }, []);
+
+  const handleBackToLobby = useCallback(() => {
+    setSelectedMeetingId(null);
+    setView("lobby");
+  }, []);
+
+  // ─── Render ───
+
+  return (
+    <div>
+      {/* Page header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-1">
+          <div
+            className="p-2 rounded-lg"
+            style={{ background: "var(--accent-light)" }}
+          >
+            <Users2
+              className="w-5 h-5"
+              style={{ color: "var(--accent)" }}
+            />
+          </div>
+          <div>
+            <h1
+              className="text-2xl font-bold"
+              style={{ color: "var(--text-primary)" }}
+            >
+              Meeting Room
+            </h1>
+            <p
+              className="text-sm mt-0.5"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Live team meetings with note-taking
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Lobby View ─── */}
+      {view === "lobby" && (
+        <div className="grid gap-6" style={{ gridTemplateColumns: "300px 1fr" }}>
+          <MeetingTable
+            attendees={active?.attendees || []}
+            allMembers={allMembers}
+            isActive={!!active}
+            onStartSession={!active ? handleStartSession : undefined}
+            onJoinSession={active ? handleJoinSession : undefined}
+          />
+          <MeetingHistory
+            meetings={history}
+            onSelectMeeting={handleSelectHistoryMeeting}
+          />
+        </div>
+      )}
+
+      {/* ─── Active View ─── */}
+      {view === "active" && active && (
+        <div>
+          {/* Top bar */}
+          <div
+            className="rounded-xl px-4 py-3 mb-4 flex items-center justify-between"
+            style={{
+              background: "var(--surface-gradient)",
+              backdropFilter: "var(--surface-blur)",
+              border: "var(--surface-border)",
+            }}
+          >
+            <div className="flex items-center gap-4">
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontWeight: 700,
+                  fontSize: "14px",
+                  color: "var(--accent)",
+                }}
+              >
+                Meeting #{active.number}
+              </span>
+              <span
+                style={{ fontSize: "12px", color: "var(--text-muted)" }}
+              >
+                {active.date}
+              </span>
+              <span
+                className="flex items-center gap-1.5 px-2 py-0.5 rounded-full"
+                style={{
+                  background: "rgba(239,68,68,0.12)",
+                  color: "#ef4444",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                }}
+              >
+                <Radio className="w-3 h-3" />
+                LIVE
+              </span>
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "var(--text-muted)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                {elapsedText}
+              </span>
+            </div>
+            <button
+              onClick={handleEndSession}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+              style={{
+                background: "rgba(239,68,68,0.12)",
+                color: "#ef4444",
+                border: "1px solid rgba(239,68,68,0.25)",
+              }}
+            >
+              <Square className="w-3.5 h-3.5" />
+              End Session
+            </button>
+          </div>
+
+          {/* Two-column: table + notes */}
+          <div className="grid gap-6" style={{ gridTemplateColumns: "280px 1fr" }}>
+            <MeetingTable
+              attendees={active.attendees}
+              allMembers={allMembers}
+              isActive={true}
+            />
+            <MeetingNotes
+              meetingId={String(active._id)}
+              notes={notes}
+              onNoteAdded={() => mutateNotes()}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ─── Detection View ─── */}
+      {view === "detection" && detectionMeeting && (
+        <DetectionPanel
+          meeting={detectionMeeting}
+          items={detectionItems}
+          onItemUpdate={handleItemUpdate}
+          onConfirm={handleConfirmDetection}
+          onSaveAsDoc={handleSaveAsDoc}
+        />
+      )}
+
+      {/* ─── History Detail View ─── */}
+      {view === "history-detail" && selectedMeeting && (
+        <div>
+          {/* Back button */}
+          <button
+            onClick={handleBackToLobby}
+            className="flex items-center gap-2 mb-4 px-3 py-1.5 rounded-lg text-sm transition-all"
+            style={{
+              color: "var(--text-secondary)",
+              background: "transparent",
+              border: "none",
+            }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Lobby
+          </button>
+
+          {/* Meeting info header */}
+          <div
+            className="rounded-xl px-5 py-4 mb-4"
+            style={{
+              background: "var(--surface-gradient)",
+              backdropFilter: "var(--surface-blur)",
+              border: "var(--surface-border)",
+            }}
+          >
+            <div className="flex items-center gap-4 mb-2">
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontWeight: 700,
+                  fontSize: "14px",
+                  color: "var(--accent)",
+                }}
+              >
+                Meeting #{selectedMeeting.number}
+              </span>
+              <span
+                style={{ fontSize: "12px", color: "var(--text-muted)" }}
+              >
+                {selectedMeeting.date}
+              </span>
+            </div>
+            <h2
+              className="text-lg font-semibold"
+              style={{ color: "var(--text-primary)" }}
+            >
+              {selectedMeeting.title}
+            </h2>
+            <div className="flex items-center gap-2 mt-2">
+              {selectedMeeting.attendees.map((a) => (
+                <span
+                  key={a.discord_id}
+                  className="text-xs px-2 py-0.5 rounded-full"
+                  style={{
+                    background: `rgba(${hexToRgb(getColorHex(a.color))}, 0.12)`,
+                    color: getColorHex(a.color),
+                  }}
+                >
+                  {a.display_name}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Notes (read-only) */}
+          <div className="grid gap-6" style={{ gridTemplateColumns: historyItemsData?.data?.length ? "1fr 360px" : "1fr" }}>
+            <div
+              className="rounded-2xl"
+              style={{
+                background: "var(--surface-gradient)",
+                backdropFilter: "var(--surface-blur)",
+                border: "var(--surface-border)",
+                boxShadow: "var(--surface-shadow)",
+              }}
+            >
+              <div
+                className="px-4 py-3 border-b"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <h3
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  Notes
+                </h3>
+              </div>
+              <div className="p-4 space-y-3">
+                {(!historyNotesData?.data || historyNotesData.data.length === 0) && (
+                  <p
+                    className="text-center py-6"
+                    style={{ color: "var(--text-muted)", fontSize: "13px" }}
+                  >
+                    No notes were recorded
+                  </p>
+                )}
+                {historyNotesData?.data?.map((note) => {
+                  const color = getColorHex(note.author_color);
+                  return (
+                    <div
+                      key={String(note._id)}
+                      className="pl-3"
+                      style={{ borderLeft: `3px solid ${color}` }}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-semibold" style={{ color }}>
+                          {note.author_name}
+                        </span>
+                        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                          {new Date(note.timestamp).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                      <p
+                        className="text-sm leading-relaxed"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        {note.content}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Items (if any) */}
+            {historyItemsData?.data && historyItemsData.data.length > 0 && (
+              <div
+                className="rounded-2xl"
+                style={{
+                  background: "var(--surface-gradient)",
+                  backdropFilter: "var(--surface-blur)",
+                  border: "var(--surface-border)",
+                  boxShadow: "var(--surface-shadow)",
+                }}
+              >
+                <div
+                  className="px-4 py-3 border-b"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <h3
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    Detected Items
+                  </h3>
+                </div>
+                <div className="p-4 space-y-2">
+                  {historyItemsData.data.map((item) => (
+                    <MeetingItemCardReadOnly key={String(item._id)} item={item} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Helpers ───
+
+const COLOR_HEX: Record<string, string> = {
+  amber: "#fbbf24",
+  blue: "#60a5fa",
+  green: "#34d399",
+  purple: "#a855f7",
+  red: "#fca5a5",
+};
+
+function getColorHex(color: string): string {
+  return COLOR_HEX[color] || COLOR_HEX.amber;
+}
+
+function hexToRgb(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `${r},${g},${b}`;
+}
+
+// Read-only item card for history view
+function MeetingItemCardReadOnly({ item }: { item: MeetingItem }) {
+  const TYPE_STYLES: Record<string, { label: string; color: string; bg: string }> = {
+    task: { label: "Task", color: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
+    deadline: { label: "Deadline", color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
+    prize: { label: "Prize", color: "#a855f7", bg: "rgba(168,85,247,0.12)" },
+  };
+  const typeStyle = TYPE_STYLES[item.type] || TYPE_STYLES.task;
+
+  return (
+    <div
+      className="rounded-lg p-3"
+      style={{
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid var(--border)",
+        opacity: item.status === "dismissed" ? 0.4 : 1,
+      }}
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <span
+          className="px-1.5 py-0.5 rounded text-xs font-semibold"
+          style={{ background: typeStyle.bg, color: typeStyle.color }}
+        >
+          {typeStyle.label}
+        </span>
+        <span
+          className="text-xs"
+          style={{
+            color: item.status === "accepted"
+              ? "var(--success)"
+              : item.status === "dismissed"
+              ? "var(--text-muted)"
+              : "var(--accent)",
+          }}
+        >
+          {item.status}
+        </span>
+      </div>
+      <p className="text-sm" style={{ color: "var(--text-primary)" }}>
+        {item.title}
+      </p>
+    </div>
+  );
+}

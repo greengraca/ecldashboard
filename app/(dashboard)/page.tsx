@@ -3,6 +3,8 @@
 import { useState } from "react";
 import useSWR from "swr";
 import StatCard from "@/components/dashboard/stat-card";
+import CalendarWidget from "@/components/dashboard/CalendarWidget";
+import TasksWidget from "@/components/dashboard/TasksWidget";
 import FinanceOverview from "@/components/finance/finance-overview";
 import ProfitSplitTable from "@/components/finance/profit-split-table";
 import { Users, Wallet, Swords, Activity, CheckCircle, Clock, List, Group } from "lucide-react";
@@ -34,6 +36,9 @@ const actionColors: Record<ActivityAction, string> = {
   update: "var(--status-active)",
   delete: "var(--error)",
   sync: "var(--warning)",
+  join: "var(--info)",
+  detect: "var(--meeting)",
+  end: "var(--text-muted)",
 };
 
 function StatSkeleton() {
@@ -222,6 +227,16 @@ export default function HomePage() {
             }
           />
         )}
+      </div>
+
+      {/* Calendar + Tasks */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
+        <div className="lg:col-span-3">
+          <CalendarWidget />
+        </div>
+        <div className="lg:col-span-1">
+          <TasksWidget />
+        </div>
       </div>
 
       {/* Treasury Overview */}

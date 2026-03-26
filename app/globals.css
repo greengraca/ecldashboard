@@ -86,6 +86,8 @@ button, [role="button"], summary {
   --card-shadow-hover: 0 8px 40px rgba(0, 0, 0, 0.3);
   --error-bg: rgba(252, 165, 165, 0.06);
   --info: #60a5fa;
+  --meeting: #a855f7;
+  --meeting-light: rgba(168, 85, 247, 0.08);
 
   /* Glassmorphism surface tokens */
   --surface-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));

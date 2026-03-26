@@ -27,6 +27,9 @@ const actionColors: Record<ActivityAction, { bg: string; color: string }> = {
   update: { bg: "var(--status-active-light)", color: "var(--status-active)" },
   delete: { bg: "var(--error-light)", color: "var(--error)" },
   sync: { bg: "var(--warning-light)", color: "var(--warning)" },
+  join: { bg: "var(--status-active-light)", color: "var(--info)" },
+  detect: { bg: "var(--meeting-light)", color: "var(--meeting)" },
+  end: { bg: "rgba(100,116,139,0.08)", color: "var(--text-muted)" },
 };
 
 function ActionBadge({ action }: { action: ActivityAction }) {

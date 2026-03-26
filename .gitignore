@@ -47,3 +47,6 @@ CLAUDE.md
 # local planning docs (not part of the app)
 /docs/
 plans/
+
+# superpowers brainstorm artifacts
+.superpowers/
