@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 import { getDb } from "./mongodb";
 import { logActivity } from "./activity";
 import { getMappingByDiscordId } from "./user-mapping";
-import { createEvent } from "./calendar";
+import { createEvent, deleteEventByMeetingId } from "./calendar";
 import type { Meeting, MeetingNote, MeetingItem, MeetingItemMetadata } from "./types";
 
 const MEETINGS = "dashboard_meetings";
@@ -206,9 +206,10 @@ export async function deleteMeeting(
 
   const meeting = await db.collection<Meeting>(MEETINGS).findOne({ _id: new ObjectId(id) });
 
-  // Delete notes and items for this meeting
+  // Delete notes, items, and linked calendar event for this meeting
   await db.collection(NOTES).deleteMany({ meeting_id: id });
   await db.collection(ITEMS).deleteMany({ meeting_id: id });
+  await deleteEventByMeetingId(id);
   await db.collection(MEETINGS).deleteOne({ _id: new ObjectId(id) });
 
   await logActivity(

@@ -192,6 +192,14 @@ export async function deleteEvent(
   }, userId, userName);
 }
 
+export async function deleteEventByMeetingId(meetingId: string): Promise<void> {
+  const db = await getDb();
+  await db.collection(EVENTS_COLLECTION).deleteMany({
+    "source.type": "meeting",
+    "source.meeting_id": meetingId,
+  });
+}
+
 // ─── Templates CRUD ───
 
 export async function getTemplates(): Promise<CalendarTemplate[]> {
