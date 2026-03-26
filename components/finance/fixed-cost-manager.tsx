@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import type { FixedCost } from "@/lib/types";
 import Select from "@/components/dashboard/select";
+import ConfirmModal from "@/components/dashboard/confirm-modal";
 import { TEAM_MEMBERS } from "@/lib/constants";
 import { Sensitive } from "@/components/dashboard/sensitive";
 
@@ -37,7 +38,7 @@ interface FixedCostManagerProps {
       paid_by: string | null;
     }>
   ) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
+  onDelete: (id: string) => void | Promise<void>;
 }
 
 export default function FixedCostManager({
@@ -63,21 +64,21 @@ export default function FixedCostManager({
     start_month: "",
     paid_by: "",
   });
+  const [confirmAdd, setConfirmAdd] = useState(false);
 
   const monthlyTotal = fixedCosts
     .filter((fc) => fc.active && appliesToMonth(fc, month))
     .reduce((sum, fc) => sum + fc.amount, 0);
 
-  async function handleAdd() {
+  function handleAddClick() {
     if (!form.name || !form.amount) return;
-    const amt = parseFloat(form.amount);
-    const ok = window.confirm(
-      `Add fixed cost "${form.name}" (€${amt.toFixed(2)}/month, ${form.category}) starting ${form.start_month}?`
-    );
-    if (!ok) return;
+    setConfirmAdd(true);
+  }
+
+  async function handleAddConfirm() {
     await onAdd({
       name: form.name,
-      amount: amt,
+      amount: parseFloat(form.amount),
       category: form.category,
       active: true,
       start_month: form.start_month,
@@ -230,7 +231,7 @@ export default function FixedCostManager({
           </div>
           <div className="flex gap-2 justify-end">
             <button
-              onClick={handleAdd}
+              onClick={handleAddClick}
               className="px-3 py-1.5 rounded-lg text-xs font-medium"
               style={{
                 background: "rgba(251, 191, 36, 0.15)",
@@ -434,6 +435,15 @@ export default function FixedCostManager({
           );
         })}
       </div>
+
+      <ConfirmModal
+        open={confirmAdd}
+        onClose={() => setConfirmAdd(false)}
+        onConfirm={handleAddConfirm}
+        title="Add Fixed Cost"
+        message={`Add "${form.name}" (€${parseFloat(form.amount || "0").toFixed(2)}/month, ${form.category}) starting ${form.start_month}? This will be deducted every month.`}
+        confirmLabel="Add Fixed Cost"
+      />
     </div>
   );
 }

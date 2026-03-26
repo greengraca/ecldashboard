@@ -13,6 +13,7 @@ import BudgetConfigurator from "@/components/prizes/budget-configurator";
 import ShippingTracker from "@/components/prizes/shipping-tracker";
 import AutoPopulateButton from "@/components/prizes/auto-populate-button";
 import TreasurePodSection from "@/components/prizes/treasure-pod-section";
+import ConfirmModal from "@/components/dashboard/confirm-modal";
 import type { Prize, PrizeBudget, PrizeBudgetAllocations, PrizeSummary } from "@/lib/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -33,6 +34,7 @@ export default function PrizesPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingPrize, setEditingPrize] = useState<Prize | undefined>(undefined);
   const [detailPrize, setDetailPrize] = useState<Prize | null>(null);
+  const [deletePrize, setDeletePrize] = useState<Prize | null>(null);
 
   const {
     data: prizesData,
@@ -85,9 +87,14 @@ export default function PrizesPage() {
     refreshAll();
   }
 
-  async function handleDeletePrize(prize: Prize) {
-    if (!confirm(`Delete "${prize.name}"?`)) return;
-    await fetch(`/api/prizes/${prize._id}`, { method: "DELETE" });
+  function handleDeletePrize(prize: Prize) {
+    setDeletePrize(prize);
+  }
+
+  async function confirmDeletePrize() {
+    if (!deletePrize) return;
+    await fetch(`/api/prizes/${deletePrize._id}`, { method: "DELETE" });
+    setDeletePrize(null);
     refreshAll();
   }
 
@@ -319,6 +326,17 @@ export default function PrizesPage() {
         onClose={() => setDetailPrize(null)}
         onEdit={handleEditPrize}
         onDelete={handleDeletePrize}
+      />
+
+      {/* Delete Prize Confirm */}
+      <ConfirmModal
+        open={!!deletePrize}
+        onClose={() => setDeletePrize(null)}
+        onConfirm={confirmDeletePrize}
+        title="Delete Prize"
+        message={deletePrize ? `Delete "${deletePrize.name}" (€${deletePrize.value.toFixed(2)})?` : ""}
+        confirmLabel="Delete"
+        variant="danger"
       />
     </div>
   );

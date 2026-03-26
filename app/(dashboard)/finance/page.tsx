@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { Plus } from "lucide-react";
 import MonthPicker from "@/components/dashboard/month-picker";
 import Modal from "@/components/dashboard/modal";
+import ConfirmModal from "@/components/dashboard/confirm-modal";
 import BalanceCard from "@/components/finance/balance-card";
 import TransactionForm from "@/components/finance/transaction-form";
 import TransactionTable from "@/components/finance/transaction-table";
@@ -34,6 +35,8 @@ export default function FinancePage() {
   const [editingTx, setEditingTx] = useState<Transaction | undefined>(
     undefined
   );
+  const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
+  const [deleteFcId, setDeleteFcId] = useState<string | null>(null);
   const {
     data: txData,
     isLoading: txLoading,
@@ -122,11 +125,16 @@ export default function FinancePage() {
     }
   }
 
-  async function handleDeleteTransaction(tx: Transaction) {
-    if (!confirm(`Delete "${tx.description}"?`)) return;
-    await fetch(`/api/finance/transactions/${tx._id}`, {
+  function handleDeleteTransaction(tx: Transaction) {
+    setDeleteTx(tx);
+  }
+
+  async function confirmDeleteTransaction() {
+    if (!deleteTx) return;
+    await fetch(`/api/finance/transactions/${deleteTx._id}`, {
       method: "DELETE",
     });
+    setDeleteTx(null);
     refreshAll();
   }
 
@@ -166,11 +174,16 @@ export default function FinancePage() {
     refreshAll();
   }
 
-  async function handleDeleteFixedCost(id: string) {
-    if (!confirm("Delete this fixed cost?")) return;
-    await fetch(`/api/finance/fixed-costs/${id}`, {
+  function handleDeleteFixedCost(id: string) {
+    setDeleteFcId(id);
+  }
+
+  async function confirmDeleteFixedCost() {
+    if (!deleteFcId) return;
+    await fetch(`/api/finance/fixed-costs/${deleteFcId}`, {
       method: "DELETE",
     });
+    setDeleteFcId(null);
     refreshAll();
   }
 
@@ -358,6 +371,28 @@ export default function FinancePage() {
           }}
         />
       </Modal>
+
+      {/* Delete Transaction Confirm */}
+      <ConfirmModal
+        open={!!deleteTx}
+        onClose={() => setDeleteTx(null)}
+        onConfirm={confirmDeleteTransaction}
+        title="Delete Transaction"
+        message={deleteTx ? `Delete "${deleteTx.description}" (€${deleteTx.amount.toFixed(2)})?` : ""}
+        confirmLabel="Delete"
+        variant="danger"
+      />
+
+      {/* Delete Fixed Cost Confirm */}
+      <ConfirmModal
+        open={!!deleteFcId}
+        onClose={() => setDeleteFcId(null)}
+        onConfirm={confirmDeleteFixedCost}
+        title="Delete Fixed Cost"
+        message="Delete this fixed cost? It will be removed from all months and any associated payment records will be cleaned up."
+        confirmLabel="Delete"
+        variant="danger"
+      />
     </div>
   );
 }
