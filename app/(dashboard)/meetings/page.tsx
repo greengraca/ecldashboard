@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import ConfirmModal from "@/components/dashboard/confirm-modal";
 import { Sensitive } from "@/components/dashboard/sensitive";
@@ -53,9 +54,13 @@ function formatElapsed(startedAt: string): string {
 }
 
 export default function MeetingsPage() {
+  const { data: sessionData } = useSession();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const currentUserId = (sessionData?.user as any)?.discordId || sessionData?.user?.id || null;
   const [view, setView] = useState<ViewState>("lobby");
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   const [elapsedText, setElapsedText] = useState("");
+  const [endedBanner, setEndedBanner] = useState(false);
 
   // Data fetching — poll every 30s in lobby to detect new sessions and attendee updates
   const { data: meetingsData, mutate: mutateMeetings } = useSWR<MeetingsResponse>(
@@ -73,11 +78,11 @@ export default function MeetingsPage() {
     ? String(meetingsData.data.active._id)
     : null;
 
-  // Poll active meeting every 30s
+  // Poll active meeting every 5s (fast presence + join detection)
   const { data: activeMeetingData } = useSWR<MeetingResponse>(
     view === "active" && activeId ? `/api/meetings/${activeId}` : null,
     fetcher,
-    { refreshInterval: 30000 }
+    { refreshInterval: 5000 }
   );
 
   // Poll notes every 5s during active session
@@ -119,6 +124,51 @@ export default function MeetingsPage() {
     const mapping = allMembers.find((m) => m.discord_id === a.discord_id);
     return mapping?.avatar_url ? { ...a, avatar_url: mapping.avatar_url } : a;
   });
+
+  // Filter to only present members for the active table view
+  const presentIds = new Set(active?.present_ids || []);
+  const presentAttendees = enrichedAttendees.filter((a) => presentIds.has(a.discord_id));
+
+  // Send presence signal when entering/leaving the room
+  useEffect(() => {
+    if (view !== "active" || !activeId || !currentUserId) return;
+
+    // Signal entering room
+    fetch(`/api/meetings/${activeId}/presence`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ present: true }),
+    }).catch(() => {});
+
+    // Signal leaving room on cleanup (view change, page unload)
+    const signalLeave = () => {
+      navigator.sendBeacon(
+        `/api/meetings/${activeId}/presence`,
+        new Blob([JSON.stringify({ present: false })], { type: "application/json" })
+      );
+    };
+
+    window.addEventListener("beforeunload", signalLeave);
+    return () => {
+      window.removeEventListener("beforeunload", signalLeave);
+      // Also signal leave when view changes away from active
+      fetch(`/api/meetings/${activeId}/presence`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ present: false }),
+      }).catch(() => {});
+    };
+  }, [view, activeId, currentUserId]);
+
+  // Detect when meeting is ended by another member (polled data shows status changed)
+  useEffect(() => {
+    if (view === "active" && activeMeetingData?.data?.status === "ended") {
+      setEndedBanner(true);
+      setView("lobby");
+      mutateMeetings();
+      setTimeout(() => setEndedBanner(false), 5000);
+    }
+  }, [view, activeMeetingData?.data?.status, mutateMeetings]);
 
   // Elapsed time ticker
   useEffect(() => {
@@ -298,11 +348,25 @@ export default function MeetingsPage() {
         </div>
       </div>
 
+      {/* "Session ended" banner */}
+      {endedBanner && (
+        <div
+          className="rounded-lg px-4 py-3 mb-4 flex items-center gap-2 text-sm font-medium"
+          style={{
+            background: "rgba(251,191,36,0.1)",
+            color: "var(--accent)",
+            border: "1px solid var(--accent-border)",
+          }}
+        >
+          The session was ended by another member.
+        </div>
+      )}
+
       {/* ─── Lobby View ─── */}
       {view === "lobby" && (
         <div className="grid gap-6 grid-cols-1 md:grid-cols-[300px_1fr]">
           <MeetingTable
-            attendees={enrichedAttendees}
+            attendees={presentAttendees}
             isActive={!!active}
             isInRoom={false}
             onStartSession={!active ? handleStartSession : undefined}
@@ -384,7 +448,7 @@ export default function MeetingsPage() {
           {/* Two-column: table + notes */}
           <div className="grid gap-6 grid-cols-1 md:grid-cols-[280px_1fr]">
             <MeetingTable
-              attendees={enrichedAttendees}
+              attendees={presentAttendees}
               isActive={true}
               isInRoom={true}
             />

@@ -105,6 +105,7 @@ export async function startMeeting(
         joined_at: now,
       },
     ],
+    present_ids: [userId],
     created_by: userId,
     created_at: now,
   };
@@ -256,6 +257,7 @@ export async function joinMeeting(
           joined_at: now,
         },
       },
+      $addToSet: { present_ids: userId },
     },
     { returnDocument: "after" }
   );
@@ -272,6 +274,24 @@ export async function joinMeeting(
   }
 
   return result;
+}
+
+// ─── Presence Functions ───
+
+export async function setPresence(
+  id: string,
+  userId: string,
+  present: boolean
+): Promise<Meeting | null> {
+  const db = await getDb();
+  const update = present
+    ? { $addToSet: { present_ids: userId } }
+    : { $pull: { present_ids: userId } };
+  return db.collection<Meeting>(MEETINGS).findOneAndUpdate(
+    { _id: new ObjectId(id) },
+    update,
+    { returnDocument: "after" }
+  );
 }
 
 // ─── Note Functions ───

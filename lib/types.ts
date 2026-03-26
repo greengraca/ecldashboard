@@ -543,6 +543,7 @@ export interface Meeting {
   ended_at?: string;
   status: MeetingStatus;
   attendees: MeetingAttendee[];
+  present_ids?: string[];
   created_by: string;
   created_at: string;
 }

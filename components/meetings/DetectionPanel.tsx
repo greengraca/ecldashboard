@@ -181,30 +181,47 @@ export default function DetectionPanel({
           Discard Meeting
         </button>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <button
-            onClick={onSaveAsDoc}
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
-            style={{
-              background: "transparent",
-              color: "var(--text-secondary)",
-              border: "1px solid var(--border)",
-            }}
-          >
-            <FileText className="w-4 h-4" />
-            Save as Document Only
-          </button>
-          <button
-            onClick={onConfirm}
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
-            style={{
-              background: "rgba(52,211,153,0.12)",
-              color: "var(--success)",
-              border: "1px solid rgba(52,211,153,0.25)",
-            }}
-          >
-            <CheckCircle className="w-4 h-4" />
-            Confirm & Create
-          </button>
+          {items.length === 0 ? (
+            <button
+              onClick={onSaveAsDoc}
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              style={{
+                background: "rgba(52,211,153,0.12)",
+                color: "var(--success)",
+                border: "1px solid rgba(52,211,153,0.25)",
+              }}
+            >
+              <FileText className="w-4 h-4" />
+              Save as Document
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={onSaveAsDoc}
+                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                style={{
+                  background: "transparent",
+                  color: "var(--text-secondary)",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                <FileText className="w-4 h-4" />
+                Save as Document Only
+              </button>
+              <button
+                onClick={onConfirm}
+                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                style={{
+                  background: "rgba(52,211,153,0.12)",
+                  color: "var(--success)",
+                  border: "1px solid rgba(52,211,153,0.25)",
+                }}
+              >
+                <CheckCircle className="w-4 h-4" />
+                Confirm & Create
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
