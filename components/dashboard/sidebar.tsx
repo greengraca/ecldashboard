@@ -98,7 +98,10 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <Link
         key={item.href}
         href={item.href}
-        onClick={() => setMobileOpen(false)}
+        onClick={() => {
+          setMobileOpen(false);
+          if (active) window.dispatchEvent(new CustomEvent("nav-reset"));
+        }}
         className={`flex items-center transition-all duration-150 ${
           collapsed ? "justify-center" : ""
         }`}

@@ -112,6 +112,7 @@ export default function MeetingsPage() {
   const [detectionItems, setDetectionItems] = useState<MeetingItem[]>([]);
   const [detectionMeeting, setDetectionMeeting] = useState<Meeting | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [endConfirmOpen, setEndConfirmOpen] = useState(false);
 
   // Resolved data
   const active = activeMeetingData?.data || meetingsData?.data?.active || null;
@@ -169,6 +170,18 @@ export default function MeetingsPage() {
       setTimeout(() => setEndedBanner(false), 5000);
     }
   }, [view, activeMeetingData?.data?.status, mutateMeetings]);
+
+  // Reset to lobby when sidebar link is clicked while already on this page
+  useEffect(() => {
+    const handleNavReset = () => {
+      setSelectedMeetingId(null);
+      setDetectionMeeting(null);
+      setDetectionItems([]);
+      setView("lobby");
+    };
+    window.addEventListener("nav-reset", handleNavReset);
+    return () => window.removeEventListener("nav-reset", handleNavReset);
+  }, []);
 
   // Elapsed time ticker
   useEffect(() => {
@@ -367,6 +380,7 @@ export default function MeetingsPage() {
         <div className="grid gap-6 grid-cols-1 md:grid-cols-[300px_1fr]">
           <MeetingTable
             attendees={presentAttendees}
+            allMembers={allMembers}
             isActive={!!active}
             isInRoom={false}
             onStartSession={!active ? handleStartSession : undefined}
@@ -432,7 +446,7 @@ export default function MeetingsPage() {
               </span>
             </div>
             <button
-              onClick={handleEndSession}
+              onClick={() => setEndConfirmOpen(true)}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
               style={{
                 background: "rgba(239,68,68,0.12)",
@@ -658,6 +672,20 @@ export default function MeetingsPage() {
           </div>
         </div>
       )}
+
+      {/* End session confirmation modal */}
+      <ConfirmModal
+        open={endConfirmOpen}
+        onClose={() => setEndConfirmOpen(false)}
+        onConfirm={() => {
+          setEndConfirmOpen(false);
+          handleEndSession();
+        }}
+        title="End Session"
+        message="Are you sure you want to end the current session? This will close the meeting for all participants."
+        confirmLabel="End Session"
+        variant="danger"
+      />
 
       {/* Delete confirmation modal */}
       <ConfirmModal

@@ -1,7 +1,7 @@
 "use client";
 
 import { Sensitive } from "@/components/dashboard/sensitive";
-import type { MeetingAttendee } from "@/lib/types";
+import type { MeetingAttendee, UserMapping } from "@/lib/types";
 
 const COLOR_MAP: Record<string, string> = {
   amber: "#fbbf24",
@@ -71,6 +71,7 @@ function getSeatPositions(count: number) {
 
 interface MeetingTableProps {
   attendees: MeetingAttendee[];
+  allMembers?: UserMapping[];
   isActive: boolean;
   isInRoom: boolean;
   onStartSession?: () => void;
@@ -79,12 +80,16 @@ interface MeetingTableProps {
 
 export default function MeetingTable({
   attendees,
+  allMembers,
   isActive,
   isInRoom,
   onStartSession,
   onJoinSession,
 }: MeetingTableProps) {
-  const positions = getSeatPositions(attendees.length);
+  // Ghost mode: no active session, show all team members as faded silhouettes
+  const showGhosts = !isActive && !isInRoom && attendees.length === 0 && allMembers && allMembers.length > 0;
+  const seatCount = showGhosts ? allMembers!.length : attendees.length;
+  const positions = getSeatPositions(seatCount);
 
   return (
     <div
@@ -109,14 +114,13 @@ export default function MeetingTable({
             margin: "0 auto",
           }}
         >
-          {/* LIVE badge — shown in lobby when session is active */}
-          {isActive && !isInRoom && attendees.length > 0 && (
+          {/* LIVE badge — top-right corner, shown in lobby when session is active */}
+          {isActive && !isInRoom && (
             <div
               style={{
                 position: "absolute",
-                top: "4%",
-                left: "50%",
-                transform: "translateX(-50%)",
+                top: "0",
+                right: "0",
                 display: "flex",
                 alignItems: "center",
                 gap: "5px",
@@ -160,8 +164,68 @@ export default function MeetingTable({
             }}
           />
 
-          {/* Seats — only actual attendees */}
-          {attendees.map((attendee, i) => {
+          {/* Ghost seats — all team members as faded silhouettes when no session */}
+          {showGhosts && allMembers!.map((member, i) => {
+            const pos = positions[i];
+            const initial = member.display_name ? member.display_name.charAt(0).toUpperCase() : "?";
+
+            return (
+              <div
+                key={member.discord_id}
+                style={{
+                  position: "absolute",
+                  left: `${pos.x}%`,
+                  top: `${pos.y}%`,
+                  transform: "translate(-50%, -50%)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "4px",
+                  opacity: 0.25,
+                }}
+              >
+                <Sensitive placeholder="">
+                  <div
+                    style={{
+                      width: "42px",
+                      height: "42px",
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "16px",
+                      fontWeight: 700,
+                      color: "var(--text-muted)",
+                      background: "transparent",
+                      border: "2px dashed var(--text-muted)",
+                      transition: "all 0.3s ease",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {initial}
+                  </div>
+                </Sensitive>
+                <Sensitive placeholder="••••">
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--text-muted)",
+                      whiteSpace: "nowrap",
+                      maxWidth: "70px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {member.display_name}
+                  </span>
+                </Sensitive>
+              </div>
+            );
+          })}
+
+          {/* Active seats — only present attendees */}
+          {!showGhosts && attendees.map((attendee, i) => {
             const pos = positions[i];
             const hexColor = COLOR_MAP[attendee.color] || COLOR_MAP.amber;
             const initial = attendee.display_name ? attendee.display_name.charAt(0).toUpperCase() : "?";
