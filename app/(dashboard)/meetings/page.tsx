@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import ConfirmModal from "@/components/dashboard/confirm-modal";
 import { Sensitive } from "@/components/dashboard/sensitive";
@@ -54,17 +53,15 @@ function formatElapsed(startedAt: string): string {
 }
 
 export default function MeetingsPage() {
-  const { data: sessionData } = useSession();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const currentUserId = (sessionData?.user as any)?.discordId || sessionData?.user?.id || null;
   const [view, setView] = useState<ViewState>("lobby");
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   const [elapsedText, setElapsedText] = useState("");
 
-  // Data fetching
+  // Data fetching — poll every 30s in lobby to detect new sessions and attendee updates
   const { data: meetingsData, mutate: mutateMeetings } = useSWR<MeetingsResponse>(
     "/api/meetings",
-    fetcher
+    fetcher,
+    { refreshInterval: view === "lobby" ? 30000 : 0 }
   );
 
   const { data: mappingsData } = useSWR<MappingsResponse>(
@@ -117,18 +114,6 @@ export default function MeetingsPage() {
   const allMembers = mappingsData?.data || [];
   const notes = notesData?.data || [];
 
-  // Auto-switch to active view only if the current user is already an attendee
-  useEffect(() => {
-    if (meetingsData?.data?.active && view === "lobby" && currentUserId) {
-      const isAttendee = meetingsData.data.active.attendees.some(
-        (a) => a.discord_id === currentUserId
-      );
-      if (isAttendee) {
-        setView("active");
-      }
-    }
-  }, [meetingsData?.data?.active, view, currentUserId]);
-
   // Elapsed time ticker
   useEffect(() => {
     if (view !== "active" || !active?.started_at) return;
@@ -180,7 +165,15 @@ export default function MeetingsPage() {
 
       const endedMeeting = (await res.json()).data as Meeting;
 
-      // Run detection (Phase 5 stub — returns [])
+      // Auto-delete if no notes were taken
+      if (notes.length === 0) {
+        await fetch(`/api/meetings/${activeId}`, { method: "DELETE" });
+        await mutateMeetings();
+        setView("lobby");
+        return;
+      }
+
+      // Run detection on sessions with notes
       const detectRes = await fetch(`/api/meetings/${activeId}/detect`, {
         method: "POST",
       });
@@ -193,7 +186,7 @@ export default function MeetingsPage() {
     } catch (err) {
       console.error("Failed to end session:", err);
     }
-  }, [activeId, mutateMeetings]);
+  }, [activeId, notes.length, mutateMeetings]);
 
   const handleItemUpdate = useCallback(
     async (itemId: string, status: string) => {
@@ -304,8 +297,8 @@ export default function MeetingsPage() {
         <div className="grid gap-6 grid-cols-1 md:grid-cols-[300px_1fr]">
           <MeetingTable
             attendees={active?.attendees || []}
-            allMembers={allMembers}
             isActive={!!active}
+            isInRoom={false}
             onStartSession={!active ? handleStartSession : undefined}
             onJoinSession={active ? handleJoinSession : undefined}
           />
@@ -386,8 +379,8 @@ export default function MeetingsPage() {
           <div className="grid gap-6 grid-cols-1 md:grid-cols-[280px_1fr]">
             <MeetingTable
               attendees={active.attendees}
-              allMembers={allMembers}
               isActive={true}
+              isInRoom={true}
             />
             <MeetingNotes
               meetingId={String(active._id)}
