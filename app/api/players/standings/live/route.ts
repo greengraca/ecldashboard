@@ -3,11 +3,13 @@ import { logApiError } from "@/lib/error-log";
 import { fetchLiveStandings } from "@/lib/topdeck-live";
 import { fetchGuildMembers } from "@/lib/discord";
 import { getDb } from "@/lib/mongodb";
-import { TOPDECK_BRACKET_ID, TOP16_MIN_ONLINE_GAMES, TOP16_MIN_TOTAL_GAMES } from "@/lib/constants";
+import { TOPDECK_BRACKET_ID, TOP16_MIN_ONLINE_GAMES, TOP16_MIN_TOTAL_GAMES, TOP16_NO_RECENCY_GAMES, TOP16_RECENCY_AFTER_DAY } from "@/lib/constants";
 import type { LiveStanding } from "@/lib/types";
 
 const MIN_ONLINE_GAMES = TOP16_MIN_ONLINE_GAMES;
 const MIN_TOTAL_GAMES = TOP16_MIN_TOTAL_GAMES;
+const NO_RECENCY_GAMES = TOP16_NO_RECENCY_GAMES;
+const RECENCY_AFTER_DAY = TOP16_RECENCY_AFTER_DAY;
 
 async function getOnlineGameCounts(): Promise<Map<string, number>> {
   const db = await getDb();
@@ -37,11 +39,44 @@ async function getOnlineGameCounts(): Promise<Map<string, number>> {
   return counts;
 }
 
+/** UIDs that have at least one online game on or after RECENCY_AFTER_DAY of the current month */
+async function getRecentGameUids(): Promise<Set<string>> {
+  const db = await getDb();
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  const cutoffTs = new Date(Date.UTC(year, month - 1, RECENCY_AFTER_DAY)).getTime() / 1000;
+
+  const pipeline = [
+    {
+      $match: {
+        bracket_id: TOPDECK_BRACKET_ID,
+        year,
+        month,
+        online: true,
+        start_ts: { $gte: cutoffTs },
+      },
+    },
+    { $unwind: "$topdeck_uids" },
+    { $group: { _id: "$topdeck_uids" } },
+  ];
+
+  const results = await db.collection("online_games").aggregate(pipeline).toArray();
+  const uids = new Set<string>();
+  for (const row of results) {
+    const uid = String(row._id).trim();
+    if (uid) uids.add(uid);
+  }
+  return uids;
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const [liveResult, onlineCounts, guildMembers] = await Promise.all([
+    const [liveResult, onlineCounts, recentUids, guildMembers] = await Promise.all([
       fetchLiveStandings(),
       getOnlineGameCounts(),
+      getRecentGameUids(),
       fetchGuildMembers(),
     ]);
 
@@ -59,10 +94,16 @@ export async function GET(request: NextRequest) {
     const standings: LiveStanding[] = liveResult.rows.map((r) => {
       rank++;
       const onlineGames = r.uid ? (onlineCounts.get(r.uid) ?? 0) : 0;
+      // Recency: 20+ online games skip check, 10-19 need a game after day 20
+      const meetsRecency =
+        onlineGames >= NO_RECENCY_GAMES ||
+        onlineGames < MIN_ONLINE_GAMES ||
+        (r.uid ? recentUids.has(r.uid) : false);
       const eligible =
         !r.dropped &&
         r.games >= MIN_TOTAL_GAMES &&
-        onlineGames >= MIN_ONLINE_GAMES;
+        onlineGames >= MIN_ONLINE_GAMES &&
+        meetsRecency;
 
       // Match discord handle to guild member avatar
       const discordLower = r.discord?.toLowerCase().trim() || "";
@@ -84,6 +125,7 @@ export async function GET(request: NextRequest) {
         online_games: onlineGames,
         dropped: r.dropped,
         eligible,
+        meets_recency: meetsRecency,
       };
     });
 

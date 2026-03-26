@@ -419,7 +419,11 @@ export default function LiveStandingsTable({
                             ? "Dropped"
                             : s.games < 10
                               ? `Need ${10 - s.games} more total games`
-                              : `Need ${10 - s.online_games} more online games`
+                              : s.online_games < 10
+                                ? `Need ${10 - s.online_games} more online games`
+                                : !s.meets_recency
+                                  ? "Need an online game after day 20"
+                                  : "Not eligible"
                       }
                     >
                       {s.eligible ? "\u2713" : "\u2717"}

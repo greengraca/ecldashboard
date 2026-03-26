@@ -40,6 +40,8 @@ export const WAGER_RATE = parseFloat(process.env.WAGER_RATE || "0.07");
 // ─── Top16 Eligibility Thresholds ───
 export const TOP16_MIN_ONLINE_GAMES = parseInt(process.env.TOP16_MIN_ONLINE_GAMES || "10", 10);
 export const TOP16_MIN_TOTAL_GAMES = parseInt(process.env.TOP16_MIN_TOTAL_GAMES || "10", 10);
+export const TOP16_NO_RECENCY_GAMES = parseInt(process.env.TOP16_NO_RECENCY_GAMES || "20", 10);
+export const TOP16_RECENCY_AFTER_DAY = parseInt(process.env.TOP16_RECENCY_AFTER_DAY || "20", 10);
 
 // ─── Subscription Income ───
 

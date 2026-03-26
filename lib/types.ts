@@ -274,6 +274,7 @@ export interface LiveStanding {
   online_games: number;
   dropped: boolean;
   eligible: boolean;
+  meets_recency: boolean;
 }
 
 // ─── Prize Types ───
