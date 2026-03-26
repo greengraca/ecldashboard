@@ -209,6 +209,11 @@ export async function deleteFixedCost(
     .collection("dashboard_fixed_costs")
     .deleteOne({ _id: new ObjectId(id) });
 
+  // Cascade-delete all payment records for this fixed cost
+  await db
+    .collection("dashboard_fixed_cost_payments")
+    .deleteMany({ fixed_cost_id: id });
+
   await logActivity("delete", "fixed_cost", id, {
     name: doc?.name,
     amount: doc?.amount,
@@ -347,10 +352,12 @@ export async function getAllPendingReimbursements(): Promise<PendingReimbursemen
   const fcNameMap = new Map(fcDocs.map((fc) => [String(fc._id), fc.name]));
 
   for (const fcp of fixedCostPayments) {
+    // Skip orphaned payments from deleted fixed costs
+    if (!fcNameMap.has(fcp.fixed_cost_id)) continue;
     pending.push({
       id: String(fcp._id),
       source: "fixed_cost",
-      description: fcNameMap.get(fcp.fixed_cost_id) || "Fixed cost",
+      description: fcNameMap.get(fcp.fixed_cost_id)!,
       amount: fcp.amount,
       paid_by: fcp.paid_by,
       paid_by_name: getMemberName(fcp.paid_by),
@@ -417,6 +424,27 @@ export async function ensureFixedCostPayments(month: string): Promise<void> {
     })
     .toArray();
 
+  // Clean up orphaned payments from deleted fixed costs
+  const existingPayments = await db
+    .collection<FixedCostPayment>("dashboard_fixed_cost_payments")
+    .find({ month })
+    .toArray();
+  if (existingPayments.length > 0) {
+    const referencedFcIds = [...new Set(existingPayments.map((p) => p.fixed_cost_id))];
+    const existingFcDocs = await db.collection<FixedCost>("dashboard_fixed_costs")
+      .find({ _id: { $in: referencedFcIds.map((id) => new ObjectId(id)) } })
+      .project({ _id: 1 })
+      .toArray();
+    const existingFcIds = new Set(existingFcDocs.map((fc) => String(fc._id)));
+    const orphanIds = existingPayments
+      .filter((p) => !existingFcIds.has(p.fixed_cost_id))
+      .map((p) => p._id);
+    if (orphanIds.length > 0) {
+      await db.collection("dashboard_fixed_cost_payments")
+        .deleteMany({ _id: { $in: orphanIds } });
+    }
+  }
+
   const now = new Date().toISOString();
   for (const fc of fixedCosts) {
     const fcId = String(fc._id);
@@ -453,6 +481,16 @@ export async function getGroupSummary(month: string): Promise<GroupSummary> {
     getMonthlySummary(month),
   ]);
 
+  // Batch-load fixed cost names and filter out orphaned payments
+  const fcIds = [...new Set(fixedCostPayments.map((p) => p.fixed_cost_id))];
+  const fcDocs = fcIds.length > 0
+    ? await db.collection<FixedCost>("dashboard_fixed_costs")
+        .find({ _id: { $in: fcIds.map((id) => new ObjectId(id)) } })
+        .toArray()
+    : [];
+  const fcMap = new Map(fcDocs.map((fc) => [String(fc._id), fc]));
+  const validPayments = fixedCostPayments.filter((fcp) => fcMap.has(fcp.fixed_cost_id));
+
   const totalNet = summary.net;
   const profitSplit = totalNet / 2;
 
@@ -481,19 +519,17 @@ export async function getGroupSummary(month: string): Promise<GroupSummary> {
     }
   }
 
-  for (const fcp of fixedCostPayments) {
+  for (const fcp of validPayments) {
     const group = getMemberGroup(fcp.paid_by);
     if (!group) continue;
+    const fc = fcMap.get(fcp.fixed_cost_id)!;
     groups[group].expenses_paid += fcp.amount;
     if (fcp.paid_by !== TREASURER_ID && !fcp.reimbursed) {
       groups[group].pending += fcp.amount;
-      // Look up fixed cost name for description
-      const fc = await db.collection<FixedCost>("dashboard_fixed_costs")
-        .findOne({ _id: new ObjectId(fcp.fixed_cost_id) });
       pending.push({
         id: String(fcp._id),
         source: "fixed_cost",
-        description: fc?.name || "Fixed cost",
+        description: fc.name,
         amount: fcp.amount,
         paid_by: fcp.paid_by,
         paid_by_name: getMemberName(fcp.paid_by),
