@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Search } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import DataTable, { type Column } from "@/components/dashboard/data-table";
 import type { Subscriber, SubscriptionSource } from "@/lib/types";
 import { Sensitive } from "@/components/dashboard/sensitive";
@@ -198,7 +198,23 @@ export default function SubscriberTable({
       ),
     },
   ];
+  const PAGE_SIZE = 16;
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const wasOnLastPage = useRef(false);
+
+  useEffect(() => {
+    if (wasOnLastPage.current && containerRef.current) {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+      });
+      wasOnLastPage.current = false;
+    }
+  }, [page]);
+
+  // Reset page when subscribers or filter changes
+  useEffect(() => { setPage(0); }, [subscribers, filterSource]);
 
   const filtered = subscribers.filter((s) => {
     const matchesSource = !filterSource || s.source === filterSource;
@@ -209,11 +225,20 @@ export default function SubscriberTable({
     return matchesSource && matchesSearch;
   });
 
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const navigatePage = (newPage: number) => {
+    wasOnLastPage.current = page >= totalPages - 1;
+    setPage(newPage);
+  };
+
   // Cast for DataTable compatibility
-  const data = filtered as unknown as (Subscriber & Record<string, unknown>)[];
+  const data = paged as unknown as (Subscriber & Record<string, unknown>)[];
 
   return (
     <div
+      ref={containerRef}
       className="rounded-xl overflow-hidden"
       style={{
         background: "rgba(255, 255, 255, 0.015)",
@@ -230,7 +255,7 @@ export default function SubscriberTable({
             type="text"
             placeholder="Search subscribers..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
             className="w-full pl-9 pr-3 py-1.5 rounded-lg text-sm outline-none transition-colors hover:border-[var(--text-muted)] focus:border-[var(--accent)]"
             style={{
               background: "var(--bg-page)",
@@ -291,6 +316,77 @@ export default function SubscriberTable({
           </div>
         )}
       />
+      {totalPages > 1 && (
+        <div
+          className="flex items-center justify-between px-4 py-3 border-t"
+          style={{ borderColor: "var(--border)" }}
+        >
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => navigatePage(0)}
+              disabled={page === 0}
+              className="flex items-center justify-center w-7 h-7 rounded transition-colors"
+              style={{
+                background: page === 0 ? "transparent" : "var(--bg-hover)",
+                color: page === 0 ? "var(--text-muted)" : "var(--text-secondary)",
+                border: "1px solid var(--border)",
+                opacity: page === 0 ? 0.5 : 1,
+                cursor: page === 0 ? "not-allowed" : "pointer",
+              }}
+            >
+              <ChevronsLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => navigatePage(Math.max(0, page - 1))}
+              disabled={page === 0}
+              className="flex items-center justify-center w-7 h-7 rounded transition-colors"
+              style={{
+                background: page === 0 ? "transparent" : "var(--bg-hover)",
+                color: page === 0 ? "var(--text-muted)" : "var(--text-secondary)",
+                border: "1px solid var(--border)",
+                opacity: page === 0 ? 0.5 : 1,
+                cursor: page === 0 ? "not-allowed" : "pointer",
+              }}
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-xs tabular-nums px-1.5" style={{ color: "var(--text-secondary)" }}>
+              {page + 1} / {totalPages}
+            </span>
+            <button
+              onClick={() => navigatePage(Math.min(totalPages - 1, page + 1))}
+              disabled={page >= totalPages - 1}
+              className="flex items-center justify-center w-7 h-7 rounded transition-colors"
+              style={{
+                background: page >= totalPages - 1 ? "transparent" : "var(--bg-hover)",
+                color: page >= totalPages - 1 ? "var(--text-muted)" : "var(--text-secondary)",
+                border: "1px solid var(--border)",
+                opacity: page >= totalPages - 1 ? 0.5 : 1,
+                cursor: page >= totalPages - 1 ? "not-allowed" : "pointer",
+              }}
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => navigatePage(totalPages - 1)}
+              disabled={page >= totalPages - 1}
+              className="flex items-center justify-center w-7 h-7 rounded transition-colors"
+              style={{
+                background: page >= totalPages - 1 ? "transparent" : "var(--bg-hover)",
+                color: page >= totalPages - 1 ? "var(--text-muted)" : "var(--text-secondary)",
+                border: "1px solid var(--border)",
+                opacity: page >= totalPages - 1 ? 0.5 : 1,
+                cursor: page >= totalPages - 1 ? "not-allowed" : "pointer",
+              }}
+            >
+              <ChevronsRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

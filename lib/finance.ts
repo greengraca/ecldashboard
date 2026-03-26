@@ -438,7 +438,7 @@ export async function ensureFixedCostPayments(month: string): Promise<void> {
     const existingFcIds = new Set(existingFcDocs.map((fc) => String(fc._id)));
     const orphanIds = existingPayments
       .filter((p) => !existingFcIds.has(p.fixed_cost_id))
-      .map((p) => p._id);
+      .map((p) => new ObjectId(String(p._id)));
     if (orphanIds.length > 0) {
       await db.collection("dashboard_fixed_cost_payments")
         .deleteMany({ _id: { $in: orphanIds } });
