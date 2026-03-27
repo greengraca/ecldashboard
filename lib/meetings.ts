@@ -281,17 +281,41 @@ export async function joinMeeting(
 export async function setPresence(
   id: string,
   userId: string,
+  userName: string,
   present: boolean
 ): Promise<Meeting | null> {
   const db = await getDb();
   const update = present
     ? { $addToSet: { present_ids: userId } }
     : { $pull: { present_ids: userId } };
-  return db.collection<Meeting>(MEETINGS).findOneAndUpdate(
+  const meeting = await db.collection<Meeting>(MEETINGS).findOneAndUpdate(
     { _id: new ObjectId(id) },
     update,
     { returnDocument: "after" }
   );
+
+  // Auto-end when room becomes empty and meeting is still active
+  if (
+    meeting &&
+    !present &&
+    meeting.status === "active" &&
+    (!meeting.present_ids || meeting.present_ids.length === 0)
+  ) {
+    const noteCount = await db
+      .collection(NOTES)
+      .countDocuments({ meeting_id: id });
+
+    if (noteCount === 0) {
+      // No notes → silently delete
+      await deleteMeeting(id, userId, userName);
+      return null;
+    } else {
+      // Has notes → end and save
+      return endMeeting(id, userId, userName);
+    }
+  }
+
+  return meeting;
 }
 
 // ─── Note Functions ───
