@@ -150,7 +150,7 @@ export async function endMeeting(
 
   const result = await db.collection<Meeting>(MEETINGS).findOneAndUpdate(
     { _id: new ObjectId(id) },
-    { $set: { status: "ended", ended_at: now } },
+    { $set: { status: "ended", ended_at: now, present_ids: [] } },
     { returnDocument: "after" }
   );
 
@@ -288,29 +288,27 @@ export async function setPresence(
   const update = present
     ? { $addToSet: { present_ids: userId } }
     : { $pull: { present_ids: userId } };
+
+  // Only update presence on active meetings
   const meeting = await db.collection<Meeting>(MEETINGS).findOneAndUpdate(
-    { _id: new ObjectId(id) },
+    { _id: new ObjectId(id), status: "active" },
     update,
     { returnDocument: "after" }
   );
 
-  // Auto-end when room becomes empty and meeting is still active
-  if (
-    meeting &&
-    !present &&
-    meeting.status === "active" &&
-    (!meeting.present_ids || meeting.present_ids.length === 0)
-  ) {
+  // Meeting not found or already ended — nothing to do
+  if (!meeting) return null;
+
+  // Auto-end when room becomes empty
+  if (!present && (!meeting.present_ids || meeting.present_ids.length === 0)) {
     const noteCount = await db
       .collection(NOTES)
       .countDocuments({ meeting_id: id });
 
     if (noteCount === 0) {
-      // No notes → silently delete
       await deleteMeeting(id, userId, userName);
       return null;
     } else {
-      // Has notes → end and save
       return endMeeting(id, userId, userName);
     }
   }
