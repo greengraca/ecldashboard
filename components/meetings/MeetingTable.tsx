@@ -100,10 +100,9 @@ export default function MeetingTable({
         border: "var(--surface-border)",
         boxShadow: "var(--surface-shadow)",
         overflow: "visible",
-        height: isInRoom ? "100%" : undefined,
       }}
     >
-      <div className="flex flex-col items-center justify-center" style={{ minHeight: isInRoom ? "100%" : undefined }}>
+      <div className="flex flex-col items-center justify-center">
         {/* Oval table with seats */}
         <div
           style={{
