@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { Users, Gamepad2, Trophy, TrendingUp, Save, Check, GripVertical, Hash } from "lucide-react";
@@ -405,10 +405,13 @@ export default function PlayersPage() {
   const [month, setMonth] = useState(getCurrentMonth);
   const [filter, setFilter] = useState<"none" | "eligible" | "top16" | "inactive" | "most_games" | "top16_pods" | "top4_pods">("none");
   const [viewMode, setViewMode] = useState<"standings" | "pods">("standings");
+  const [isPending, startTransition] = useTransition();
 
   const handleMonthChange = (newMonth: string) => {
-    setMonth(newMonth);
-    setFilter("none");
+    startTransition(() => {
+      setMonth(newMonth);
+      setFilter("none");
+    });
   };
 
   const isCurrentMonth = month === getCurrentMonth();

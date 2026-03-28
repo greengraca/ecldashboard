@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useTransition } from "react";
 import useSWR from "swr";
 import { Plus } from "lucide-react";
 import MonthPicker from "@/components/dashboard/month-picker";
@@ -26,6 +26,7 @@ import { getCurrentMonth } from "@/lib/utils";
 
 export default function FinancePage() {
   const [month, setMonth] = useState(getCurrentMonth);
+  const [isPending, startTransition] = useTransition();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | undefined>(
     undefined
@@ -215,7 +216,7 @@ export default function FinancePage() {
             Track income, expenses, and monthly P&amp;L
           </p>
         </div>
-        <MonthPicker value={month} onChange={setMonth} minMonth="2025-11" maxMonth={getCurrentMonth()} />
+        <MonthPicker value={month} onChange={(m) => startTransition(() => setMonth(m))} minMonth="2025-11" maxMonth={getCurrentMonth()} />
       </div>
 
       {/* Category Breakdown + Subscription Income */}

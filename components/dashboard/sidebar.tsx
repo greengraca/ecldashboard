@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   LayoutDashboard,
@@ -76,6 +76,7 @@ const sidebarSurface: React.CSSProperties = {
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session } = useSession();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -117,6 +118,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         }}
         title={collapsed ? item.label : undefined}
         onMouseEnter={(e) => {
+          router.prefetch(item.href);
           if (!active) {
             e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
             e.currentTarget.style.color = "var(--text-primary)";

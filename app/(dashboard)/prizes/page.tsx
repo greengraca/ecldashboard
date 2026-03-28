@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useTransition } from "react";
 import useSWR from "swr";
 import { Trophy, Package, Euro, Gift, Settings, BarChart3, Image, Award } from "lucide-react";
 import MonthPicker from "@/components/dashboard/month-picker";
@@ -30,6 +30,7 @@ const TAB_CONFIG: { key: Tab; label: string; icon: typeof Trophy }[] = [
 export default function PrizesPage() {
   const currentMonth = getCurrentMonth();
   const [month, setMonth] = useState(currentMonth);
+  const [isPending, startTransition] = useTransition();
   const [activeTab, setActiveTab] = useState<Tab>("pods_monitor");
   const [formOpen, setFormOpen] = useState(false);
   const [cardFormOpen, setCardFormOpen] = useState(false);
@@ -65,7 +66,7 @@ export default function PrizesPage() {
   }, [mutatePrizes, mutateSummary, mutateBudget]);
 
   function handleMonthChange(m: string) {
-    setMonth(m);
+    startTransition(() => setMonth(m));
   }
 
   async function handleSubmitPrize(data: PrizeFormData) {

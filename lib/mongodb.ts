@@ -32,7 +32,13 @@ export async function getDb(): Promise<Db> {
   }
 
   if (!cached.promise) {
-    cached.promise = MongoClient.connect(uri);
+    cached.promise = MongoClient.connect(uri, {
+      maxPoolSize: 5,
+      minPoolSize: 0,
+      maxIdleTimeMS: 30_000,
+      serverSelectionTimeoutMS: 5_000,
+      connectTimeoutMS: 10_000,
+    });
   }
 
   try {

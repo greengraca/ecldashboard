@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useTransition } from "react";
 import useSWR from "swr";
 import MonthPicker from "@/components/dashboard/month-picker";
 import TemplateSelector from "@/components/media/TemplateSelector";
@@ -20,6 +20,7 @@ const STANDINGS_TEMPLATES = new Set(["results-drop-2", "results-drop-top4-v2", "
 
 export default function MediaPage() {
   const [month, setMonth] = useState(getCurrentMonth);
+  const [isPending, startTransition] = useTransition();
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [templateData, setTemplateData] = useState<Record<string, any>>({});
@@ -141,7 +142,7 @@ export default function MediaPage() {
             Generate branded ECL visuals
           </p>
         </div>
-        <MonthPicker value={month} onChange={setMonth} minMonth="2025-11" />
+        <MonthPicker value={month} onChange={(m) => startTransition(() => setMonth(m))} minMonth="2025-11" />
       </div>
 
       {/* Asset Drive */}
