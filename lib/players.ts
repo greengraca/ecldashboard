@@ -191,29 +191,31 @@ export async function getPlayers(month?: string): Promise<{ players: Player[]; b
   // Load and merge dumps for all brackets in the month
   const allPlayers = new Map<string, Player>();
 
-  for (const mi of monthInfos) {
-    try {
-      const dump = await reassembleMonthDump(mi);
-      const players = buildRankedPlayers(dump, subscriberLookup, nameLookup);
-
-      for (const p of players) {
-        const existing = allPlayers.get(p.uid);
-        if (existing) {
-          existing.points += p.points;
-          existing.games += p.games;
-          existing.wins += p.wins;
-          existing.losses += p.losses;
-          existing.draws += p.draws;
-          existing.win_pct =
-            existing.games > 0
-              ? Math.round((existing.wins / existing.games) * 10000) / 100
-              : 0;
-        } else {
-          allPlayers.set(p.uid, { ...p });
-        }
-      }
-    } catch (err) {
+  const dumpResults = await Promise.all(
+    monthInfos.map(mi => reassembleMonthDump(mi).then(dump => ({ dump, mi })).catch(err => {
       console.error(`Failed to load dump for ${mi.bracket_id}/${mi.month}:`, err);
+      return null;
+    }))
+  );
+  for (const result of dumpResults) {
+    if (!result) continue;
+    const players = buildRankedPlayers(result.dump, subscriberLookup, nameLookup);
+
+    for (const p of players) {
+      const existing = allPlayers.get(p.uid);
+      if (existing) {
+        existing.points += p.points;
+        existing.games += p.games;
+        existing.wins += p.wins;
+        existing.losses += p.losses;
+        existing.draws += p.draws;
+        existing.win_pct =
+          existing.games > 0
+            ? Math.round((existing.wins / existing.games) * 10000) / 100
+            : 0;
+      } else {
+        allPlayers.set(p.uid, { ...p });
+      }
     }
   }
 
@@ -258,30 +260,32 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
     // Aggregate all UIDs' stats across brackets for this month
     const allUidStats = new Map<string, EntrantStats>();
 
-    for (const mi of monthInfos) {
-      try {
-        const dump = await reassembleMonthDump(mi);
-        const allEntrantIds = Object.keys(dump.entrant_to_uid).map(Number);
-        const standings = computeStandings(dump.matches, allEntrantIds);
-
-        for (const [eidStr, uidKey] of Object.entries(dump.entrant_to_uid)) {
-          const eid = Number(eidStr);
-          const stats = standings.get(eid);
-          if (!stats) continue;
-
-          const existing = allUidStats.get(uidKey);
-          if (existing) {
-            existing.points += stats.points;
-            existing.games += stats.games;
-            existing.wins += stats.wins;
-            existing.losses += stats.losses;
-            existing.draws += stats.draws;
-          } else {
-            allUidStats.set(uidKey, { ...stats });
-          }
-        }
-      } catch (err) {
+    const monthDumps = await Promise.all(
+      monthInfos.map(mi => reassembleMonthDump(mi).catch(err => {
         console.error(`Failed to load dump for ${mi.bracket_id}/${mi.month}:`, err);
+        return null;
+      }))
+    );
+    for (const dump of monthDumps) {
+      if (!dump) continue;
+      const allEntrantIds = Object.keys(dump.entrant_to_uid).map(Number);
+      const standings = computeStandings(dump.matches, allEntrantIds);
+
+      for (const [eidStr, uidKey] of Object.entries(dump.entrant_to_uid)) {
+        const eid = Number(eidStr);
+        const stats = standings.get(eid);
+        if (!stats) continue;
+
+        const existing = allUidStats.get(uidKey);
+        if (existing) {
+          existing.points += stats.points;
+          existing.games += stats.games;
+          existing.wins += stats.wins;
+          existing.losses += stats.losses;
+          existing.draws += stats.draws;
+        } else {
+          allUidStats.set(uidKey, { ...stats });
+        }
       }
     }
 

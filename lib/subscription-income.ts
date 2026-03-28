@@ -146,19 +146,17 @@ export async function getSubscriptionIncomeBreakdown(
     if (TOPDECK_BRACKET_ID) bracketIds.add(TOPDECK_BRACKET_ID);
     for (const m of monthInfos) bracketIds.add(m.bracket_id);
 
-    for (const bracketId of bracketIds) {
-      try {
-        const pdata = await fetchPublicPData(bracketId);
-        for (const [uid, info] of Object.entries(pdata)) {
-          const discord = info.discord?.toLowerCase().trim();
-          if (!discord) continue;
-          const discordId = usernameToId.get(discord);
-          if (discordId && !discordIdToUid.has(discordId)) {
-            discordIdToUid.set(discordId, uid);
-          }
+    const pdataResults = await Promise.all(
+      [...bracketIds].map(bid => fetchPublicPData(bid).catch(() => ({} as Record<string, { name?: string; discord?: string }>)))
+    );
+    for (const pdata of pdataResults) {
+      for (const [uid, info] of Object.entries(pdata)) {
+        const discord = info.discord?.toLowerCase().trim();
+        if (!discord) continue;
+        const discordId = usernameToId.get(discord);
+        if (discordId && !discordIdToUid.has(discordId)) {
+          discordIdToUid.set(discordId, uid);
         }
-      } catch {
-        // skip brackets that fail
       }
     }
   } catch {

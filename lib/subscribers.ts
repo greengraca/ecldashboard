@@ -36,19 +36,15 @@ async function getGamesFromDump(month: string): Promise<Map<string, number>> {
 
     // Fetch PublicPData for each bracket to map TopDeck UID → discord username
     const allPublicPData: Record<string, { name?: string; discord?: string }> = {};
-    for (const bid of bracketIds) {
-      try {
-        const pdata = await fetchPublicPData(bid);
-        Object.assign(allPublicPData, pdata);
-      } catch {
-        // bracket may no longer exist
-      }
-    }
+    const pdataResults = await Promise.all(
+      bracketIds.map(bid => fetchPublicPData(bid).catch(() => ({} as Record<string, { name?: string; discord?: string }>)))
+    );
+    for (const pdata of pdataResults) Object.assign(allPublicPData, pdata);
 
     // Build TopDeck UID → game count from dump matches
     const gamesByUid = new Map<string, number>();
-    for (const mi of monthInfos) {
-      const dump = await reassembleMonthDump(mi);
+    const dumps = await Promise.all(monthInfos.map(mi => reassembleMonthDump(mi)));
+    for (const dump of dumps) {
       const allEntrantIds = Object.keys(dump.entrant_to_uid).map(Number);
       const standings = computeStandings(dump.matches, allEntrantIds);
 
@@ -123,17 +119,15 @@ async function getDecemberTopcut(): Promise<Set<string>> {
     const bracketIds = [...new Set(decMonths.map((m) => m.bracket_id))];
 
     const discordUsernames = new Set<string>();
-    for (const bid of bracketIds) {
-      try {
-        const pdata = await fetchPublicPData(bid);
-        for (const standing of eligible) {
-          const info = pdata[standing.uid];
-          if (info?.discord) {
-            discordUsernames.add(info.discord.toLowerCase().trim());
-          }
+    const decPdataResults = await Promise.all(
+      bracketIds.map(bid => fetchPublicPData(bid).catch(() => ({} as Record<string, { name?: string; discord?: string }>)))
+    );
+    for (const pdata of decPdataResults) {
+      for (const standing of eligible) {
+        const info = pdata[standing.uid];
+        if (info?.discord) {
+          discordUsernames.add(info.discord.toLowerCase().trim());
         }
-      } catch {
-        // bracket may no longer exist
       }
     }
 
