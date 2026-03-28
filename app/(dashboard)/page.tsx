@@ -229,13 +229,15 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Calendar + Tasks */}
+      {/* Calendar + Tasks — calendar drives row height, tasks scroll within */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
         <div className="lg:col-span-3">
           <CalendarWidget />
         </div>
-        <div className="lg:col-span-1">
-          <TasksWidget />
+        <div className="lg:col-span-1 relative">
+          <div className="lg:absolute lg:inset-0">
+            <TasksWidget />
+          </div>
         </div>
       </div>
 

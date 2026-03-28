@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import useSWR from "swr";
 import { ChevronLeft, ChevronRight, Plus, Trash2, Loader2 } from "lucide-react";
 import Modal from "@/components/dashboard/modal";
@@ -380,8 +380,8 @@ function EventFormModal({ open, onClose, event, prefillDate, onSaved }: EventFor
   const [error, setError] = useState<string | null>(null);
 
   // Reset form when modal opens
-  const prevOpenRef = useState(false);
-  if (open && !prevOpenRef[0]) {
+  const prevOpenRef = useRef(false);
+  if (open && !prevOpenRef.current) {
     if (event) {
       setTitle(event.title);
       setType(event.type);
@@ -395,7 +395,7 @@ function EventFormModal({ open, onClose, event, prefillDate, onSaved }: EventFor
     }
     setError(null);
   }
-  prevOpenRef[0] = open;
+  prevOpenRef.current = open;
 
   async function handleSave() {
     if (!title.trim()) {
