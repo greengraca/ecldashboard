@@ -20,10 +20,11 @@ import { fetcher } from "@/lib/fetcher";
 
 interface TreasurePodSectionProps {
   month: string;
+  alwaysExpanded?: boolean;
 }
 
-export default function TreasurePodSection({ month }: TreasurePodSectionProps) {
-  const [expanded, setExpanded] = useState(false);
+export default function TreasurePodSection({ month, alwaysExpanded }: TreasurePodSectionProps) {
+  const [expanded, setExpanded] = useState(alwaysExpanded ?? false);
   const [hoveredPodId, setHoveredPodId] = useState<string | null>(null);
 
   const { data, isLoading, mutate } = useSWR<{ data: TreasurePodData }>(
@@ -39,49 +40,53 @@ export default function TreasurePodSection({ month }: TreasurePodSectionProps) {
   const totalClaimed = stats.reduce((s, t) => s + t.claimed, 0);
   const hasData = pods.length > 0 || (podData?.schedule != null);
 
+  const isOpen = alwaysExpanded || expanded;
+
   return (
     <div
-      className="rounded-xl mb-8 overflow-hidden"
-      style={{
+      className={alwaysExpanded ? "" : "rounded-xl mb-8 overflow-hidden"}
+      style={alwaysExpanded ? undefined : {
         background: "var(--surface-gradient)",
         backdropFilter: "var(--surface-blur)",
         border: "1.5px solid rgba(255, 255, 255, 0.10)",
         boxShadow: "var(--surface-shadow)",
       }}
     >
-      {/* Collapsible header */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-5 py-4 transition-colors hover:brightness-110"
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(251, 191, 36, 0.15)" }}
-          >
-            <Gem className="w-4 h-4" style={{ color: "var(--accent)" }} />
-          </div>
-          <div className="text-left">
-            <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-              Treasure Pods
-            </span>
-            {!isLoading && hasData && (
-              <span className="text-xs ml-2" style={{ color: "var(--text-muted)" }}>
-                {totalWon} won · {totalClaimed} claimed
+      {/* Collapsible header — hidden when always expanded */}
+      {!alwaysExpanded && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full flex items-center justify-between px-5 py-4 transition-colors hover:brightness-110"
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: "rgba(251, 191, 36, 0.15)" }}
+            >
+              <Gem className="w-4 h-4" style={{ color: "var(--accent)" }} />
+            </div>
+            <div className="text-left">
+              <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                Treasure Pods
               </span>
-            )}
+              {!isLoading && hasData && (
+                <span className="text-xs ml-2" style={{ color: "var(--text-muted)" }}>
+                  {totalWon} won · {totalClaimed} claimed
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-        {expanded ? (
-          <ChevronUp className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
-        ) : (
-          <ChevronDown className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
-        )}
-      </button>
+          {expanded ? (
+            <ChevronUp className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
+          ) : (
+            <ChevronDown className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
+          )}
+        </button>
+      )}
 
-      {/* Expanded content */}
-      {expanded && (
-        <div className="px-5 pb-5 space-y-4 pod-section-enter">
+      {/* Content */}
+      {isOpen && (
+        <div className={`${alwaysExpanded ? "" : "px-5 pb-5"} space-y-4 ${alwaysExpanded ? "" : "pod-section-enter"}`}>
           <style>{`
             @keyframes podFadeSlideIn {
               from { opacity: 0; transform: translateY(-8px); }

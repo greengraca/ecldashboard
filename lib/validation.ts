@@ -70,6 +70,7 @@ export const prizeCreateSchema = z.object({
   recipient_name: z.string().min(1).max(200),
   description: z.string().max(500).optional(),
   image_url: z.string().url().max(500).optional(),
+  r2_key: z.string().max(500).nullable().optional(),
   placement: z.number().int().optional(),
   recipient_uid: z.string().max(100).optional(),
   recipient_discord_id: z.string().max(50).optional(),
@@ -85,6 +86,7 @@ export const prizeUpdateSchema = z.object({
   recipient_name: z.string().min(1).max(200).optional(),
   description: z.string().max(500).optional(),
   image_url: z.string().url().max(500).nullable().optional(),
+  r2_key: z.string().max(500).nullable().optional(),
   placement: z.number().int().nullable().optional(),
   recipient_uid: z.string().max(100).nullable().optional(),
   recipient_discord_id: z.string().max(50).nullable().optional(),
@@ -163,6 +165,20 @@ export const userMappingUpdateSchema = z.object({
   color: teamMemberColor.optional(),
 });
 
+// --- Treasure Pod Config schema ---
+
+export const treasurePodConfigSchema = z.object({
+  pod_types: z.array(z.object({
+    type: z.string().min(1).max(50),
+    count: z.number().int().min(0).max(100),
+    title: z.string().min(1).max(200),
+    description: z.string().max(2000).default(""),
+    image_url: z.string().url().max(500).nullable().default(null),
+  })).min(1).max(20),
+  games_per_player: z.number().min(0).max(100).default(2.75),
+  notes: z.string().max(1000).optional().default(""),
+});
+
 /** Whitelist for activity log filter values */
 const ACTIVITY_ACTIONS = [
   "create", "update", "delete", "sync", "backfill",
@@ -174,7 +190,7 @@ const ACTIVITY_ENTITY_TYPES = [
   "transaction", "fixed_cost", "prize", "subscriber",
   "manual_payment", "subscription_rate", "player_identity",
   "bracket", "media", "folder", "caption_template",
-  "treasure_pod", "reimbursement",
+  "treasure_pod", "treasure_pod_config", "reimbursement",
   "calendar_event", "calendar_template", "meeting",
   "meeting_note", "meeting_item", "user_mapping", "taskpad_task",
 ] as const;

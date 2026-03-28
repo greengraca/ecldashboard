@@ -291,6 +291,7 @@ export interface Prize {
   name: string;
   description: string;
   image_url: string | null;
+  r2_key: string | null;
   value: number;
   recipient_type: RecipientType;
   placement: number | null;
@@ -452,6 +453,22 @@ export interface TreasurePodData {
   schedule: TreasurePodSchedule | null;
   pods: TreasurePodWithClaim[];
   stats: TreasurePodTypeStat[];
+}
+
+// ─── Treasure Pod Config Types ───
+
+export interface TreasurePodMonthlyConfig {
+  _id?: ObjectId | string;
+  guild_id: string;
+  month: string;
+  pod_types: TreasurePodTypeConfig[];
+  games_per_player: number;
+  notes: string;
+  status: "draft" | "active";
+  created_by: string;
+  modified_by: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // ─── Error Log Types ───

@@ -34,6 +34,7 @@ export async function createPrize(
     name: string;
     description: string;
     image_url: string | null;
+    r2_key?: string | null;
     value: number;
     recipient_type: RecipientType;
     placement: number | null;
@@ -70,6 +71,7 @@ export async function createPrize(
 
   const doc: Omit<Prize, "_id"> = {
     ...data,
+    r2_key: data.r2_key ?? null,
     tracking_number: null,
     shipping_date: null,
     delivery_date: null,
@@ -335,6 +337,7 @@ export async function autoPopulatePrizes(
       name: `${getPlacementLabel(i + 1)} Place Prize`,
       description: "",
       image_url: null,
+      r2_key: null,
       value: 0,
       recipient_type: "placement",
       placement: i + 1,
@@ -366,6 +369,7 @@ export async function autoPopulatePrizes(
       name: "Most Games Prize",
       description: "",
       image_url: null,
+      r2_key: null,
       value: 0,
       recipient_type: "most_games",
       placement: null,

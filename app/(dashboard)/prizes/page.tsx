@@ -2,31 +2,37 @@
 
 import { useState, useCallback } from "react";
 import useSWR from "swr";
-import { Plus, Trophy, Package, Euro, Gift } from "lucide-react";
+import { Trophy, Package, Euro, Gift, Settings, BarChart3, Image, Award } from "lucide-react";
 import MonthPicker from "@/components/dashboard/month-picker";
 import StatCard from "@/components/dashboard/stat-card";
-import PrizeTable from "@/components/prizes/prize-table";
+import TreasurePodConfig from "@/components/prizes/treasure-pod-config";
+import TreasurePodMonitor from "@/components/prizes/treasure-pod-monitor";
+import CardGallery from "@/components/prizes/card-gallery";
+import CardSingleForm from "@/components/prizes/card-single-form";
+import AwardsShippingTab from "@/components/prizes/awards-shipping-tab";
 import PrizeForm from "@/components/prizes/prize-form";
 import type { PrizeFormData } from "@/components/prizes/prize-form";
 import PrizeDetailModal from "@/components/prizes/prize-detail-modal";
-import BudgetConfigurator from "@/components/prizes/budget-configurator";
-import ShippingTracker from "@/components/prizes/shipping-tracker";
-import AutoPopulateButton from "@/components/prizes/auto-populate-button";
-import TreasurePodSection from "@/components/prizes/treasure-pod-section";
 import ConfirmModal from "@/components/dashboard/confirm-modal";
 import type { Prize, PrizeBudget, PrizeBudgetAllocations, PrizeSummary } from "@/lib/types";
 import { fetcher } from "@/lib/fetcher";
 import { getCurrentMonth } from "@/lib/utils";
 
-type Tab = "awarded" | "planning" | "shipping";
+type Tab = "pods_config" | "pods_monitor" | "card_gallery" | "awards_shipping";
+
+const TAB_CONFIG: { key: Tab; label: string; icon: typeof Trophy }[] = [
+  { key: "pods_config", label: "Pods Config", icon: Settings },
+  { key: "pods_monitor", label: "Pods Monitor", icon: BarChart3 },
+  { key: "card_gallery", label: "Card Singles", icon: Image },
+  { key: "awards_shipping", label: "Awards & Shipping", icon: Award },
+];
 
 export default function PrizesPage() {
   const currentMonth = getCurrentMonth();
   const [month, setMonth] = useState(currentMonth);
-  const [activeTab, setActiveTab] = useState<Tab>(() =>
-    month < currentMonth ? "awarded" : "planning"
-  );
+  const [activeTab, setActiveTab] = useState<Tab>("pods_monitor");
   const [formOpen, setFormOpen] = useState(false);
+  const [cardFormOpen, setCardFormOpen] = useState(false);
   const [editingPrize, setEditingPrize] = useState<Prize | undefined>(undefined);
   const [detailPrize, setDetailPrize] = useState<Prize | null>(null);
   const [deletePrize, setDeletePrize] = useState<Prize | null>(null);
@@ -60,7 +66,6 @@ export default function PrizesPage() {
 
   function handleMonthChange(m: string) {
     setMonth(m);
-    setActiveTab(m < currentMonth ? "awarded" : "planning");
   }
 
   async function handleSubmitPrize(data: PrizeFormData) {
@@ -78,6 +83,7 @@ export default function PrizesPage() {
       });
     }
     setFormOpen(false);
+    setCardFormOpen(false);
     setEditingPrize(undefined);
     refreshAll();
   }
@@ -94,8 +100,13 @@ export default function PrizesPage() {
   }
 
   function handleEditPrize(prize: Prize) {
-    setEditingPrize(prize);
-    setFormOpen(true);
+    if (prize.category === "mtg_single") {
+      setEditingPrize(prize);
+      setCardFormOpen(true);
+    } else {
+      setEditingPrize(prize);
+      setFormOpen(true);
+    }
   }
 
   async function handleSaveBudget(data: {
@@ -130,12 +141,6 @@ export default function PrizesPage() {
     refreshAll();
   }
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: "awarded", label: "Awarded" },
-    { key: "planning", label: "Planning" },
-    { key: "shipping", label: "Shipping" },
-  ];
-
   const isLoading = prizesLoading || summaryLoading;
 
   return (
@@ -153,7 +158,7 @@ export default function PrizesPage() {
             className="text-sm mt-1"
             style={{ color: "var(--text-secondary)" }}
           >
-            Track prizes, shipping, and budget
+            Treasure pods, card singles, awards, and shipping
           </p>
         </div>
         <MonthPicker value={month} onChange={handleMonthChange} minMonth="2025-11" />
@@ -189,120 +194,87 @@ export default function PrizesPage() {
         />
       </div>
 
-      {/* Treasure Pods */}
-      <TreasurePodSection month={month} />
-
       {/* Tab bar */}
-      <div className="flex items-center gap-1 mb-6 border-b" style={{ borderColor: "var(--border)" }}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className="px-4 py-2.5 text-sm font-medium transition-colors relative"
-            style={{
-              color: activeTab === tab.key ? "var(--accent)" : "var(--text-muted)",
-            }}
-          >
-            {tab.label}
-            {activeTab === tab.key && (
-              <div
-                className="absolute bottom-0 left-0 right-0 h-0.5"
-                style={{ background: "var(--accent)" }}
-              />
-            )}
-          </button>
-        ))}
+      <div
+        className="flex items-center gap-1 mb-6 border-b overflow-x-auto"
+        style={{ borderColor: "var(--border)" }}
+      >
+        {TAB_CONFIG.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors relative whitespace-nowrap"
+              style={{
+                color: activeTab === tab.key ? "var(--accent)" : "var(--text-muted)",
+              }}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {tab.label}
+              {activeTab === tab.key && (
+                <div
+                  className="absolute bottom-0 left-0 right-0 h-0.5"
+                  style={{ background: "var(--accent)" }}
+                />
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab content */}
-      {activeTab === "awarded" && (
-        <div>
-          <div className="flex items-center justify-between mb-4 gap-4">
-            <AutoPopulateButton month={month} onComplete={refreshAll} />
-            <button
-              onClick={() => {
-                setEditingPrize(undefined);
-                setFormOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{
-                background: "var(--accent-light)",
-                color: "var(--accent)",
-              }}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add Prize
-            </button>
-          </div>
-          {isLoading ? (
-            <div
-              className="rounded-xl p-12 text-center"
-              style={{ background: "var(--surface-gradient)", backdropFilter: "var(--surface-blur)", border: "1.5px solid rgba(255, 255, 255, 0.10)", boxShadow: "var(--surface-shadow)" }}
-            >
-              <div
-                className="inline-block w-6 h-6 border-2 rounded-full animate-spin"
-                style={{ borderColor: "var(--border)", borderTopColor: "var(--accent)" }}
-              />
-              <p className="text-sm mt-3" style={{ color: "var(--text-muted)" }}>
-                Loading prizes...
-              </p>
-            </div>
-          ) : (
-            <PrizeTable
-              prizes={prizes}
-              onRowClick={(p) => setDetailPrize(p as Prize)}
-            />
-          )}
-        </div>
+      {activeTab === "pods_config" && (
+        <TreasurePodConfig month={month} />
       )}
 
-      {activeTab === "planning" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <BudgetConfigurator
-            budget={budget}
-            totalSpent={summary?.total_value ?? 0}
-            month={month}
-            onSave={handleSaveBudget}
-          />
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3
-                className="text-sm font-semibold uppercase tracking-wider"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Planned Prizes
-              </h3>
-              <button
-                onClick={() => {
-                  setEditingPrize(undefined);
-                  setFormOpen(true);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-                style={{
-                  background: "var(--accent-light)",
-                  color: "var(--accent)",
-                }}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add
-              </button>
-            </div>
-            <PrizeTable
-              prizes={prizes.filter((p) => p.status === "planned")}
-              onRowClick={(p) => setDetailPrize(p as Prize)}
-            />
-          </div>
-        </div>
+      {activeTab === "pods_monitor" && (
+        <TreasurePodMonitor month={month} />
       )}
 
-      {activeTab === "shipping" && (
-        <ShippingTracker
+      {activeTab === "card_gallery" && (
+        <CardGallery
           prizes={prizes}
+          isLoading={isLoading}
+          onAddCard={() => {
+            setEditingPrize(undefined);
+            setCardFormOpen(true);
+          }}
+          onCardClick={(prize) => setDetailPrize(prize)}
+        />
+      )}
+
+      {activeTab === "awards_shipping" && (
+        <AwardsShippingTab
+          prizes={prizes}
+          budget={budget}
+          summary={summary}
+          month={month}
+          isLoading={isLoading}
+          onRefreshAll={refreshAll}
+          onOpenForm={() => {
+            setEditingPrize(undefined);
+            setFormOpen(true);
+          }}
+          onRowClick={(p) => setDetailPrize(p)}
+          onSaveBudget={handleSaveBudget}
           onUpdateShipping={handleUpdateShipping}
         />
       )}
 
-      {/* Prize form modal */}
+      {/* Card single form modal */}
+      <CardSingleForm
+        open={cardFormOpen}
+        onClose={() => {
+          setCardFormOpen(false);
+          setEditingPrize(undefined);
+        }}
+        onSubmit={handleSubmitPrize}
+        prize={editingPrize}
+        defaultMonth={month}
+      />
+
+      {/* General prize form modal */}
       <PrizeForm
         open={formOpen}
         onClose={() => {
