@@ -246,6 +246,27 @@ export interface PlayerMonthStats {
   rank: number | null;
 }
 
+export interface DailyActivity {
+  day: number;
+  wins: number;
+  losses: number;
+  draws: number;
+}
+
+export interface DailyProgression {
+  day: number;
+  points: number;
+  rank: number;
+  winPct: number;
+  games: number;
+}
+
+export interface PlayerMatchStats {
+  dailyActivity: DailyActivity[];
+  dailyProgression: DailyProgression[];
+  record: { wins: number; losses: number; draws: number };
+}
+
 export interface Standing {
   rank: number;
   uid: string;

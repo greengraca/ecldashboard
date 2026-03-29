@@ -4,7 +4,7 @@ import useSWR from "swr";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import PlayerDetailComponent from "@/components/players/player-detail";
-import type { PlayerDetail } from "@/lib/types";
+import type { PlayerDetail, PlayerMatchStats } from "@/lib/types";
 import { fetcher } from "@/lib/fetcher";
 
 interface PlayerDetailPageProps {
@@ -17,7 +17,12 @@ export default function PlayerDetailPage({ uid }: PlayerDetailPageProps) {
     fetcher
   );
 
+  const { data: matchStatsData, isLoading: matchStatsLoading } = useSWR<{
+    data: PlayerMatchStats;
+  }>(`/api/players/${uid}/match-stats`, fetcher);
+
   const player = data?.data;
+  const matchStats = matchStatsData?.data ?? null;
 
   return (
     <div>
@@ -118,7 +123,13 @@ export default function PlayerDetailPage({ uid }: PlayerDetailPageProps) {
       )}
 
       {/* Player detail */}
-      {player && <PlayerDetailComponent player={player} />}
+      {player && (
+        <PlayerDetailComponent
+          player={player}
+          matchStats={matchStats}
+          matchStatsLoading={matchStatsLoading}
+        />
+      )}
     </div>
   );
 }

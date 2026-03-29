@@ -1,13 +1,25 @@
 "use client";
 
-import { Trophy, Medal, Award, Gift } from "lucide-react";
-import type { PlayerDetail as PlayerDetailType } from "@/lib/types";
+import { Trophy, Medal, Award, Gift, BarChart3 } from "lucide-react";
+import type {
+  PlayerDetail as PlayerDetailType,
+  PlayerMatchStats,
+} from "@/lib/types";
+import SeasonRecordChart from "./charts/season-record-chart";
+import MonthlyActivityChart from "./charts/monthly-activity-chart";
+import PointsRankChart from "./charts/points-rank-chart";
+import WinRateChart from "./charts/win-rate-chart";
 
 interface PlayerDetailProps {
   player: PlayerDetailType;
+  matchStats: PlayerMatchStats | null;
+  matchStatsLoading: boolean;
 }
 
-const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
 
 function formatMonth(yyyymm: string): string {
   const [y, m] = yyyymm.split("-").map(Number);
@@ -15,8 +27,44 @@ function formatMonth(yyyymm: string): string {
 }
 
 function formatMonthShort(yyyymm: string): string {
-  const m = parseInt(yyyymm.slice(5), 10);
-  return MONTH_NAMES[m - 1];
+  const [y, m] = yyyymm.split("-").map(Number);
+  return `${MONTH_NAMES[m - 1]} ${String(y).slice(2)}`;
+}
+
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <h3
+      className="text-sm font-medium uppercase tracking-wider mb-3"
+      style={{ color: "var(--text-muted)" }}
+    >
+      {children}
+    </h3>
+  );
+}
+
+function ChartCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="rounded-xl p-4"
+      style={{
+        background: "var(--surface-gradient)",
+        backdropFilter: "var(--surface-blur)",
+        border: "1.5px solid rgba(255, 255, 255, 0.10)",
+        boxShadow: "var(--surface-shadow)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ChartSkeleton({ height = 200 }: { height?: number }) {
+  return (
+    <div
+      className="rounded-xl skeleton animate-pulse"
+      style={{ height }}
+    />
+  );
 }
 
 function StatBox({
@@ -54,31 +102,53 @@ function StatBox({
   );
 }
 
-export default function PlayerDetail({ player }: PlayerDetailProps) {
+export default function PlayerDetail({
+  player,
+  matchStats,
+  matchStatsLoading,
+}: PlayerDetailProps) {
   const history = player.monthly_history;
 
-  // Find min/max points for scaling the text-based progression
-  const pointValues = history.map((h) => h.points);
-  const maxPoints = Math.max(...pointValues, 1);
+  // ─── All-Time chart data ───
+  const allTimePointsRank = history
+    .filter((h) => h.rank !== null)
+    .map((h) => ({
+      label: formatMonthShort(h.month),
+      points: h.points,
+      rank: h.rank!,
+    }));
 
-  // Build full month range including gaps where player didn't participate
-  const historyByMonth = new Map(history.map((h) => [h.month, h]));
-  const fullMonthRange: { month: string; data: typeof history[number] | null }[] = [];
-  if (history.length > 1) {
-    const [startYear, startMon] = history[0].month.split("-").map(Number);
-    const [endYear, endMon] = history[history.length - 1].month.split("-").map(Number);
-    let y = startYear, m = startMon;
-    while (y < endYear || (y === endYear && m <= endMon)) {
-      const key = `${y}-${String(m).padStart(2, "0")}`;
-      fullMonthRange.push({ month: key, data: historyByMonth.get(key) ?? null });
-      m++;
-      if (m > 12) { m = 1; y++; }
-    }
-  }
+  const allTimeWinRate = history
+    .filter((h) => h.rank !== null)
+    .map((h) => ({
+      label: formatMonthShort(h.month),
+      winPct: h.win_pct,
+    }));
+
+  // ─── Current Month chart data ───
+  const currentMonthPointsRank = matchStats
+    ? matchStats.dailyProgression.map((d) => ({
+        label: `${d.day}`,
+        points: d.points,
+        rank: d.rank,
+      }))
+    : [];
+
+  const currentMonthWinRate = matchStats
+    ? matchStats.dailyProgression.map((d) => ({
+        label: `${d.day}`,
+        winPct: d.winPct,
+      }))
+    : [];
+
+  const hasCurrentMonthData =
+    matchStats !== null &&
+    (matchStats.dailyActivity.length > 0 ||
+      matchStats.dailyProgression.length > 0);
 
   return (
     <div className="space-y-8">
-      {/* Player Header */}
+      {/* ─── Player Header ─── */}
       <div className="flex items-center gap-4">
         {player.avatar_url ? (
           <img
@@ -110,7 +180,9 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
               className="text-xs mt-0.5"
               style={{ color: "var(--text-muted)" }}
             >
-              {[player.discord_username, player.uid].filter(Boolean).join(" · ")}
+              {[player.discord_username, player.uid]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
           )}
           <div className="flex items-center gap-2 mt-0.5">
@@ -159,23 +231,22 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
         </div>
       </div>
 
-      {/* Achievement Badges */}
+      {/* ─── Achievement Badges ─── */}
       {(player.achievements.champion.length > 0 ||
         player.achievements.top4.length > 0 ||
         player.achievements.top16.length > 0) && (
         <div>
-          <h3
-            className="text-sm font-medium uppercase tracking-wider mb-3"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Achievements
-          </h3>
+          <SectionHeader>Achievements</SectionHeader>
           <div className="flex flex-wrap gap-2">
             {player.achievements.champion.map((m) => (
               <span
                 key={`champ-${m}`}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                style={{ background: "rgba(251, 191, 36, 0.12)", color: "#fbbf24", border: "1px solid rgba(251, 191, 36, 0.25)" }}
+                style={{
+                  background: "rgba(251, 191, 36, 0.12)",
+                  color: "#fbbf24",
+                  border: "1px solid rgba(251, 191, 36, 0.25)",
+                }}
               >
                 <Trophy className="w-3.5 h-3.5" />
                 Champion {formatMonth(m)}
@@ -184,32 +255,44 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
             {player.achievements.top4
               .filter((m) => !player.achievements.champion.includes(m))
               .map((m) => (
-              <span
-                key={`top4-${m}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                style={{ background: "rgba(176, 206, 232, 0.12)", color: "#b0cee8", border: "1px solid rgba(176, 206, 232, 0.25)" }}
-              >
-                <Medal className="w-3.5 h-3.5" />
-                Top 4 {formatMonth(m)}
-              </span>
-            ))}
+                <span
+                  key={`top4-${m}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  style={{
+                    background: "rgba(176, 206, 232, 0.12)",
+                    color: "#b0cee8",
+                    border: "1px solid rgba(176, 206, 232, 0.25)",
+                  }}
+                >
+                  <Medal className="w-3.5 h-3.5" />
+                  Top 4 {formatMonth(m)}
+                </span>
+              ))}
             {player.achievements.top16
-              .filter((m) => !player.achievements.top4.includes(m) && !player.achievements.champion.includes(m))
+              .filter(
+                (m) =>
+                  !player.achievements.top4.includes(m) &&
+                  !player.achievements.champion.includes(m)
+              )
               .map((m) => (
-              <span
-                key={`top16-${m}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                style={{ background: "rgba(205, 127, 50, 0.12)", color: "#cd7f32", border: "1px solid rgba(205, 127, 50, 0.25)" }}
-              >
-                <Award className="w-3.5 h-3.5" />
-                Top 16 {formatMonth(m)}
-              </span>
-            ))}
+                <span
+                  key={`top16-${m}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  style={{
+                    background: "rgba(205, 127, 50, 0.12)",
+                    color: "#cd7f32",
+                    border: "1px solid rgba(205, 127, 50, 0.25)",
+                  }}
+                >
+                  <Award className="w-3.5 h-3.5" />
+                  Top 16 {formatMonth(m)}
+                </span>
+              ))}
           </div>
         </div>
       )}
 
-      {/* Prizes Placeholder */}
+      {/* ─── Prizes Placeholder ─── */}
       <div
         className="rounded-xl p-6 text-center"
         style={{
@@ -219,106 +302,154 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
           boxShadow: "var(--surface-shadow)",
         }}
       >
-        <Gift className="w-6 h-6 mx-auto mb-2" style={{ color: "var(--text-muted)" }} />
+        <Gift
+          className="w-6 h-6 mx-auto mb-2"
+          style={{ color: "var(--text-muted)" }}
+        />
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
           Prizes coming soon
         </p>
       </div>
 
-      {/* Current Stats */}
+      {/* ─── Current Stats + Season Record Donut ─── */}
       <div>
-        <h3
-          className="text-sm font-medium uppercase tracking-wider mb-3"
-          style={{ color: "var(--text-muted)" }}
-        >
-          Current Stats
-        </h3>
-        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
-          <StatBox label="Points" value={player.points.toFixed(0)} color="var(--accent)" />
-          <StatBox label="Games" value={player.games} />
-          <StatBox label="Win %" value={`${parseFloat(player.win_pct.toFixed(2))}%`} />
-          <StatBox label="Wins" value={player.wins} color="var(--success)" />
-          <StatBox label="Losses" value={player.losses} color="var(--error)" />
-          <StatBox label="Draws" value={player.draws} />
+        <SectionHeader>Current Stats</SectionHeader>
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1 grid grid-cols-3 gap-2 sm:gap-3">
+            <StatBox
+              label="Points"
+              value={player.points.toFixed(0)}
+              color="var(--accent)"
+            />
+            <StatBox label="Games" value={player.games} />
+            <StatBox
+              label="Win %"
+              value={`${parseFloat(player.win_pct.toFixed(2))}%`}
+            />
+            <StatBox
+              label="Wins"
+              value={player.wins}
+              color="var(--success)"
+            />
+            <StatBox
+              label="Losses"
+              value={player.losses}
+              color="var(--error)"
+            />
+            <StatBox label="Draws" value={player.draws} />
+          </div>
+          {player.games > 0 && (
+            <div className="flex-shrink-0">
+              <SeasonRecordChart
+                wins={player.wins}
+                losses={player.losses}
+                draws={player.draws}
+              />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Monthly Points Progression */}
+      {/* ─── This Month ─── */}
+      <div>
+        <SectionHeader>This Month</SectionHeader>
+        {matchStatsLoading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <ChartSkeleton height={220} />
+            <ChartSkeleton height={250} />
+            <div className="lg:col-span-2">
+              <ChartSkeleton height={200} />
+            </div>
+          </div>
+        ) : !hasCurrentMonthData ? (
+          <ChartCard>
+            <div className="flex flex-col items-center justify-center py-8">
+              <BarChart3
+                className="w-6 h-6 mb-2"
+                style={{ color: "var(--text-muted)" }}
+              />
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                No games this month yet
+              </p>
+            </div>
+          </ChartCard>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Monthly Activity */}
+            <ChartCard>
+              <p
+                className="text-xs font-medium uppercase tracking-wider mb-2"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Daily Activity
+              </p>
+              <MonthlyActivityChart data={matchStats!.dailyActivity} />
+            </ChartCard>
+
+            {/* Points & Rank (daily) */}
+            <ChartCard>
+              <p
+                className="text-xs font-medium uppercase tracking-wider mb-2"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Points & Rank
+              </p>
+              <PointsRankChart data={currentMonthPointsRank} height={220} />
+            </ChartCard>
+
+            {/* Win Rate (daily) */}
+            <div className="lg:col-span-2">
+              <ChartCard>
+                <p
+                  className="text-xs font-medium uppercase tracking-wider mb-2"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Win Rate
+                </p>
+                <WinRateChart data={currentMonthWinRate} />
+              </ChartCard>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── All-Time Trends ─── */}
       {history.length > 1 && (
         <div>
-          <h3
-            className="text-sm font-medium uppercase tracking-wider mb-3"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Points Progression
-          </h3>
-          <div
-            className="p-4 rounded-xl overflow-x-auto"
-            style={{
-              background: "var(--surface-gradient)",
-              backdropFilter: "var(--surface-blur)",
-              border: "1.5px solid rgba(255, 255, 255, 0.10)",
-              boxShadow: "var(--surface-shadow)",
-            }}
-          >
-            <div className="flex items-end gap-3 min-w-max">
-              {fullMonthRange.map(({ month, data }) => {
-                if (!data) {
-                  return (
-                    <div key={month} className="flex flex-col items-center gap-1">
-                      <span className="text-xs tabular-nums font-medium" style={{ color: "var(--text-muted)", opacity: 0.4 }}>
-                        —
-                      </span>
-                      <div className="w-10" style={{ height: "20px" }} />
-                      <span className="text-xs" style={{ color: "var(--text-muted)", opacity: 0.4 }}>
-                        {formatMonthShort(month)}
-                      </span>
-                    </div>
-                  );
-                }
-                const barHeight = Math.max(
-                  20,
-                  (data.points / maxPoints) * 120
-                );
-                return (
-                  <div key={month} className="flex flex-col items-center gap-1">
-                    <span
-                      className="text-xs tabular-nums font-medium"
-                      style={{ color: "var(--accent)" }}
-                    >
-                      {data.points.toFixed(0)}
-                    </span>
-                    <div
-                      className="w-10 rounded-t-md transition-all"
-                      style={{
-                        height: `${barHeight}px`,
-                        background:
-                          "linear-gradient(to top, var(--accent-dim), var(--accent))",
-                        opacity: 0.8,
-                      }}
-                    />
-                    <span
-                      className="text-xs"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      {formatMonthShort(month)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+          <SectionHeader>All-Time Trends</SectionHeader>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* All-Time Points & Rank */}
+            {allTimePointsRank.length > 1 && (
+              <ChartCard>
+                <p
+                  className="text-xs font-medium uppercase tracking-wider mb-2"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Points & Rank
+                </p>
+                <PointsRankChart data={allTimePointsRank} height={220} />
+              </ChartCard>
+            )}
+
+            {/* All-Time Win Rate */}
+            {allTimeWinRate.length > 1 && (
+              <ChartCard>
+                <p
+                  className="text-xs font-medium uppercase tracking-wider mb-2"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Win Rate
+                </p>
+                <WinRateChart data={allTimeWinRate} />
+              </ChartCard>
+            )}
           </div>
         </div>
       )}
 
-      {/* Monthly History Table */}
+      {/* ─── Monthly History Table ─── */}
       <div>
-        <h3
-          className="text-sm font-medium uppercase tracking-wider mb-3"
-          style={{ color: "var(--text-muted)" }}
-        >
-          Monthly History
-        </h3>
+        <SectionHeader>Monthly History</SectionHeader>
         <div
           className="rounded-xl overflow-hidden"
           style={{
@@ -331,24 +462,41 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
             {[...history].reverse().map((h) => (
               <div key={h.month} className="mobile-card space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                  <span
+                    className="text-sm font-medium"
+                    style={{ color: "var(--text-primary)" }}
+                  >
                     {formatMonth(h.month)}
                   </span>
                   <div className="flex items-center gap-2">
                     {h.rank && (
-                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>#{h.rank}</span>
+                      <span
+                        className="text-xs"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        #{h.rank}
+                      </span>
                     )}
-                    <span className="tabular-nums font-medium" style={{ color: "var(--accent)" }}>
+                    <span
+                      className="tabular-nums font-medium"
+                      style={{ color: "var(--accent)" }}
+                    >
                       {h.points.toFixed(0)} pts
                     </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-xs">
-                  <span style={{ color: "var(--text-secondary)" }}>{h.games} games</span>
+                  <span style={{ color: "var(--text-secondary)" }}>
+                    {h.games} games
+                  </span>
                   <span style={{ color: "var(--success)" }}>{h.wins}W</span>
                   <span style={{ color: "var(--error)" }}>{h.losses}L</span>
-                  <span style={{ color: "var(--text-secondary)" }}>{h.draws}D</span>
-                  <span style={{ color: "var(--text-secondary)" }}>{parseFloat(h.win_pct.toFixed(2))}%</span>
+                  <span style={{ color: "var(--text-secondary)" }}>
+                    {h.draws}D
+                  </span>
+                  <span style={{ color: "var(--text-secondary)" }}>
+                    {parseFloat(h.win_pct.toFixed(2))}%
+                  </span>
                 </div>
               </div>
             ))}
@@ -359,26 +507,33 @@ export default function PlayerDetail({ player }: PlayerDetailProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)]">
-                  {["Month", "Rank", "Points", "Games", "Wins", "Losses", "Draws", "Win%"].map(
-                    (h) => (
-                      <th
-                        key={h}
-                        className={`px-4 py-3 font-medium text-xs uppercase tracking-wider ${
-                          h === "Month" ? "text-left" : "text-right"
-                        }`}
-                        style={{
-                          color: "var(--text-muted)",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          letterSpacing: "0.05em",
-                          background: "rgba(255, 255, 255, 0.02)",
-                        }}
-                      >
-                        {h}
-                      </th>
-                    )
-                  )}
+                  {[
+                    "Month",
+                    "Rank",
+                    "Points",
+                    "Games",
+                    "Wins",
+                    "Losses",
+                    "Draws",
+                    "Win%",
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className={`px-4 py-3 font-medium text-xs uppercase tracking-wider ${
+                        h === "Month" ? "text-left" : "text-right"
+                      }`}
+                      style={{
+                        color: "var(--text-muted)",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        letterSpacing: "0.05em",
+                        background: "rgba(255, 255, 255, 0.02)",
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
