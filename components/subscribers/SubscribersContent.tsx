@@ -21,23 +21,16 @@ interface SubscriberData {
 
 type SourceFilter = "all" | "patreon" | "kofi" | "free" | "manual" | "paying_not_playing";
 
-interface SubscribersContentProps {
-  initialData?: { data: SubscriberData };
-  defaultMonth: string;
-}
-
-export default function SubscribersContent({ initialData, defaultMonth }: SubscribersContentProps) {
+export default function SubscribersContent() {
   const router = useRouter();
-  const [month, setMonth] = useState(defaultMonth);
+  const [month, setMonth] = useState(getCurrentMonth);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [expandedWarnings, setExpandedWarnings] = useState<Set<number>>(new Set());
   const [isPending, startTransition] = useTransition();
 
   const { data, error, isLoading, mutate } = useSWR<{ data: SubscriberData }>(
     `/api/subscribers?month=${month}`,
-    fetcher,
-    // Only use fallbackData for the initial month (server-fetched)
-    { fallbackData: month === defaultMonth ? initialData : undefined }
+    fetcher
   );
 
   const { data: manualData, mutate: mutateManual } = useSWR<{

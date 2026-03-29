@@ -3,12 +3,8 @@
 import { useState, useCallback } from "react";
 import useSWR from "swr";
 import { Plus, Trash2 } from "lucide-react";
+import { fetcher } from "@/lib/fetcher";
 import type { TaskpadTask, UserMapping } from "@/lib/types";
-
-const fetcher = (url: string) =>
-  fetch(url)
-    .then((r) => r.json())
-    .then((d) => d.data);
 
 const COLOR_MAP: Record<string, string> = {
   amber: "#fbbf24",
@@ -19,20 +15,23 @@ const COLOR_MAP: Record<string, string> = {
 };
 
 export default function TasksWidget() {
-  const { data: tasks, mutate: mutateTasks } = useSWR<TaskpadTask[]>(
+  const { data: tasksData, mutate: mutateTasks } = useSWR<{ data: TaskpadTask[] }>(
     "/api/taskpad",
     fetcher,
     { refreshInterval: 10000 }
   );
-  const { data: status } = useSWR<{ connected: boolean }>(
+  const tasks = tasksData?.data;
+  const { data: statusData } = useSWR<{ data: { connected: boolean } }>(
     "/api/taskpad/status",
     fetcher,
     { refreshInterval: 60000 }
   );
-  const { data: mappings } = useSWR<UserMapping[]>(
+  const status = statusData?.data;
+  const { data: mappingsData } = useSWR<{ data: UserMapping[] }>(
     "/api/user-mapping",
     fetcher
   );
+  const mappings = mappingsData?.data;
 
   const [showInput, setShowInput] = useState(false);
   const [newText, setNewText] = useState("");
@@ -53,9 +52,9 @@ export default function TasksWidget() {
       // Optimistic update
       mutateTasks(
         (prev) =>
-          prev?.map((t) =>
+          prev ? { data: prev.data.map((t) =>
             t.id === task.id ? { ...t, done: !t.done } : t
-          ),
+          ) } : prev,
         false
       );
 
@@ -73,7 +72,7 @@ export default function TasksWidget() {
   const handleDelete = useCallback(
     async (taskId: string) => {
       mutateTasks(
-        (prev) => prev?.filter((t) => t.id !== taskId),
+        (prev) => prev ? { data: prev.data.filter((t) => t.id !== taskId) } : prev,
         false
       );
 
@@ -107,7 +106,7 @@ export default function TasksWidget() {
     if (doneTasks.length === 0) return;
 
     mutateTasks(
-      (prev) => prev?.filter((t) => !t.done),
+      (prev) => prev ? { data: prev.data.filter((t) => !t.done) } : prev,
       false
     );
 

@@ -5,9 +5,8 @@ import useSWR from "swr";
 import { ChevronLeft, ChevronRight, Plus, Trash2, Loader2 } from "lucide-react";
 import Modal from "@/components/dashboard/modal";
 import Select from "@/components/dashboard/select";
+import { fetcher } from "@/lib/fetcher";
 import type { CalendarEvent, CalendarEventType } from "@/lib/types";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json()).then((d) => d.data);
 
 // ─── Event type styling ───
 
@@ -69,10 +68,11 @@ export default function CalendarWidget() {
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [prefillDate, setPrefillDate] = useState<string | null>(null);
 
-  const { data: events, isLoading, mutate } = useSWR<CalendarEvent[]>(
+  const { data: eventsData, isLoading, mutate } = useSWR<{ data: CalendarEvent[] }>(
     `/api/calendar/events?month=${currentMonth}`,
     fetcher
   );
+  const events = eventsData?.data;
 
   // Parse year/month from currentMonth
   const [year, month] = useMemo(() => {

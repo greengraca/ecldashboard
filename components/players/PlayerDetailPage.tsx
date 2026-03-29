@@ -9,14 +9,12 @@ import { fetcher } from "@/lib/fetcher";
 
 interface PlayerDetailPageProps {
   uid: string;
-  initialData?: { data: PlayerDetail };
 }
 
-export default function PlayerDetailPage({ uid, initialData }: PlayerDetailPageProps) {
+export default function PlayerDetailPage({ uid }: PlayerDetailPageProps) {
   const { data, error, isLoading } = useSWR<{ data: PlayerDetail }>(
     `/api/players/${uid}`,
-    fetcher,
-    { fallbackData: initialData }
+    fetcher
   );
 
   const player = data?.data;
