@@ -182,7 +182,7 @@ export default function DriveFileCard({
       onDragOver={isDragging ? (e) => e.preventDefault() : undefined}
       onDragLeave={isDragging ? () => setGhostOver(false) : undefined}
       onClick={() => onClick(item)}
-      className="flex flex-col rounded-xl cursor-pointer group relative overflow-hidden"
+      className="flex flex-col rounded-xl cursor-pointer group relative"
       style={isDragging ? {
         ...DRAG_PLACEHOLDER_STYLE,
         opacity: ghostOver ? 0.7 : 0.4,
@@ -213,7 +213,7 @@ export default function DriveFileCard({
     >
       {/* Thumbnail area — flex-1 to fill remaining space after info */}
       <div
-        className="flex items-center justify-center flex-1 min-h-0 overflow-hidden"
+        className="flex items-center justify-center flex-1 min-h-0 overflow-hidden rounded-t-xl"
         style={{ background: isDragging ? "transparent" : "var(--card-inner-bg)" }}
       >
         {isDragging && isImage && item.previewUrl ? (
@@ -280,18 +280,18 @@ export default function DriveFileCard({
               }}
               className="p-1 rounded-md opacity-0 group-hover:opacity-100"
               style={{
-                color: "var(--text-muted)",
+                color: "rgba(255,255,255,0.85)",
                 background: "rgba(0,0,0,0.5)",
                 backdropFilter: "blur(4px)",
                 transition: "opacity 0.15s, background 0.15s",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = "rgba(0,0,0,0.7)";
-                e.currentTarget.style.color = "var(--text-primary)";
+                e.currentTarget.style.color = "#fff";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "rgba(0,0,0,0.5)";
-                e.currentTarget.style.color = "var(--text-muted)";
+                e.currentTarget.style.color = "rgba(255,255,255,0.85)";
               }}
             >
               <MoreVertical className="w-3.5 h-3.5" />

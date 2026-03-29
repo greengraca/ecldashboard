@@ -436,18 +436,18 @@ export default function DriveFolderCard({
               }}
               className="p-1 rounded-md opacity-0 group-hover:opacity-100"
               style={{
-                color: "var(--text-muted)",
+                color: "rgba(255,255,255,0.85)",
                 background: "rgba(0,0,0,0.5)",
                 backdropFilter: "blur(4px)",
                 transition: "opacity 0.15s, background 0.15s",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = "rgba(0,0,0,0.7)";
-                e.currentTarget.style.color = "var(--text-primary)";
+                e.currentTarget.style.color = "#fff";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "rgba(0,0,0,0.5)";
-                e.currentTarget.style.color = "var(--text-muted)";
+                e.currentTarget.style.color = "rgba(255,255,255,0.85)";
               }}
             >
               <MoreVertical className="w-3.5 h-3.5" />
