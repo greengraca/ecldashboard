@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { Sensitive } from "@/components/dashboard/sensitive";
 import type { MeetingAttendee, UserMapping } from "@/lib/types";
 
@@ -74,21 +75,31 @@ interface MeetingTableProps {
   allMembers?: UserMapping[];
   isActive: boolean;
   isInRoom: boolean;
+  isLoading?: boolean;
   onStartSession?: () => void;
   onJoinSession?: () => void;
 }
+
+const GHOST_SEATS = [
+  { key: "g1", initial: "G", name: "Graça" },
+  { key: "g2", initial: "K", name: "Kakah" },
+  { key: "g3", initial: "R", name: "Ruka" },
+  { key: "g4", initial: "R", name: "Rodrigo" },
+  { key: "g5", initial: "B", name: "Bezugas" },
+];
 
 export default function MeetingTable({
   attendees,
   allMembers,
   isActive,
   isInRoom,
+  isLoading,
   onStartSession,
   onJoinSession,
 }: MeetingTableProps) {
-  // Ghost mode: no active session, show all team members as faded silhouettes
-  const showGhosts = !isActive && !isInRoom && attendees.length === 0 && allMembers && allMembers.length > 0;
-  const seatCount = showGhosts ? allMembers!.length : attendees.length;
+  // Ghost mode: no active session, show 5 hardcoded silhouettes
+  const showGhosts = !isActive && !isInRoom && attendees.length === 0;
+  const seatCount = showGhosts ? GHOST_SEATS.length : attendees.length;
   const positions = getSeatPositions(seatCount);
 
   return (
@@ -163,14 +174,12 @@ export default function MeetingTable({
             }}
           />
 
-          {/* Ghost seats — all team members as faded silhouettes when no session */}
-          {showGhosts && allMembers!.map((member, i) => {
+          {/* Ghost seats — hardcoded team silhouettes when no session */}
+          {showGhosts && GHOST_SEATS.map((ghost, i) => {
             const pos = positions[i];
-            const initial = member.display_name ? member.display_name.charAt(0).toUpperCase() : "?";
-
             return (
               <div
-                key={member.discord_id}
+                key={ghost.key}
                 style={{
                   position: "absolute",
                   left: `${pos.x}%`,
@@ -198,10 +207,9 @@ export default function MeetingTable({
                       background: "transparent",
                       border: "2px dashed var(--text-muted)",
                       transition: "all 0.3s ease",
-                      overflow: "hidden",
                     }}
                   >
-                    {initial}
+                    {ghost.initial}
                   </div>
                 </Sensitive>
                 <Sensitive placeholder="••••">
@@ -211,12 +219,9 @@ export default function MeetingTable({
                       fontFamily: "var(--font-mono)",
                       color: "var(--text-muted)",
                       whiteSpace: "nowrap",
-                      maxWidth: "70px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
                     }}
                   >
-                    {member.display_name}
+                    {ghost.name}
                   </span>
                 </Sensitive>
               </div>
@@ -316,14 +321,16 @@ export default function MeetingTable({
             </p>
             <button
               onClick={onStartSession}
-              className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              disabled={isLoading}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
               style={{
                 background: "rgba(251,191,36,0.15)",
                 color: "var(--accent)",
                 border: "1px solid var(--accent-border)",
               }}
             >
-              Start Session
+              {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {isLoading ? "Starting..." : "Start Session"}
             </button>
           </div>
         )}
@@ -341,7 +348,7 @@ export default function MeetingTable({
             </p>
             <button
               onClick={onJoinSession}
-              className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
               style={{
                 background: "rgba(251,191,36,0.15)",
                 color: "var(--accent)",

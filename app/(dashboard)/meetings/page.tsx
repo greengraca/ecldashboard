@@ -11,6 +11,7 @@ import {
   Radio,
   Square,
   Trash2,
+  Loader2,
 } from "lucide-react";
 import MeetingTable from "@/components/meetings/MeetingTable";
 import MeetingNotes from "@/components/meetings/MeetingNotes";
@@ -115,6 +116,8 @@ export default function MeetingsPage() {
   const [detectionMeeting, setDetectionMeeting] = useState<Meeting | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [endConfirmOpen, setEndConfirmOpen] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
   const isEndingRef = useRef(false);
 
   // Resolved data — only treat meetings with status "active" as active
@@ -211,6 +214,7 @@ export default function MeetingsPage() {
 
   // Actions
   const handleStartSession = useCallback(async () => {
+    setIsStarting(true);
     try {
       const res = await fetch("/api/meetings", { method: "POST" });
       if (res.ok) {
@@ -219,6 +223,8 @@ export default function MeetingsPage() {
       }
     } catch (err) {
       console.error("Failed to start session:", err);
+    } finally {
+      setIsStarting(false);
     }
   }, [mutateMeetings]);
 
@@ -236,6 +242,7 @@ export default function MeetingsPage() {
   const handleEndSession = useCallback(async () => {
     if (!activeId) return;
     isEndingRef.current = true;
+    setIsEnding(true);
     try {
       // End the meeting
       const res = await fetch(`/api/meetings/${activeId}`, {
@@ -275,6 +282,7 @@ export default function MeetingsPage() {
       console.error("Failed to end session:", err);
     } finally {
       isEndingRef.current = false;
+      setIsEnding(false);
     }
   }, [activeId, notes.length, mutateMeetings]);
 
@@ -404,6 +412,7 @@ export default function MeetingsPage() {
             allMembers={allMembers}
             isActive={!!active}
             isInRoom={false}
+            isLoading={isStarting}
             onStartSession={!active ? handleStartSession : undefined}
             onJoinSession={active ? handleJoinSession : undefined}
           />
@@ -468,15 +477,16 @@ export default function MeetingsPage() {
             </div>
             <button
               onClick={() => setEndConfirmOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+              disabled={isEnding}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
               style={{
                 background: "rgba(239,68,68,0.12)",
                 color: "#ef4444",
                 border: "1px solid rgba(239,68,68,0.25)",
               }}
             >
-              <Square className="w-3.5 h-3.5" />
-              End Session
+              {isEnding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Square className="w-3.5 h-3.5" />}
+              {isEnding ? "Ending..." : "End Session"}
             </button>
           </div>
 
