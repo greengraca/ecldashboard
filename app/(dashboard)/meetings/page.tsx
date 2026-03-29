@@ -79,10 +79,12 @@ export default function MeetingsPage() {
     : null;
 
   // Poll active meeting every 5s (fast presence + join detection)
+  // keepPreviousData: false overrides global SWR config so stale meeting data
+  // is cleared immediately when the key becomes null (e.g. after ending a session)
   const { data: activeMeetingData } = useSWR<MeetingResponse>(
     view === "active" && activeId ? `/api/meetings/${activeId}` : null,
     fetcher,
-    { refreshInterval: 5000 }
+    { refreshInterval: 5000, keepPreviousData: false }
   );
 
   // Poll notes every 5s during active session
@@ -115,8 +117,9 @@ export default function MeetingsPage() {
   const [endConfirmOpen, setEndConfirmOpen] = useState(false);
   const isEndingRef = useRef(false);
 
-  // Resolved data
-  const active = activeMeetingData?.data || meetingsData?.data?.active || null;
+  // Resolved data — only treat meetings with status "active" as active
+  const rawActive = activeMeetingData?.data || meetingsData?.data?.active || null;
+  const active = rawActive?.status === "active" ? rawActive : null;
   const history = meetingsData?.data?.history || [];
   const allMembers = mappingsData?.data || [];
   const notes = notesData?.data || [];
@@ -243,6 +246,12 @@ export default function MeetingsPage() {
       if (!res.ok) return;
 
       const endedMeeting = (await res.json()).data as Meeting;
+
+      // Optimistically clear active session so lobby doesn't flash stale state
+      mutateMeetings(
+        (prev) => prev ? { ...prev, data: { ...prev.data, active: null, history: prev.data.history } } : prev,
+        { revalidate: false }
+      );
 
       // Auto-delete if no notes were taken
       if (notes.length === 0) {
