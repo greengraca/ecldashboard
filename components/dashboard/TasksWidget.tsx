@@ -21,7 +21,8 @@ const COLOR_MAP: Record<string, string> = {
 export default function TasksWidget() {
   const { data: tasks, mutate: mutateTasks } = useSWR<TaskpadTask[]>(
     "/api/taskpad",
-    fetcher
+    fetcher,
+    { refreshInterval: 10000 }
   );
   const { data: status } = useSWR<{ connected: boolean }>(
     "/api/taskpad/status",
