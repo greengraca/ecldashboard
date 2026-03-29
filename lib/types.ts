@@ -370,7 +370,7 @@ export interface PrizeSummary {
 
 // ─── Activity Types ───
 
-export type ActivityAction = "create" | "update" | "delete" | "sync" | "join" | "detect" | "end";
+export type ActivityAction = "create" | "update" | "delete" | "sync" | "join" | "leave" | "detect" | "end";
 
 export interface ActivityEntry {
   _id?: ObjectId | string;

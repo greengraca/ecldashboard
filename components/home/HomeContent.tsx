@@ -35,6 +35,7 @@ const actionColors: Record<ActivityAction, string> = {
   delete: "var(--error)",
   sync: "var(--warning)",
   join: "var(--info)",
+  leave: "var(--error)",
   detect: "var(--meeting)",
   end: "var(--text-muted)",
 };

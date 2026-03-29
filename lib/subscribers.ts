@@ -440,6 +440,151 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
   return subscribers;
 }
 
+interface PaidMember {
+  id: string;           // discord_id or patreon_user_id
+  name: string;         // display name
+  source: "patreon" | "kofi";
+  tier: string;
+}
+
+/**
+ * Detect paid member changes between the given month and the previous month.
+ * Uses Patreon snapshots and Ko-fi events directly (not the computed subscriber list)
+ * for reliable detection regardless of Discord role state.
+ */
+export async function detectSubscriberChanges(
+  month: string,
+  userId: string,
+  userName: string
+): Promise<{ joined: PaidMember[]; left: PaidMember[]; alreadyLogged: boolean }> {
+  const { logActivity } = await import("./activity");
+  const db = await getDb();
+
+  // Compute previous month
+  const [y, m] = month.split("-").map(Number);
+  const prevDate = new Date(y, m - 2, 1);
+  const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+
+  // Fetch Patreon snapshots for both months
+  const [patreonCurrent, patreonPrev] = await Promise.all([
+    db.collection("dashboard_patreon_snapshots")
+      .find({ month }, { projection: { patreon_user_id: 1, discord_id: 1, patreon_name: 1, tier: 1 } })
+      .toArray(),
+    db.collection("dashboard_patreon_snapshots")
+      .find({ month: prevMonth }, { projection: { patreon_user_id: 1, discord_id: 1, patreon_name: 1, tier: 1 } })
+      .toArray(),
+  ]);
+
+  // Fetch Ko-fi events for both months (distinct user_ids)
+  const [kofiCurrent, kofiPrev] = await Promise.all([
+    db.collection("subs_kofi_events")
+      .find({ purchase_month: month }, { projection: { user_id: 1 } })
+      .toArray(),
+    db.collection("subs_kofi_events")
+      .find({ purchase_month: prevMonth }, { projection: { user_id: 1 } })
+      .toArray(),
+  ]);
+
+  // Build paid member maps keyed by a stable ID
+  // Patreon: use patreon_user_id (stable across months)
+  const currentMembers = new Map<string, PaidMember>();
+  const prevMembers = new Map<string, PaidMember>();
+
+  for (const s of patreonCurrent) {
+    const key = `patreon:${s.patreon_user_id}`;
+    currentMembers.set(key, {
+      id: s.discord_id?.toString() || s.patreon_user_id,
+      name: s.patreon_name || s.discord_id?.toString() || "Unknown",
+      source: "patreon",
+      tier: s.tier || "Patreon",
+    });
+  }
+  for (const s of patreonPrev) {
+    const key = `patreon:${s.patreon_user_id}`;
+    prevMembers.set(key, {
+      id: s.discord_id?.toString() || s.patreon_user_id,
+      name: s.patreon_name || s.discord_id?.toString() || "Unknown",
+      source: "patreon",
+      tier: s.tier || "Patreon",
+    });
+  }
+
+  // Ko-fi: use discord user_id (deduplicated)
+  const kofiCurrentIds = new Set(kofiCurrent.map((e) => e.user_id?.toString() ?? ""));
+  const kofiPrevIds = new Set(kofiPrev.map((e) => e.user_id?.toString() ?? ""));
+
+  for (const uid of kofiCurrentIds) {
+    if (!uid) continue;
+    const key = `kofi:${uid}`;
+    currentMembers.set(key, { id: uid, name: uid, source: "kofi", tier: "Ko-fi" });
+  }
+  for (const uid of kofiPrevIds) {
+    if (!uid) continue;
+    const key = `kofi:${uid}`;
+    prevMembers.set(key, { id: uid, name: uid, source: "kofi", tier: "Ko-fi" });
+  }
+
+  // Compare
+  const joined: PaidMember[] = [];
+  const left: PaidMember[] = [];
+
+  for (const [key, member] of currentMembers) {
+    if (!prevMembers.has(key)) joined.push(member);
+  }
+  for (const [key, member] of prevMembers) {
+    if (!currentMembers.has(key)) left.push(member);
+  }
+
+  if (joined.length === 0 && left.length === 0) {
+    return { joined: [], left: [], alreadyLogged: false };
+  }
+
+  // Dedup: check which individual members were already logged for this month
+  const allIds = [...joined, ...left].map((m) => m.id);
+  const alreadyLogged = await db.collection("dashboard_activity_log")
+    .find({
+      entity_type: "subscriber",
+      action: { $in: ["join", "leave"] },
+      "details.month": month,
+      entity_id: { $in: allIds },
+    }, { projection: { entity_id: 1 } })
+    .toArray();
+  const loggedIds = new Set(alreadyLogged.map((d) => d.entity_id));
+
+  const newJoins = joined.filter((m) => !loggedIds.has(m.id));
+  const newLeaves = left.filter((m) => !loggedIds.has(m.id));
+
+  // Log each new change
+  const logPromises: Promise<void>[] = [];
+
+  for (const member of newJoins) {
+    logPromises.push(
+      logActivity("join", "subscriber", member.id, {
+        month,
+        name: member.name,
+        source: member.source,
+        tier: member.tier,
+      }, userId, userName)
+    );
+  }
+
+  for (const member of newLeaves) {
+    logPromises.push(
+      logActivity("leave", "subscriber", member.id, {
+        month,
+        name: member.name,
+        source: member.source,
+        tier: member.tier,
+      }, userId, userName)
+    );
+  }
+
+  await Promise.all(logPromises);
+
+  const allAlreadyLogged = newJoins.length === 0 && newLeaves.length === 0;
+  return { joined: newJoins, left: newLeaves, alreadyLogged: allAlreadyLogged };
+}
+
 export async function getSubscriberSummary(
   month: string
 ): Promise<SubscriberSummary> {

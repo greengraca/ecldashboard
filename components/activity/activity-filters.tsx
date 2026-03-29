@@ -21,6 +21,8 @@ const ACTIONS = [
   { value: "update", label: "Update" },
   { value: "delete", label: "Delete" },
   { value: "sync", label: "Sync" },
+  { value: "join", label: "Join" },
+  { value: "leave", label: "Leave" },
 ];
 
 const ENTITY_TYPES = [

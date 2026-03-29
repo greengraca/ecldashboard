@@ -183,7 +183,7 @@ export const treasurePodConfigSchema = z.object({
 const ACTIVITY_ACTIONS = [
   "create", "update", "delete", "sync", "backfill",
   "auto_populate", "claim", "unclaim", "ship", "budget_update",
-  "join", "detect", "end",
+  "join", "leave", "detect", "end",
 ] as const;
 
 const ACTIVITY_ENTITY_TYPES = [

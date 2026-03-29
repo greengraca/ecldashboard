@@ -14,7 +14,19 @@ export default function SyncDiscordButton() {
       const res = await fetch("/api/subscribers/sync", { method: "POST" });
       if (!res.ok) throw new Error("Sync failed");
       const json = await res.json();
-      setResult(`Synced ${json.data.member_count} members`);
+      const { member_count, changes } = json.data;
+      let msg = `Synced ${member_count} members`;
+      if (changes && !changes.already_detected) {
+        if (changes.joined > 0 || changes.left > 0) {
+          const parts: string[] = [];
+          if (changes.joined > 0) parts.push(`${changes.joined} new`);
+          if (changes.left > 0) parts.push(`${changes.left} left`);
+          msg += ` — ${parts.join(", ")}`;
+        } else {
+          msg += " — no subscriber changes";
+        }
+      }
+      setResult(msg);
     } catch (err) {
       console.error("Sync error:", err);
       setResult("Sync failed");
