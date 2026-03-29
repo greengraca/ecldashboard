@@ -30,6 +30,12 @@ async function ensureIndexes() {
 
 // ─── Template Auto-Population ───
 
+function monthRange(month: string): { $gte: string; $lt: string } {
+  const [y, m] = month.split("-").map(Number);
+  const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+  return { $gte: `${month}-01`, $lt: `${next}-01` };
+}
+
 async function populateFromTemplates(month: string): Promise<void> {
   await ensureIndexes();
   const db = await getDb();
@@ -46,7 +52,7 @@ async function populateFromTemplates(month: string): Promise<void> {
     .collection<CalendarEvent>(EVENTS_COLLECTION)
     .find({
       template_id: { $in: templateIds },
-      date: { $regex: `^${month}` },
+      date: monthRange(month),
     })
     .toArray();
 
@@ -83,7 +89,7 @@ export async function getEventsForMonth(month: string): Promise<CalendarEvent[]>
   const db = await getDb();
   return db
     .collection<CalendarEvent>(EVENTS_COLLECTION)
-    .find({ date: { $regex: `^${month}` } })
+    .find({ date: monthRange(month) })
     .sort({ date: 1 })
     .toArray();
 }

@@ -21,6 +21,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
+import { prefetchRouteData } from "@/lib/prefetch";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -119,6 +120,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         title={collapsed ? item.label : undefined}
         onMouseEnter={(e) => {
           router.prefetch(item.href);
+          prefetchRouteData(item.href);
           if (!active) {
             e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
             e.currentTarget.style.color = "var(--text-primary)";

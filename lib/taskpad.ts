@@ -16,12 +16,12 @@ export async function getTeamTasks(): Promise<TaskpadTask[]> {
     const db = await getFirestoreDb();
     const snapshot = await db
       .collection(`projects/${TASKPAD_TEAM_ID}/tasks`)
+      .where("deleted", "==", false)
       .get();
 
     const tasks: TaskpadTask[] = [];
     for (const doc of snapshot.docs) {
       const data = doc.data();
-      if (data.deleted === true) continue;
 
       tasks.push({
         id: doc.id,
@@ -164,21 +164,27 @@ export async function deleteTask(
 
 /**
  * Check if Firestore is configured and accessible.
+ * Caches result for 5 minutes to avoid repeated connectivity checks.
  */
+let statusCache: { value: boolean; expires: number } | null = null;
+
 export async function getFirebaseStatus(): Promise<boolean> {
+  if (statusCache && Date.now() < statusCache.expires) return statusCache.value;
+
   try {
     if (!(await isFirebaseConfigured())) return false;
     if (!TASKPAD_TEAM_ID) return false;
 
     const db = await getFirestoreDb();
-    // Try to list one doc to verify connectivity
     await db
       .collection(`projects/${TASKPAD_TEAM_ID}/tasks`)
       .limit(1)
       .get();
 
+    statusCache = { value: true, expires: Date.now() + 5 * 60 * 1000 };
     return true;
   } catch {
+    statusCache = { value: false, expires: Date.now() + 30 * 1000 };
     return false;
   }
 }

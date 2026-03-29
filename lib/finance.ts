@@ -13,6 +13,27 @@ import type {
   TransactionType,
   TransactionCategory,
 } from "./types";
+
+// ─── Indexes (flag-based, idempotent) ───
+
+let indexesEnsured = false;
+
+async function ensureIndexes() {
+  if (indexesEnsured) return;
+  try {
+    const db = await getDb();
+    await db.collection("dashboard_transactions").createIndex({ month: 1 }, { name: "month" });
+    await db.collection("dashboard_fixed_costs").createIndex(
+      { active: 1, start_month: 1, end_month: 1 },
+      { name: "active_month_range" }
+    );
+    await db.collection("dashboard_patreon_snapshots").createIndex({ month: 1 }, { name: "month" });
+    await db.collection("dashboard_manual_payments").createIndex({ month: 1 }, { name: "month" });
+    indexesEnsured = true;
+  } catch {
+    indexesEnsured = true;
+  }
+}
 import { TEAM_MEMBERS, TREASURER_ID, GROUPS } from "./constants";
 
 // ─── Transactions ───
@@ -225,6 +246,7 @@ export async function deleteFixedCost(
 export async function getMonthlySummary(
   month: string
 ): Promise<MonthlySummary> {
+  await ensureIndexes();
   const db = await getDb();
 
   const [transactions, fixedCosts, subscriptionIncome] = await Promise.all([
@@ -295,6 +317,14 @@ export async function getMonthlySummary(
 export async function getMultiMonthSummary(
   months: string[]
 ): Promise<MonthlySummary[]> {
+  // Pre-warm shared caches (Discord members, bracket registrations) sequentially
+  // so the parallel per-month calls don't all race to fetch the same external data.
+  if (months.length > 1) {
+    const { fetchGuildMembers } = await import("./discord");
+    const { getRegisteredDiscordIds } = await import("./bracket-registration");
+    await fetchGuildMembers().catch(() => {});
+    await getRegisteredDiscordIds(months[months.length - 1]).catch(() => {});
+  }
   return Promise.all(months.map((m) => getMonthlySummary(m)));
 }
 
