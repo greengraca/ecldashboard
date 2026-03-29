@@ -21,6 +21,7 @@ export interface Subscriber {
 export interface DataHealthWarning {
   source: string;
   message: string;
+  details?: { name: string; discord_id: string }[];
 }
 
 export interface SubscriberSummary {

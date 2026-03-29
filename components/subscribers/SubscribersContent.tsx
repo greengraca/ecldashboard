@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { Users, Crown, Coffee, Gift, AlertTriangle, HandCoins, Gamepad2, Info } from "lucide-react";
+import { Users, Crown, Coffee, Gift, AlertTriangle, HandCoins, Gamepad2, Info, ChevronDown, ChevronUp } from "lucide-react";
 import StatCard from "@/components/dashboard/stat-card";
 import MonthPicker from "@/components/dashboard/month-picker";
 import SubscriberTable from "@/components/subscribers/subscriber-table";
@@ -29,6 +30,7 @@ export default function SubscribersContent({ initialData, defaultMonth }: Subscr
   const router = useRouter();
   const [month, setMonth] = useState(defaultMonth);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
+  const [expandedWarnings, setExpandedWarnings] = useState<Set<number>>(new Set());
   const [isPending, startTransition] = useTransition();
 
   const { data, error, isLoading, mutate } = useSWR<{ data: SubscriberData }>(
@@ -100,7 +102,7 @@ export default function SubscribersContent({ initialData, defaultMonth }: Subscr
             Manage and monitor subscription status
           </p>
         </div>
-        <MonthPicker value={month} onChange={(m) => startTransition(() => setMonth(m))} minMonth="2025-12" maxMonth={getCurrentMonth()} />
+        <MonthPicker value={month} onChange={(m) => { setExpandedWarnings(new Set()); startTransition(() => setMonth(m)); }} minMonth="2025-12" maxMonth={getCurrentMonth()} />
       </div>
 
       {/* Error state */}
@@ -217,22 +219,66 @@ export default function SubscribersContent({ initialData, defaultMonth }: Subscr
       {/* Data Health Warnings */}
       {!isLoading && summary?.data_warnings && summary.data_warnings.length > 0 && (
         <div className="mb-8 space-y-2">
-          {summary.data_warnings.map((w, i) => (
-            <div
-              key={i}
-              className="flex items-start gap-2 px-4 py-2.5 rounded-lg border text-xs"
-              style={{
-                background: "rgba(251, 191, 36, 0.08)",
-                borderColor: "var(--warning)",
-                color: "var(--warning)",
-              }}
-            >
-              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              <span>
-                <strong className="uppercase">{w.source}:</strong> {w.message}
-              </span>
-            </div>
-          ))}
+          {summary.data_warnings.map((w, i) => {
+            const hasDetails = w.details && w.details.length > 0;
+            const isExpanded = expandedWarnings.has(i);
+            return (
+              <div
+                key={i}
+                className={`rounded-lg border text-xs${hasDetails ? " cursor-pointer" : ""}`}
+                style={{
+                  background: "rgba(251, 191, 36, 0.08)",
+                  borderColor: "var(--warning)",
+                  color: "var(--warning)",
+                }}
+                onClick={hasDetails ? () => setExpandedWarnings((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(i)) next.delete(i); else next.add(i);
+                  return next;
+                }) : undefined}
+              >
+                <div className="flex items-center gap-2 px-4 py-2.5">
+                  <Info className="w-3.5 h-3.5 shrink-0" />
+                  <span className="flex-1">
+                    <strong className="uppercase">{w.source}:</strong> {w.message}
+                  </span>
+                  {hasDetails && (
+                    isExpanded
+                      ? <ChevronUp className="w-3.5 h-3.5 shrink-0" />
+                      : <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+                  )}
+                </div>
+                {hasDetails && isExpanded && (
+                  <div
+                    className="px-4 pb-2.5 pt-2 flex flex-wrap gap-1.5"
+                    style={{ borderTop: "1px solid rgba(251, 191, 36, 0.15)" }}
+                  >
+                    {w.details!.map((d, j) => {
+                      const uid = identityMap[d.discord_id];
+                      const badge = (
+                        <span
+                          className={`px-2 py-0.5 rounded text-xs inline-block${uid ? " hover:underline" : ""}`}
+                          style={{
+                            background: "rgba(251, 191, 36, 0.12)",
+                            color: "var(--warning)",
+                          }}
+                        >
+                          {d.name}
+                        </span>
+                      );
+                      return uid ? (
+                        <Link key={j} href={`/league/${uid}`} onClick={(e) => e.stopPropagation()}>
+                          {badge}
+                        </Link>
+                      ) : (
+                        <span key={j}>{badge}</span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

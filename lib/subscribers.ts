@@ -479,6 +479,7 @@ export async function getSubscriberSummary(
     : new Set(["Bronze", "Silver"]);
   const members = await fetchGuildMembers();
   const memberByUsername = new Map(members.map((m) => [m.username.toLowerCase(), m.id]));
+  const memberById = new Map(members.map((m) => [m.id, m.display_name || m.username]));
   const patreonRoleHolderIds = new Set(
     members.filter((m) => roleSetHasAny(m.roles, PATREON_ROLE_IDS)).map((m) => m.id)
   );
@@ -513,23 +514,26 @@ export async function getSubscriberSummary(
     warnings.push({
       source: "patreon",
       message: `${roleHoldersNoSnapshot.length} Patreon role holder${roleHoldersNoSnapshot.length > 1 ? "s" : ""} paying on Patreon but missing from snapshots — sync Patreon to resolve`,
+      details: roleHoldersNoSnapshot.map((id) => ({ name: memberById.get(id) ?? id, discord_id: id })),
     });
   }
   if (snapshotsNoRoleHolder.length > 0) {
     warnings.push({
       source: "patreon",
       message: `${snapshotsNoRoleHolder.length} paying Patreon subscriber${snapshotsNoRoleHolder.length > 1 ? "s" : ""} without a Patreon role on Discord — they may not have synced Patreon to Discord`,
+      details: snapshotsNoRoleHolder.map((id) => ({ name: memberById.get(id) ?? id, discord_id: id })),
     });
   }
 
   // Check Patreon subscribers without a snapshot tier (still showing generic "Patreon Member")
-  const missingTier = subscribers.filter(
+  const missingTierSubs = subscribers.filter(
     (s) => s.source === "patreon" && s.tier === "Patreon Member"
-  ).length;
-  if (missingTier > 0) {
+  );
+  if (missingTierSubs.length > 0) {
     warnings.push({
       source: "patreon",
-      message: `${missingTier} Patreon subscriber${missingTier > 1 ? "s" : ""} without tier info — likely missing Discord link on Patreon`,
+      message: `${missingTierSubs.length} Patreon subscriber${missingTierSubs.length > 1 ? "s" : ""} without tier info — likely missing Discord link on Patreon`,
+      details: missingTierSubs.map((s) => ({ name: s.display_name || s.username, discord_id: s.discord_id })),
     });
   }
 

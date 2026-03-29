@@ -41,7 +41,7 @@ export default function TasksWidget() {
 
   const getMappingForUid = useCallback(
     (firebaseUid: string): UserMapping | undefined => {
-      if (!mappings) return undefined;
+      if (!mappings || !Array.isArray(mappings)) return undefined;
       return mappings.find((m) => m.firebase_uid === firebaseUid);
     },
     [mappings]
