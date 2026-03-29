@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import StatCard from "@/components/dashboard/stat-card";
 import CalendarWidget from "@/components/dashboard/CalendarWidget";
 import TasksWidget from "@/components/dashboard/TasksWidget";
 import FinanceOverview from "@/components/finance/finance-overview";
 import ProfitSplitTable from "@/components/finance/profit-split-table";
-import { Users, Wallet, Swords, Activity, CheckCircle, Clock, List, Group } from "lucide-react";
+import { CheckCircle, Clock, List, Group } from "lucide-react";
 import type { ActivityEntry, ActivityAction, PendingReimbursement } from "@/lib/types";
 import { Sensitive } from "@/components/dashboard/sensitive";
 import { fetcher } from "@/lib/fetcher";
@@ -40,57 +39,7 @@ const actionColors: Record<ActivityAction, string> = {
   end: "var(--text-muted)",
 };
 
-function StatSkeleton() {
-  return (
-    <div
-      className="h-full p-3 sm:p-5 rounded-xl"
-      style={{
-        background: "var(--surface-gradient)",
-        backdropFilter: "var(--surface-blur)",
-        border: "1.5px solid rgba(255, 255, 255, 0.10)",
-        boxShadow: "var(--surface-shadow)",
-      }}
-    >
-      <div className="flex items-start justify-between mb-1.5 sm:mb-3">
-        <div className="skeleton h-3 w-20 sm:w-24 rounded" />
-        <div className="skeleton w-8 h-8 rounded-lg hidden sm:block" />
-      </div>
-      <div className="skeleton h-5 sm:h-7 w-16 sm:w-20 rounded mb-1" />
-      <div className="skeleton h-3 w-14 sm:w-16 rounded mt-1" />
-    </div>
-  );
-}
-
-interface HomeContentProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  initialSubscribers?: { data: { summary: any } };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  initialFinance?: { data: any };
-  month: string;
-}
-
-export default function HomeContent({
-  initialSubscribers,
-  initialFinance,
-  month,
-}: HomeContentProps) {
-  const { data: subData, isLoading: subLoading } = useSWR(
-    `/api/subscribers?month=${month}`,
-    fetcher,
-    { fallbackData: initialSubscribers }
-  );
-
-  const { data: financeData, isLoading: finLoading } = useSWR(
-    `/api/finance/summary?month=${month}`,
-    fetcher,
-    { fallbackData: initialFinance }
-  );
-
-  const { data: playerData, isLoading: playerLoading } = useSWR(
-    "/api/players/standings/live",
-    fetcher
-  );
-
+export default function HomeContent() {
   const { data: activityData, isLoading: actLoading } = useSWR(
     `/api/activity?limit=5`,
     fetcher
@@ -103,21 +52,7 @@ export default function HomeContent({
 
   const [reimbursementsGrouped, setReimbursementsGrouped] = useState(false);
 
-  const summary = subData?.data?.summary;
-  const finance = financeData?.data;
-  const liveStandings = playerData?.data?.standings;
-  const totalMatches = playerData?.data?.total_matches ?? null;
-  const matchesInProgress: number = playerData?.data?.in_progress ?? 0;
-  const matchesVoided: number = playerData?.data?.voided ?? 0;
   const recentActivity: ActivityEntry[] = activityData?.data || [];
-
-  const subscriberCount = summary?.total ?? null;
-  const payingCount =
-    summary != null ? (summary.patreon || 0) + (summary.kofi || 0) : null;
-  const revenue = finance?.income ?? null;
-  const net = finance?.net ?? null;
-  const activeStandings = liveStandings?.filter((s: { dropped: boolean }) => !s.dropped);
-  const playerCount = activeStandings?.length ?? null;
   const pendingReimbursements: PendingReimbursement[] = pendingData?.data || [];
 
   async function handleReimburse(item: PendingReimbursement) {
@@ -153,91 +88,6 @@ export default function HomeContent({
         >
           European cEDH League overview
         </p>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
-        {subLoading ? (
-          <StatSkeleton />
-        ) : (
-          <StatCard
-            title="Subscribers"
-            value={subscriberCount != null ? <Sensitive>{subscriberCount}</Sensitive> : "--"}
-            subtitle={
-              payingCount != null
-                ? `${payingCount} paying`
-                : "No data"
-            }
-            icon={
-              <Users
-                className="w-4 h-4"
-                style={{ color: "var(--accent)" }}
-              />
-            }
-          />
-        )}
-
-        {finLoading ? (
-          <StatSkeleton />
-        ) : (
-          <StatCard
-            title="Monthly Revenue"
-            value={
-              revenue != null
-                ? <Sensitive placeholder="€•••••">{`€${revenue.toFixed(2)}`}</Sensitive>
-                : "--"
-            }
-            subtitle={
-              net != null
-                ? `Net: €${net.toFixed(2)}`
-                : "No data"
-            }
-            icon={
-              <Wallet
-                className="w-4 h-4"
-                style={{ color: "var(--accent)" }}
-              />
-            }
-          />
-        )}
-
-        {playerLoading ? (
-          <StatSkeleton />
-        ) : (
-          <StatCard
-            title="Active Players"
-            value={playerCount != null ? playerCount : "--"}
-            subtitle={month}
-            icon={
-              <Swords
-                className="w-4 h-4"
-                style={{ color: "var(--accent)" }}
-              />
-            }
-          />
-        )}
-
-        {playerLoading ? (
-          <StatSkeleton />
-        ) : (
-          <StatCard
-            title="Games This Month"
-            value={totalMatches != null ? totalMatches : "--"}
-            subtitle={
-              [
-                matchesInProgress > 0 ? `${matchesInProgress} in progress` : "",
-                matchesVoided > 0 ? `${matchesVoided} voided` : "",
-              ]
-                .filter(Boolean)
-                .join(", ") || month
-            }
-            icon={
-              <Activity
-                className="w-4 h-4"
-                style={{ color: "var(--accent)" }}
-              />
-            }
-          />
-        )}
       </div>
 
       {/* Calendar + Tasks — calendar drives row height, tasks scroll within */}

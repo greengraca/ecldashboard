@@ -14,20 +14,6 @@ export default function DashboardLoading() {
         <div className="skeleton h-4 w-56 rounded" />
       </div>
 
-      {/* 4 stat cards — grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-full p-3 sm:p-5 rounded-xl" style={surfaceCard}>
-            <div className="flex items-start justify-between mb-1.5 sm:mb-3">
-              <div className="skeleton h-3 w-20 sm:w-24 rounded" />
-              <div className="skeleton w-8 h-8 rounded-lg hidden sm:block" />
-            </div>
-            <div className="skeleton h-5 sm:h-7 w-16 sm:w-20 rounded mb-1" />
-            <div className="skeleton h-3 w-14 sm:w-16 rounded mt-1" />
-          </div>
-        ))}
-      </div>
-
       {/* Calendar + Tasks — lg:grid-cols-4, calendar takes 3, tasks takes 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
         <div className="lg:col-span-3 rounded-xl p-6" style={surfaceCard}>
