@@ -10,6 +10,7 @@ import MonthlyActivityChart from "./charts/monthly-activity-chart";
 import PointsRankChart from "./charts/points-rank-chart";
 import WinRateChart from "./charts/win-rate-chart";
 
+
 interface PlayerDetailProps {
   player: PlayerDetailType;
   matchStats: PlayerMatchStats | null;
@@ -125,26 +126,17 @@ export default function PlayerDetail({
       winPct: h.win_pct,
     }));
 
-  // ─── Current Month chart data ───
-  const currentMonthPointsRank = matchStats
-    ? matchStats.dailyProgression.map((d) => ({
-        label: `${d.day}`,
-        points: d.points,
-        rank: d.rank,
-      }))
-    : [];
-
-  const currentMonthWinRate = matchStats
-    ? matchStats.dailyProgression.map((d) => ({
-        label: `${d.day}`,
-        winPct: d.winPct,
-      }))
-    : [];
-
   const hasCurrentMonthData =
-    matchStats !== null &&
-    (matchStats.dailyActivity.length > 0 ||
-      matchStats.dailyProgression.length > 0);
+    matchStats !== null && matchStats.dailyActivity.length > 0;
+
+  // ─── Career highlights ───
+  const bestRank = history.reduce<number | null>((best, h) => {
+    if (h.rank === null) return best;
+    return best === null ? h.rank : Math.min(best, h.rank);
+  }, null);
+
+  const bestPoints = Math.max(...history.map((h) => h.points));
+  const monthsActive = history.length;
 
   return (
     <div className="space-y-8">
@@ -313,7 +305,7 @@ export default function PlayerDetail({
 
       {/* ─── Current Stats + Season Record Donut ─── */}
       <div>
-        <SectionHeader>Current Stats</SectionHeader>
+        <SectionHeader>Current League Stats</SectionHeader>
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1 grid grid-cols-3 gap-2 sm:gap-3">
             <StatBox
@@ -321,22 +313,27 @@ export default function PlayerDetail({
               value={player.points.toFixed(0)}
               color="var(--accent)"
             />
-            <StatBox label="Games" value={player.games} />
             <StatBox
               label="Win %"
               value={`${parseFloat(player.win_pct.toFixed(2))}%`}
             />
             <StatBox
-              label="Wins"
-              value={player.wins}
-              color="var(--success)"
+              label="OW %"
+              value={`${parseFloat(player.ow_pct.toFixed(2))}%`}
             />
             <StatBox
-              label="Losses"
-              value={player.losses}
-              color="var(--error)"
+              label="Best Swiss Rank"
+              value={bestRank ? `#${bestRank}` : "--"}
+              color="var(--accent)"
             />
-            <StatBox label="Draws" value={player.draws} />
+            <StatBox
+              label="Months Active"
+              value={monthsActive}
+            />
+            <StatBox
+              label="Best Points"
+              value={bestPoints.toFixed(0)}
+            />
           </div>
           {player.games > 0 && (
             <div className="flex-shrink-0">
@@ -354,13 +351,7 @@ export default function PlayerDetail({
       <div>
         <SectionHeader>This Month</SectionHeader>
         {matchStatsLoading ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <ChartSkeleton height={220} />
-            <ChartSkeleton height={250} />
-            <div className="lg:col-span-2">
-              <ChartSkeleton height={200} />
-            </div>
-          </div>
+          <ChartSkeleton height={220} />
         ) : !hasCurrentMonthData ? (
           <ChartCard>
             <div className="flex flex-col items-center justify-center py-8">
@@ -374,42 +365,15 @@ export default function PlayerDetail({
             </div>
           </ChartCard>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Monthly Activity */}
-            <ChartCard>
-              <p
-                className="text-xs font-medium uppercase tracking-wider mb-2"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Daily Activity
-              </p>
-              <MonthlyActivityChart data={matchStats!.dailyActivity} />
-            </ChartCard>
-
-            {/* Points & Rank (daily) */}
-            <ChartCard>
-              <p
-                className="text-xs font-medium uppercase tracking-wider mb-2"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Points & Rank
-              </p>
-              <PointsRankChart data={currentMonthPointsRank} height={220} />
-            </ChartCard>
-
-            {/* Win Rate (daily) */}
-            <div className="lg:col-span-2">
-              <ChartCard>
-                <p
-                  className="text-xs font-medium uppercase tracking-wider mb-2"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  Win Rate
-                </p>
-                <WinRateChart data={currentMonthWinRate} />
-              </ChartCard>
-            </div>
-          </div>
+          <ChartCard>
+            <p
+              className="text-xs font-medium uppercase tracking-wider mb-2"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Daily Activity
+            </p>
+            <MonthlyActivityChart data={matchStats!.dailyActivity} />
+          </ChartCard>
         )}
       </div>
 

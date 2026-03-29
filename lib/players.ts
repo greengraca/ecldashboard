@@ -319,12 +319,14 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
 
   // Try live standings for current month data
   let livePlayerDiscord = "";
+  let liveOwPct = 0;
   try {
     const liveResult = await fetchLiveStandings();
     const livePlayer = liveResult.rows.find(
       (r) => r.uid === uid || r.entrant_id.toString() === uid
     );
     if (livePlayer) {
+      liveOwPct = livePlayer.ow_pct;
       // Ensure name lookup has this player's name from live data
       if (livePlayer.name && !nameLookup.has(uid)) {
         nameLookup.set(uid, livePlayer.name);
@@ -434,6 +436,7 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
     draws: latestMonth.draws,
     points: latestMonth.points,
     win_pct: latestMonth.win_pct,
+    ow_pct: liveOwPct,
     rank: latestMonth.rank,
     is_subscriber: !!subInfo,
     subscription_source: subInfo?.source ?? null,

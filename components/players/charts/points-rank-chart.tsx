@@ -95,20 +95,15 @@ export default function PointsRankChart({
           />
           <Area
             yAxisId="points"
-            type="monotone"
+            type="natural"
             dataKey="points"
             name="Points"
             stroke={POINTS_COLOR}
             strokeWidth={2}
             fill={`url(#pointsFill-${gradientId})`}
-            dot={{
-              r: 3,
-              fill: "#0a0f14",
-              stroke: POINTS_COLOR,
-              strokeWidth: 2,
-            }}
+            dot={false}
             activeDot={{
-              r: 5,
+              r: 4,
               fill: POINTS_COLOR,
               stroke: "#0a0f14",
               strokeWidth: 2,
@@ -116,19 +111,14 @@ export default function PointsRankChart({
           />
           <Line
             yAxisId="rank"
-            type="monotone"
+            type="natural"
             dataKey="rank"
             name="Rank"
             stroke={RANK_COLOR}
             strokeWidth={2}
-            dot={{
-              r: 3,
-              fill: "#0a0f14",
-              stroke: RANK_COLOR,
-              strokeWidth: 2,
-            }}
+            dot={false}
             activeDot={{
-              r: 5,
+              r: 4,
               fill: RANK_COLOR,
               stroke: "#0a0f14",
               strokeWidth: 2,

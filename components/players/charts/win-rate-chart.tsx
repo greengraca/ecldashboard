@@ -85,20 +85,15 @@ export default function WinRateChart({
             }
           />
           <Area
-            type="monotone"
+            type="natural"
             dataKey="winPct"
             name="Win Rate"
             stroke={WINRATE_COLOR}
             strokeWidth={2}
             fill={`url(#winRateFill-${gradientId})`}
-            dot={{
-              r: 3,
-              fill: "#0a0f14",
-              stroke: WINRATE_COLOR,
-              strokeWidth: 2,
-            }}
+            dot={false}
             activeDot={{
-              r: 5,
+              r: 4,
               fill: WINRATE_COLOR,
               stroke: "#0a0f14",
               strokeWidth: 2,

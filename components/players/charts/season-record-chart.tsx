@@ -62,6 +62,7 @@ export default function SeasonRecordChart({
               ))}
             </Pie>
             <Tooltip
+              wrapperStyle={{ zIndex: 50 }}
               content={
                 <PlayerChartTooltip
                   valueFormatter={(v, name) => {
