@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import ConfirmModal from "@/components/dashboard/confirm-modal";
@@ -113,6 +113,7 @@ export default function MeetingsPage() {
   const [detectionMeeting, setDetectionMeeting] = useState<Meeting | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [endConfirmOpen, setEndConfirmOpen] = useState(false);
+  const isEndingRef = useRef(false);
 
   // Resolved data
   const active = activeMeetingData?.data || meetingsData?.data?.active || null;
@@ -163,10 +164,18 @@ export default function MeetingsPage() {
 
   // Detect when meeting is ended by another member (polled data shows status changed)
   useEffect(() => {
+    if (isEndingRef.current) return;
     if (view === "active" && activeMeetingData?.data?.status === "ended") {
+      // Optimistically clear active so lobby doesn't flash stale data
+      mutateMeetings(
+        (current) =>
+          current
+            ? { data: { active: null, history: current.data.history } }
+            : current,
+        { revalidate: true }
+      );
       setEndedBanner(true);
       setView("lobby");
-      mutateMeetings();
       setTimeout(() => setEndedBanner(false), 5000);
     }
   }, [view, activeMeetingData?.data?.status, mutateMeetings]);
@@ -223,6 +232,7 @@ export default function MeetingsPage() {
 
   const handleEndSession = useCallback(async () => {
     if (!activeId) return;
+    isEndingRef.current = true;
     try {
       // End the meeting
       const res = await fetch(`/api/meetings/${activeId}`, {
@@ -254,6 +264,8 @@ export default function MeetingsPage() {
       await mutateMeetings();
     } catch (err) {
       console.error("Failed to end session:", err);
+    } finally {
+      isEndingRef.current = false;
     }
   }, [activeId, notes.length, mutateMeetings]);
 
