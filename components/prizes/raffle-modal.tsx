@@ -105,98 +105,87 @@ function SlotReel({
 }
 
 // ─── Lever Component ───
+// Pivot point is fixed in the middle. Ball starts on top with arm going up.
+// When pulled: arm shrinks to 0, ball crosses the pivot, arm grows back below.
+// Ball goes from top → pivot → bottom. Arm length animates from +64 to -64.
 
 function Lever({ onPull, disabled, forcePulled }: { onPull: () => void; disabled: boolean; forcePulled?: boolean }) {
-  const [animating, setAnimating] = useState(false);
-  const pulled = forcePulled || animating;
+  const [phase, setPhase] = useState<"idle" | "pulling" | "held" | "returning">("idle");
+  const down = forcePulled || phase === "pulling" || phase === "held";
 
   function handlePull() {
-    if (disabled || animating || forcePulled) return;
-    setAnimating(true);
-    // Ball drops down, then trigger after a beat
-    setTimeout(() => onPull(), 400);
-    setTimeout(() => setAnimating(false), 800);
+    if (disabled || phase !== "idle" || forcePulled) return;
+    setPhase("pulling");
+    setTimeout(() => { onPull(); setPhase("held"); }, 400);
+    setTimeout(() => setPhase((p) => (p === "held" ? "returning" : p)), 800);
+    setTimeout(() => setPhase((p) => (p === "returning" ? "idle" : p)), 1100);
   }
 
+  // Ball position: negative = above pivot, positive = below pivot
+  const ballY = down ? 64 : -64;
+
   return (
-    <div className="flex flex-col items-center gap-1 select-none">
-      <style>{`
-        @keyframes leverPull {
-          0% { transform: translateY(0); }
-          30% { transform: translateY(36px); }
-          60% { transform: translateY(36px); }
-          100% { transform: translateY(${forcePulled ? "36px" : "0"}); }
-        }
-        @keyframes leverArmStretch {
-          0% { height: 60px; }
-          30% { height: 96px; }
-          60% { height: 96px; }
-          100% { height: ${forcePulled ? "96px" : "60px"}; }
-        }
-        @keyframes leverHeldDown {
-          from, to { transform: translateY(36px); }
-        }
-        @keyframes leverArmHeld {
-          from, to { height: 96px; }
-        }
-      `}</style>
-      <div
-        className="relative flex flex-col items-center"
-        onClick={handlePull}
-        style={{
-          opacity: disabled && !forcePulled ? 0.3 : 1,
-          cursor: disabled || forcePulled ? "default" : "pointer",
-        }}
-      >
-        {/* Lever ball (rendered first, ordered above via negative order) */}
-        <div
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: "50%",
-            background: pulled
-              ? "radial-gradient(circle at 40% 35%, #ef4444, #991b1b)"
-              : "radial-gradient(circle at 40% 35%, #fbbf24, #b45309)",
-            boxShadow: pulled
-              ? "0 0 16px rgba(239,68,68,0.5)"
-              : "0 0 12px rgba(251,191,36,0.4)",
-            order: -1,
-            transition: pulled ? "none" : "background 0.3s, box-shadow 0.3s",
-            animation: forcePulled
-              ? "leverHeldDown 0.1s both"
-              : animating
-                ? "leverPull 0.8s ease-in-out both"
-                : "none",
-          }}
-        />
-        {/* Lever arm */}
-        <div
-          style={{
-            width: 6,
-            height: 60,
-            background: "linear-gradient(to bottom, #d4d4d4, #737373)",
-            borderRadius: 3,
-            marginTop: -4,
-            animation: forcePulled
-              ? "leverArmHeld 0.1s both"
-              : animating
-                ? "leverArmStretch 0.8s ease-in-out both"
-                : "none",
-          }}
-        />
-        {/* Base plate */}
-        <div
-          style={{
-            width: 20,
-            height: 8,
-            background: "linear-gradient(to bottom, #525252, #262626)",
-            borderRadius: "0 0 4px 4px",
-            marginTop: 2,
-          }}
-        />
+    <div
+      className="flex flex-col items-center select-none"
+      onClick={handlePull}
+      style={{
+        opacity: disabled && !forcePulled ? 0.3 : 1,
+        cursor: disabled || forcePulled ? "default" : "pointer",
+        width: 40,
+      }}
+    >
+      {/* Container with pivot in the center */}
+      <div style={{ position: "relative", height: 160, width: 40, display: "flex", alignItems: "center", justifyContent: "center" }}>
+
+        {/* Arm — connects ball to pivot, stretches in direction of ball */}
+        <div style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          width: 5,
+          height: Math.abs(ballY),
+          transform: `translateX(-50%) ${down ? "translateY(0)" : "translateY(-100%)"}`,
+          background: "linear-gradient(to right, #8a8a8a, #d4d4d4 45%, #8a8a8a)",
+          borderRadius: 3,
+          transition: phase === "returning"
+            ? "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)"
+            : "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        }} />
+
+        {/* Ball */}
+        <div style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          width: 24,
+          height: 24,
+          borderRadius: "50%",
+          transform: `translate(-50%, -50%) translateY(${ballY}px)`,
+          background: down
+            ? "radial-gradient(circle at 38% 32%, #ef4444, #991b1b)"
+            : "radial-gradient(circle at 38% 32%, #fbbf24, #b45309)",
+          boxShadow: down
+            ? "0 0 14px rgba(239,68,68,0.5)"
+            : "0 0 10px rgba(251,191,36,0.4)",
+          transition: phase === "returning"
+            ? "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)"
+            : "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+          zIndex: 2,
+        }} />
+
+        {/* Pivot mount */}
+        <div style={{
+          width: 16,
+          height: 16,
+          borderRadius: "50%",
+          background: "linear-gradient(135deg, #525252, #2a2a2a)",
+          boxShadow: "0 0 0 3px #1a1a1a, 0 2px 6px rgba(0,0,0,0.5)",
+          zIndex: 1,
+        }} />
       </div>
-      <span className="text-[9px] uppercase tracking-wider mt-1" style={{ color: "var(--text-muted)" }}>
-        {pulled ? "Pulled" : "Pull"}
+
+      <span className="text-[9px] uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+        {down ? "Pulled" : "Pull"}
       </span>
     </div>
   );
@@ -278,7 +267,7 @@ export default function RaffleModal({ open, month, onClose, onComplete }: Raffle
     fetcher
   );
 
-  const { data: existingResult } = useSWR<{ data: RaffleResult | null }>(
+  const { data: existingResult, mutate: mutateResult } = useSWR<{ data: RaffleResult | null }>(
     open ? `/api/prizes/raffle?month=${month}` : null,
     fetcher
   );
@@ -350,6 +339,7 @@ export default function RaffleModal({ open, month, onClose, onComplete }: Raffle
           prize_id: mostGamesPrize?._id ? String(mostGamesPrize._id) : null,
         }),
       });
+      await mutateResult();
       onComplete();
     } catch {
       // silent
@@ -453,6 +443,7 @@ export default function RaffleModal({ open, month, onClose, onComplete }: Raffle
                               setDeleting(true);
                               try {
                                 await fetch(`/api/prizes/raffle?month=${month}`, { method: "DELETE" });
+                                await mutateResult();
                                 setShowMenu(false);
                                 setConfirmDelete(false);
                                 onComplete();

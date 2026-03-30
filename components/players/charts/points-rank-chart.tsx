@@ -18,6 +18,8 @@ const POINTS_COLOR = "#3b82f6";
 const RANK_COLOR = "#f59e0b";
 
 const AXIS_STYLE = { fontSize: 11, fill: "var(--text-muted)" };
+const POINTS_AXIS_STYLE = { fontSize: 11, fill: `${POINTS_COLOR}80` };
+const RANK_AXIS_STYLE = { fontSize: 11, fill: `${RANK_COLOR}80` };
 
 interface DataPoint {
   label: string;
@@ -39,13 +41,16 @@ export default function PointsRankChart({
   if (data.length === 0) return null;
 
   const maxRank = Math.max(...data.map((d) => d.rank));
+  const rankTickCount = 4;
+  const rankStep = Math.ceil(maxRank / rankTickCount);
+  const rankTicks = [1, ...Array.from({ length: rankTickCount }, (_, i) => rankStep * (i + 1))];
 
   return (
-    <div style={{ height }}>
+    <div style={{ height, overflow: "hidden" }}>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
           data={data}
-          margin={{ left: -10, right: -10, top: 5, bottom: 0 }}
+          margin={{ left: -10, right: -10, top: 10, bottom: 0 }}
         >
           <defs>
             <linearGradient id={`pointsFill-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
@@ -66,19 +71,21 @@ export default function PointsRankChart({
           />
           <YAxis
             yAxisId="points"
-            tick={AXIS_STYLE}
+            tick={POINTS_AXIS_STYLE}
             axisLine={false}
             tickLine={false}
+            domain={[0, (max: number) => Math.ceil(max * 1.15)]}
             tickFormatter={(v: number) => v.toFixed(0)}
           />
           <YAxis
             yAxisId="rank"
             orientation="right"
-            tick={AXIS_STYLE}
+            tick={RANK_AXIS_STYLE}
             axisLine={false}
             tickLine={false}
             reversed
-            domain={[1, maxRank + 1]}
+            domain={[1, rankTicks[rankTicks.length - 1]]}
+            ticks={rankTicks}
             tickFormatter={(v: number) => `#${v}`}
           />
           <Tooltip
@@ -95,7 +102,7 @@ export default function PointsRankChart({
           />
           <Area
             yAxisId="points"
-            type="natural"
+            type="monotone"
             dataKey="points"
             name="Points"
             stroke={POINTS_COLOR}
@@ -111,7 +118,7 @@ export default function PointsRankChart({
           />
           <Line
             yAxisId="rank"
-            type="natural"
+            type="monotone"
             dataKey="rank"
             name="Rank"
             stroke={RANK_COLOR}
