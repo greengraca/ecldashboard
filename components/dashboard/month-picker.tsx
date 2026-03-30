@@ -75,7 +75,7 @@ export default function MonthPicker({
         background: "var(--surface-gradient)",
         backdropFilter: "var(--surface-blur)",
         border: outlined ? "1px solid var(--accent)" : "var(--surface-border)",
-        boxShadow: outlined ? "0 0 8px rgba(168,85,247,0.3)" : "none",
+        boxShadow: outlined ? "0 0 8px rgba(251,191,36,0.3)" : "none",
         borderRadius: "20px",
         padding: "4px",
       }}

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback, useTransition } from "react";
-import useSWR from "swr";
-import { Trophy, Shield, Gem } from "lucide-react";
+import { useState, useCallback, useTransition, useEffect } from "react";
+import useSWR, { useSWRConfig } from "swr";
+import { Trophy, Shield, Gem, Dices } from "lucide-react";
 import MonthPicker from "@/components/dashboard/month-picker";
 import PlanningCard from "@/components/prizes/planning-card";
 import DistributionCard from "@/components/prizes/distribution-card";
@@ -15,7 +15,7 @@ import CardSingleForm from "@/components/prizes/card-single-form";
 import PrizeDetailModal from "@/components/prizes/prize-detail-modal";
 import ConfirmModal from "@/components/dashboard/confirm-modal";
 import RaffleModal from "@/components/prizes/raffle-modal";
-import type { Prize, PrizeBudget, PrizeBudgetAllocations } from "@/lib/types";
+import type { Prize, PrizeBudget, PrizeBudgetAllocations, TreasurePodData } from "@/lib/types";
 import { fetcher } from "@/lib/fetcher";
 import { getCurrentMonth, getNextMonth } from "@/lib/utils";
 
@@ -58,13 +58,44 @@ export default function PrizesPage() {
     mutate: mutateBudget,
   } = useSWR<{ data: PrizeBudget | null }>(`/api/prizes/budget?month=${month}`, fetcher);
 
+  const { data: podData } = useSWR<{ data: TreasurePodData }>(
+    `/api/prizes/treasure-pods?month=${month}`,
+    fetcher
+  );
+
+  const { mutate: globalMutate } = useSWRConfig();
+
   const prizes = prizesData?.data || [];
   const budget = budgetData?.data || null;
+
+  // Match treasure-pod-section logic: schedule exists + pods triggered within the month
+  const hasPodData = (() => {
+    if (!podData?.data?.schedule) return false;
+    const [y, m] = month.split("-").map(Number);
+    const monthStart = new Date(y, m - 1, 1).getTime();
+    const monthEnd = new Date(y, m, 1).getTime();
+    return podData.data.pods.some((p) => {
+      const ts = new Date(p.triggered_at).getTime();
+      return ts >= monthStart && ts < monthEnd;
+    });
+  })();
 
   const refreshAll = useCallback(() => {
     mutatePrizes();
     mutateBudget();
-  }, [mutatePrizes, mutateBudget]);
+    // Refresh planning/distribution status cards
+    globalMutate(`/api/prizes/planning-status?month=${currentMonth}`);
+  }, [mutatePrizes, mutateBudget, globalMutate, currentMonth]);
+
+  // Auto-select tab based on pod data availability
+  useEffect(() => {
+    if (!podData) return;
+    if (hasPodData && activeTab !== "pods" && activeTab !== "dragon_shield") {
+      setActiveTab("pods");
+    } else if (!hasPodData && activeTab === "pods") {
+      setActiveTab("prizes");
+    }
+  }, [podData, hasPodData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleMonthChange(m: string) {
     setMonthHighlight(false);
@@ -201,6 +232,15 @@ export default function PrizesPage() {
             </button>
           );
         })}
+        <div className="flex-1" />
+        <button
+          onClick={() => setRaffleOpen(true)}
+          className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap hover:brightness-125"
+          style={{ color: "var(--text-muted)" }}
+        >
+          <Dices className="w-3.5 h-3.5" />
+          Most Games Raffle
+        </button>
       </div>
 
       {/* Tab content */}

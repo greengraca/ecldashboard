@@ -34,11 +34,19 @@ export default function TreasurePodSection({ month, alwaysExpanded }: TreasurePo
 
   const podData = data?.data;
   const stats = podData?.stats || [];
-  const pods = podData?.pods || [];
+  // Filter pods to only those triggered within the selected month
+  const allPods = podData?.pods || [];
+  const [monthYear, monthNum] = month.split("-").map(Number);
+  const monthStart = new Date(monthYear, monthNum - 1, 1).getTime();
+  const monthEnd = new Date(monthYear, monthNum, 1).getTime();
+  const pods = allPods.filter((p) => {
+    const ts = new Date(p.triggered_at).getTime();
+    return ts >= monthStart && ts < monthEnd;
+  });
 
   const totalWon = stats.reduce((s, t) => s + t.won, 0);
   const totalClaimed = stats.reduce((s, t) => s + t.claimed, 0);
-  const hasData = pods.length > 0 || (podData?.schedule != null);
+  const hasData = podData?.schedule != null && pods.length > 0;
 
   const isOpen = alwaysExpanded || expanded;
 
@@ -104,6 +112,10 @@ export default function TreasurePodSection({ month, alwaysExpanded }: TreasurePo
                 className="inline-block w-5 h-5 border-2 rounded-full animate-spin"
                 style={{ borderColor: "var(--border)", borderTopColor: "var(--accent)" }}
               />
+            </div>
+          ) : !hasData ? (
+            <div className="text-center py-8 text-sm" style={{ color: "var(--text-muted)" }}>
+              No treasure pod data for this month.
             </div>
           ) : (
             <>

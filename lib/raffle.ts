@@ -1,5 +1,7 @@
 import { getDb } from "./mongodb";
-import { getStandings } from "./players";
+import { getPlayers } from "./players";
+import { fetchLiveStandings } from "./topdeck-live";
+import { getCurrentMonth } from "./utils";
 import { logActivity } from "./activity";
 import type { RaffleResult, RaffleCandidate } from "./types";
 
@@ -9,14 +11,32 @@ export async function getRaffleCandidates(
   month: string,
   excludeFinalists: boolean
 ): Promise<RaffleCandidate[]> {
-  const { standings } = await getStandings(month);
+  const db = await getDb();
 
-  // Sort by games desc to get top 5 most-games players
-  const byGames = [...standings].sort((a, b) => b.games - a.games);
+  // Current month uses live data, past months use dumps
+  let allPlayers: { uid: string; name: string; games: number }[];
+  if (month === getCurrentMonth()) {
+    const live = await fetchLiveStandings();
+    allPlayers = live.rows
+      .filter((r) => r.uid && !r.dropped)
+      .map((r) => ({ uid: r.uid!, name: r.name, games: r.games }));
+  } else {
+    const { players } = await getPlayers(month);
+    allPlayers = players.map((p) => ({ uid: p.uid, name: p.name, games: p.games }));
+  }
+  if (allPlayers.length === 0) return [];
+
+  // Sort all players by games desc, take top 5
+  const byGames = [...allPlayers].sort((a, b) => b.games - a.games);
   const top5 = byGames.slice(0, 5);
 
-  // Finalists = top 2 by points (they play in the final)
-  const finalistUids = new Set(standings.slice(0, 2).map((s) => s.uid));
+  // Finalists = top 4 from bracket results (top4 cut after top16 cut)
+  let finalistUids = new Set<string>();
+  if (excludeFinalists) {
+    const bracketResults = await db.collection("dashboard_bracket_results").findOne({ month });
+    const top4Order: Array<{ uid: string }> = bracketResults?.top4_order || [];
+    finalistUids = new Set(top4Order.map((p) => p.uid));
+  }
 
   return top5.map((player) => ({
     player_uid: player.uid,
@@ -60,4 +80,14 @@ export async function saveRaffleResult(
 
   await logActivity("create", "raffle_result", month, { winner: data.winner_name }, userId, userName);
   return result!;
+}
+
+export async function deleteRaffleResult(
+  month: string,
+  userId: string,
+  userName: string
+): Promise<void> {
+  const db = await getDb();
+  await db.collection<RaffleResult>(COLLECTION).deleteOne({ month });
+  await logActivity("delete", "raffle_result", month, {}, userId, userName);
 }

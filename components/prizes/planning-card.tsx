@@ -57,15 +57,15 @@ export default function PlanningCard({ month, onNavigate }: PlanningCardProps) {
     return (
       <button
         onClick={() => setCollapsed(false)}
-        className="w-full flex items-center justify-between rounded-lg px-4 py-3 mb-4 transition-colors cursor-pointer"
+        className="w-full flex items-center justify-between rounded-lg px-4 py-3 mb-4 transition-colors cursor-pointer hover:brightness-110"
         style={{
-          background: allDone ? "rgba(34,197,94,0.08)" : "rgba(168,85,247,0.08)",
-          border: `1px solid ${allDone ? "rgba(34,197,94,0.15)" : "rgba(168,85,247,0.15)"}`,
+          background: allDone ? "var(--success-light)" : "var(--accent-light)",
+          border: `1px solid ${allDone ? "var(--success)" : "var(--accent-border)"}`,
         }}
       >
         <div className="flex items-center gap-2">
           {allDone ? (
-            <Check className="w-4 h-4" style={{ color: "var(--success, #22c55e)" }} />
+            <Check className="w-4 h-4" style={{ color: "var(--success)" }} />
           ) : (
             <span style={{ color: "var(--accent)" }}>🎯</span>
           )}
@@ -82,8 +82,9 @@ export default function PlanningCard({ month, onNavigate }: PlanningCardProps) {
     <div
       className="rounded-lg p-4 mb-4"
       style={{
-        background: "linear-gradient(135deg, rgba(168,85,247,0.12), rgba(59,130,246,0.08))",
-        border: "1px solid rgba(168,85,247,0.25)",
+        background: "var(--surface-gradient)",
+        backdropFilter: "var(--surface-blur)",
+        border: "1px solid var(--accent-border)",
       }}
     >
       <div className="flex items-center justify-between mb-3">
@@ -126,16 +127,16 @@ export default function PlanningCard({ month, onNavigate }: PlanningCardProps) {
             <button
               key={item.key}
               onClick={() => onNavigate(item.tab, item.section, status.planning_month)}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:brightness-125"
               style={{
-                background: done ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)",
-                border: `1px solid ${done ? "rgba(34,197,94,0.2)" : "rgba(245,158,11,0.2)"}`,
+                background: done ? "var(--success-light)" : "var(--warning-light)",
+                border: `1px solid ${done ? "var(--success)" : "var(--warning)"}`,
               }}
             >
               {done ? (
-                <Check className="w-3.5 h-3.5 shrink-0" style={{ color: "#22c55e" }} />
+                <Check className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--success)" }} />
               ) : (
-                <Circle className="w-3.5 h-3.5 shrink-0" style={{ color: "#f59e0b" }} />
+                <Circle className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--warning)" }} />
               )}
               <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>
                 {item.label}

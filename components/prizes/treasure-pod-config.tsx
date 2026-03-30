@@ -13,12 +13,24 @@ interface TreasurePodConfigProps {
 
 const BRING_A_FRIEND_IMAGE = "https://i.ibb.co/sph1YjFr/c4eb2988-cc01-48b1-aa8a-faf899b76fe6.png";
 
+const PRESET_DEFAULTS: Record<string, { title: string; description: string; image_url: string | null; count: number }> = {
+  bring_a_friend: {
+    title: "Bring a Friend Treasure Pod!",
+    description: "**Congratulations!** This game is a **Treasure Pod**!\n\nThe **winner** receives **free ECL access** for an unregistered friend!\n\nIf you won, please **open a ticket** to claim your prize! 🍀",
+    image_url: BRING_A_FRIEND_IMAGE,
+    count: 10,
+  },
+  card_prize: {
+    title: "Card Prize Treasure Pod!",
+    description: "**Congratulations!** This game is a **Treasure Pod**!\n\nThe **winner** receives a special card as a prize!\n\nIf you won, please **open a ticket** to claim your prize! 🍀",
+    image_url: null,
+    count: 1,
+  },
+};
+
 const DEFAULT_POD_TYPE: TreasurePodTypeConfig = {
   type: "bring_a_friend",
-  count: 5,
-  title: "Bring a Friend Treasure Pod!",
-  description: "",
-  image_url: BRING_A_FRIEND_IMAGE,
+  ...PRESET_DEFAULTS.bring_a_friend,
 };
 
 const POD_TYPE_PRESETS: { value: string; label: string }[] = [
@@ -54,7 +66,7 @@ export default function TreasurePodConfig({ month }: TreasurePodConfigProps) {
       setNotes(config.notes || "");
     } else {
       setPodTypes([{ ...DEFAULT_POD_TYPE }]);
-      setGamesPerPlayer("2.75");
+      setGamesPerPlayer("4");
       setNotes("");
     }
   }, [config]);
@@ -68,12 +80,15 @@ export default function TreasurePodConfig({ month }: TreasurePodConfigProps) {
     setPodTypes((prev) =>
       prev.map((pt, i) => {
         if (i !== index) return pt;
-        const updated = { ...pt, [field]: value };
-        // Auto-fill BaF image when type changes to bring_a_friend
-        if (field === "type" && value === "bring_a_friend" && !pt.image_url) {
-          updated.image_url = BRING_A_FRIEND_IMAGE;
+        if (field === "type" && typeof value === "string" && value in PRESET_DEFAULTS) {
+          const preset = PRESET_DEFAULTS[value];
+          return { ...pt, type: value, ...preset };
         }
-        return updated;
+        if (field === "type") {
+          // Custom type — clear preset values
+          return { ...pt, type: value as string, title: "", description: "", image_url: null, count: 1 };
+        }
+        return { ...pt, [field]: value };
       })
     );
   }
@@ -164,6 +179,11 @@ export default function TreasurePodConfig({ month }: TreasurePodConfigProps) {
     borderColor: "var(--border)",
     color: "var(--text-primary)",
   };
+  const secondaryInputStyle = {
+    background: "var(--bg-page)",
+    borderColor: "rgba(255,255,255,0.04)",
+    color: "var(--text-secondary)",
+  };
 
   return (
     <div className="space-y-6">
@@ -234,7 +254,7 @@ export default function TreasurePodConfig({ month }: TreasurePodConfigProps) {
           </div>
           <button
             onClick={addPodType}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:brightness-125"
             style={{ background: "var(--accent-light)", color: "var(--accent)" }}
           >
             <Plus className="w-3.5 h-3.5" />
@@ -329,7 +349,7 @@ export default function TreasurePodConfig({ month }: TreasurePodConfigProps) {
 
               {/* Title */}
               <div className="mb-3">
-                <label className="block text-[10px] mb-1" style={{ color: "var(--text-muted)" }}>
+                <label className="block text-[10px] mb-1" style={{ color: "var(--text-muted)", opacity: 0.6 }}>
                   Title
                 </label>
                 <input
@@ -337,22 +357,22 @@ export default function TreasurePodConfig({ month }: TreasurePodConfigProps) {
                   value={pt.title}
                   onChange={(e) => updatePodType(i, "title", e.target.value)}
                   className={inputClass}
-                  style={inputStyle}
+                  style={secondaryInputStyle}
                   placeholder="Treasure Pod title for Discord embed"
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-[10px] mb-1" style={{ color: "var(--text-muted)" }}>
+                <label className="block text-[10px] mb-1" style={{ color: "var(--text-muted)", opacity: 0.6 }}>
                   Description
                 </label>
                 <textarea
                   value={pt.description}
                   onChange={(e) => updatePodType(i, "description", e.target.value)}
-                  rows={2}
+                  rows={5}
                   className={inputClass}
-                  style={inputStyle}
+                  style={secondaryInputStyle}
                   placeholder="Discord embed description (supports markdown)"
                 />
               </div>
@@ -416,7 +436,7 @@ export default function TreasurePodConfig({ month }: TreasurePodConfigProps) {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 hover:brightness-125"
           style={{
             background: "rgba(251, 191, 36, 0.15)",
             color: "var(--accent)",
@@ -450,7 +470,7 @@ export default function TreasurePodConfig({ month }: TreasurePodConfigProps) {
         <button
           onClick={handleCopyFromPrevious}
           disabled={copying}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 hover:brightness-125"
           style={{
             background: "transparent",
             color: "var(--text-secondary)",
