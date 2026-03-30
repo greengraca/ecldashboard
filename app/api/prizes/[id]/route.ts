@@ -26,6 +26,16 @@ export const PATCH = withAuthParams<{ id: string }>(async (session, request, { i
   // Create media drive entry if r2_key was uploaded (deferred from upload)
   if (parsed.data.r2_key && r2_upload_meta) {
     try {
+      const cardMeta = parsed.data.category === "mtg_single"
+        ? {
+            cardName: parsed.data.name || undefined,
+            setName: parsed.data.set_name || undefined,
+            cardLanguage: parsed.data.card_language || undefined,
+            condition: parsed.data.condition || undefined,
+            value: Number(parsed.data.value) || undefined,
+          }
+        : undefined;
+
       await ensureDriveEntry({
         r2Key: parsed.data.r2_key,
         name: r2_upload_meta.name,
@@ -34,6 +44,7 @@ export const PATCH = withAuthParams<{ id: string }>(async (session, request, { i
         thumbR2Key: r2_upload_meta.thumbR2Key,
         folder: "Prizes",
         uploadedBy: userName,
+        cardMeta,
       });
     } catch {
       // Non-fatal

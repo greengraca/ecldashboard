@@ -73,6 +73,17 @@ export const POST = withAuth(async (session, request) => {
   // Create media drive entry if r2_key was uploaded (deferred from upload)
   if (parsed.data.r2_key && r2_upload_meta) {
     try {
+      // Attach card metadata so drive picker can auto-fill fields later
+      const cardMeta = parsed.data.category === "mtg_single"
+        ? {
+            cardName: parsed.data.name || undefined,
+            setName: parsed.data.set_name || undefined,
+            cardLanguage: parsed.data.card_language || undefined,
+            condition: parsed.data.condition || undefined,
+            value: Number(parsed.data.value) || undefined,
+          }
+        : undefined;
+
       await ensureDriveEntry({
         r2Key: parsed.data.r2_key,
         name: r2_upload_meta.name,
@@ -81,6 +92,7 @@ export const POST = withAuth(async (session, request) => {
         thumbR2Key: r2_upload_meta.thumbR2Key,
         folder: "Prizes",
         uploadedBy: userName,
+        cardMeta,
       });
     } catch {
       // Non-fatal — prize was saved, drive entry is a convenience

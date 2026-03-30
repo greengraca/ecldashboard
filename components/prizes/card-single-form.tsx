@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Upload, Loader2, X, Sparkles } from "lucide-react";
+import { Upload, Loader2, X, Sparkles, FolderOpen } from "lucide-react";
 import Modal from "@/components/dashboard/modal";
 import Select from "@/components/dashboard/select";
 import CardImage from "@/components/media/shared/CardImage";
+import DrivePickerModal, { type DrivePickerResult } from "@/components/media/drive/DrivePickerModal";
 import type { Prize, RecipientType } from "@/lib/types";
 import type { PrizeFormData } from "./prize-form";
 
@@ -72,6 +73,7 @@ export default function CardSingleForm({
   const [uploadMeta, setUploadMeta] = useState<{ name: string; size: number; mimeType: string; thumbR2Key?: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [drivePickerOpen, setDrivePickerOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const cardImgRef = useRef<HTMLImageElement>(null);
 
@@ -145,6 +147,20 @@ export default function CardSingleForm({
       setUploadMeta(null);
     } finally {
       setUploading(false);
+    }
+  }
+
+  function handleDriveSelect(file: DrivePickerResult) {
+    setOverrideUrl(file.previewUrl);
+    setUploadedR2Key(file.r2Key);
+    setUploadMeta({ name: file.name, size: file.size, mimeType: file.mimeType });
+    // Auto-fill card fields from stored metadata
+    if (file.cardMeta) {
+      if (file.cardMeta.cardName) setCardName(file.cardMeta.cardName);
+      if (file.cardMeta.setName) setSetName(file.cardMeta.setName);
+      if (file.cardMeta.cardLanguage) setCardLanguage(file.cardMeta.cardLanguage);
+      if (file.cardMeta.condition) setCondition(file.cardMeta.condition);
+      if (file.cardMeta.value != null) setValue(file.cardMeta.value.toString());
     }
   }
 
@@ -378,7 +394,17 @@ export default function CardSingleForm({
               style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
             >
               {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-              Upload Custom Image
+              Upload Image
+            </button>
+            <button
+              type="button"
+              onClick={() => setDrivePickerOpen(true)}
+              disabled={uploading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+              style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+            >
+              <FolderOpen className="w-3 h-3" />
+              From Drive
             </button>
             {displayUrl && (
               <button
@@ -528,6 +554,12 @@ export default function CardSingleForm({
           </button>
         </div>
       </form>
+      <DrivePickerModal
+        open={drivePickerOpen}
+        onClose={() => setDrivePickerOpen(false)}
+        onSelect={handleDriveSelect}
+        initialFolder="Prizes"
+      />
     </Modal>
   );
 }

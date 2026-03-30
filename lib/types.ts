@@ -746,6 +746,14 @@ export interface TaskpadTask {
 
 // ─── Media Drive Types ───
 
+export interface MediaFileCardMeta {
+  cardName?: string;
+  setName?: string;
+  cardLanguage?: string;
+  condition?: string;
+  value?: number;
+}
+
 export interface MediaFile {
   _id: string;
   name: string;
@@ -758,6 +766,7 @@ export interface MediaFile {
   path: string;
   previewUrl?: string;
   folderPreviews?: string[];
+  cardMeta?: MediaFileCardMeta;
   uploadedBy: string;
   createdAt: string;
   updatedAt: string;

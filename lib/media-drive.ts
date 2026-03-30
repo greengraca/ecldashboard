@@ -203,6 +203,7 @@ export async function createFileMetadata(params: {
   r2Key: string;
   thumbR2Key?: string;
   uploadedBy: string;
+  cardMeta?: { cardName?: string; setName?: string; cardLanguage?: string; condition?: string; value?: number };
 }) {
   await ensureIndexes();
   const resolvedName = await resolveNameCollision(params.parentId, params.name);
@@ -217,6 +218,7 @@ export async function createFileMetadata(params: {
     size: params.size,
     r2Key: params.r2Key,
     ...(params.thumbR2Key ? { thumbR2Key: params.thumbR2Key } : {}),
+    ...(params.cardMeta ? { cardMeta: params.cardMeta } : {}),
     parentId: params.parentId ? toObjectId(params.parentId) : null,
     path,
     sortOrder,
@@ -431,13 +433,20 @@ export async function ensureDriveEntry(params: {
   thumbR2Key?: string;
   folder: string;
   uploadedBy: string;
+  cardMeta?: { cardName?: string; setName?: string; cardLanguage?: string; condition?: string; value?: number };
 }): Promise<void> {
   await ensureIndexes();
   const c = await col();
 
   // Check if a drive entry already exists for this r2Key
   const existing = await c.findOne({ r2Key: params.r2Key });
-  if (existing) return;
+  if (existing) {
+    // Update cardMeta on existing entry if provided
+    if (params.cardMeta) {
+      await c.updateOne({ _id: existing._id }, { $set: { cardMeta: params.cardMeta } });
+    }
+    return;
+  }
 
   const folderId = params.folder.includes("/")
     ? await ensureFolderPath(params.folder, params.uploadedBy)
@@ -451,6 +460,7 @@ export async function ensureDriveEntry(params: {
     r2Key: params.r2Key,
     thumbR2Key: params.thumbR2Key,
     uploadedBy: params.uploadedBy,
+    cardMeta: params.cardMeta,
   });
 }
 
