@@ -186,6 +186,15 @@ body {
   50% { transform: translateY(-6px); }
 }
 
+@keyframes monthBlink {
+  0%, 100% { box-shadow: 0 0 8px rgba(168,85,247,0.3); }
+  50% { box-shadow: 0 0 18px rgba(168,85,247,0.6); }
+}
+
+.animate-month-blink {
+  animation: monthBlink 0.4s ease-in-out 3;
+}
+
 /* Standings row hover */
 tr[data-rank="1"] { background: rgba(251, 191, 36, 0.08); }
 tr[data-rank="1"]:hover { background: rgba(251, 191, 36, 0.13); }

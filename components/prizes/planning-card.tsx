@@ -8,7 +8,7 @@ import type { PlanningStatus } from "@/lib/types";
 
 interface PlanningCardProps {
   month: string;
-  onNavigate: (tab: string, section?: string) => void;
+  onNavigate: (tab: string, section?: string, targetMonth?: string) => void;
 }
 
 const PLANNING_ITEMS: {
@@ -125,7 +125,7 @@ export default function PlanningCard({ month, onNavigate }: PlanningCardProps) {
           return (
             <button
               key={item.key}
-              onClick={() => onNavigate(item.tab, item.section)}
+              onClick={() => onNavigate(item.tab, item.section, status.planning_month)}
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors"
               style={{
                 background: done ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)",

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface MonthPickerProps {
@@ -7,6 +8,7 @@ interface MonthPickerProps {
   onChange: (month: string) => void;
   minMonth?: string;
   maxMonth?: string;
+  highlight?: boolean;
 }
 
 function parseMonth(m: string): [number, number] {
@@ -29,8 +31,23 @@ export default function MonthPicker({
   onChange,
   minMonth,
   maxMonth,
+  highlight,
 }: MonthPickerProps) {
   const [y, m] = parseMonth(value);
+  const [blinking, setBlinking] = useState(false);
+  const [outlined, setOutlined] = useState(false);
+
+  useEffect(() => {
+    if (highlight) {
+      setBlinking(true);
+      setOutlined(true);
+      const blinkTimer = setTimeout(() => setBlinking(false), 1200);
+      return () => { clearTimeout(blinkTimer); };
+    } else {
+      setBlinking(false);
+      setOutlined(false);
+    }
+  }, [highlight, value]);
 
   function prev() {
     const nm = m === 1 ? 12 : m - 1;
@@ -53,11 +70,12 @@ export default function MonthPicker({
 
   return (
     <div
-      className="flex items-center gap-2"
+      className={`flex items-center gap-2 transition-all ${blinking ? "animate-month-blink" : ""}`}
       style={{
         background: "var(--surface-gradient)",
         backdropFilter: "var(--surface-blur)",
-        border: "var(--surface-border)",
+        border: outlined ? "1px solid var(--accent)" : "var(--surface-border)",
+        boxShadow: outlined ? "0 0 8px rgba(168,85,247,0.3)" : "none",
         borderRadius: "20px",
         padding: "4px",
       }}

@@ -17,7 +17,7 @@ import ConfirmModal from "@/components/dashboard/confirm-modal";
 import RaffleModal from "@/components/prizes/raffle-modal";
 import type { Prize, PrizeBudget, PrizeBudgetAllocations } from "@/lib/types";
 import { fetcher } from "@/lib/fetcher";
-import { getCurrentMonth } from "@/lib/utils";
+import { getCurrentMonth, getNextMonth } from "@/lib/utils";
 
 type Tab = "pods" | "prizes" | "dragon_shield";
 
@@ -39,8 +39,13 @@ export default function PrizesPage() {
   const [detailPrize, setDetailPrize] = useState<Prize | null>(null);
   const [deletePrize, setDeletePrize] = useState<Prize | null>(null);
   const [raffleOpen, setRaffleOpen] = useState(false);
+  const [monthHighlight, setMonthHighlight] = useState(false);
 
+  const nextMonth = getNextMonth();
   const isCurrentMonth = month === currentMonth;
+  const isPlanningMonth = month === nextMonth;
+  const showPlanningCard = isCurrentMonth || isPlanningMonth;
+  const showDistributionCard = isCurrentMonth;
 
   const {
     data: prizesData,
@@ -62,10 +67,17 @@ export default function PrizesPage() {
   }, [mutatePrizes, mutateBudget]);
 
   function handleMonthChange(m: string) {
+    setMonthHighlight(false);
     startTransition(() => setMonth(m));
   }
 
-  function handleNavigate(tab: string, section?: string) {
+  function handleNavigate(tab: string, section?: string, targetMonth?: string) {
+    if (targetMonth && targetMonth !== month) {
+      startTransition(() => setMonth(targetMonth));
+      // Trigger highlight — reset first to retrigger if already true
+      setMonthHighlight(false);
+      requestAnimationFrame(() => setMonthHighlight(true));
+    }
     if (tab === "pods") {
       setActiveTab("pods");
       setTabSection(section);
@@ -145,19 +157,21 @@ export default function PrizesPage() {
             Treasure pods, prizes, and Dragon Shield
           </p>
         </div>
-        <MonthPicker value={month} onChange={handleMonthChange} minMonth="2025-11" />
+        <MonthPicker value={month} onChange={handleMonthChange} minMonth="2025-11" highlight={monthHighlight || isPlanningMonth} />
       </div>
 
-      {/* Planning + Distribution cards (current month only) */}
-      {isCurrentMonth && (
-        <>
-          <PlanningCard month={month} onNavigate={handleNavigate} />
-          <DistributionCard
-            month={month}
-            onNavigate={handleNavigate}
-            onOpenRaffle={() => setRaffleOpen(true)}
-          />
-        </>
+      {/* Planning card: visible on current month and planning (next) month */}
+      {showPlanningCard && (
+        <PlanningCard month={currentMonth} onNavigate={handleNavigate} />
+      )}
+
+      {/* Distribution card: current month only */}
+      {showDistributionCard && (
+        <DistributionCard
+          month={month}
+          onNavigate={handleNavigate}
+          onOpenRaffle={() => setRaffleOpen(true)}
+        />
       )}
 
       {/* Tab bar */}
