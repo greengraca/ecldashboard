@@ -51,6 +51,11 @@ export async function getRaffleResult(month: string): Promise<RaffleResult | nul
   return db.collection<RaffleResult>(COLLECTION).findOne({ month });
 }
 
+export async function getRaffleResults(month: string): Promise<RaffleResult[]> {
+  const db = await getDb();
+  return db.collection<RaffleResult>(COLLECTION).find({ month }).toArray();
+}
+
 export async function saveRaffleResult(
   month: string,
   data: {
@@ -72,22 +77,26 @@ export async function saveRaffleResult(
     created_by: userId,
   };
 
+  // Key by month+prize_id so each prize gets its own result
+  const filter = data.prize_id ? { month, prize_id: data.prize_id } : { month };
   const result = await db.collection<RaffleResult>(COLLECTION).findOneAndUpdate(
-    { month },
+    filter,
     { $set: doc },
     { upsert: true, returnDocument: "after" }
   );
 
-  await logActivity("create", "raffle_result", month, { winner: data.winner_name }, userId, userName);
+  await logActivity("create", "raffle_result", month, { winner: data.winner_name, prize_id: data.prize_id }, userId, userName);
   return result!;
 }
 
 export async function deleteRaffleResult(
   month: string,
   userId: string,
-  userName: string
+  userName: string,
+  prizeId?: string
 ): Promise<void> {
   const db = await getDb();
-  await db.collection<RaffleResult>(COLLECTION).deleteOne({ month });
-  await logActivity("delete", "raffle_result", month, {}, userId, userName);
+  const filter = prizeId ? { month, prize_id: prizeId } : { month };
+  await db.collection<RaffleResult>(COLLECTION).deleteMany(filter);
+  await logActivity("delete", "raffle_result", month, { prize_id: prizeId || "all" }, userId, userName);
 }

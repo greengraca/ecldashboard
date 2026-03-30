@@ -240,6 +240,7 @@ export default function RaffleModal({ open, month, onClose, onComplete }: Raffle
   const [excludeFinalists, setExcludeFinalists] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [phase, setPhase] = useState<"setup" | "spinning" | "reveal">("setup");
+  const [currentRaffleIdx, setCurrentRaffleIdx] = useState(0);
   const [winner, setWinner] = useState<RaffleCandidate | null>(null);
   const [winnerIdx, setWinnerIdx] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -247,6 +248,8 @@ export default function RaffleModal({ open, month, onClose, onComplete }: Raffle
   const [showMenu, setShowMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showParticles, setShowParticles] = useState(false);
+  // Track winners from previous raffles in this session (to exclude from subsequent draws)
+  const [sessionWinnerUids, setSessionWinnerUids] = useState<string[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -267,7 +270,7 @@ export default function RaffleModal({ open, month, onClose, onComplete }: Raffle
     fetcher
   );
 
-  const { data: existingResult, mutate: mutateResult } = useSWR<{ data: RaffleResult | null }>(
+  const { data: existingResults, mutate: mutateResult } = useSWR<{ data: RaffleResult[] }>(
     open ? `/api/prizes/raffle?month=${month}` : null,
     fetcher
   );
@@ -276,20 +279,53 @@ export default function RaffleModal({ open, month, onClose, onComplete }: Raffle
     open ? `/api/prizes?month=${month}` : null,
     fetcher
   );
-  const mostGamesPrize = prizesData?.data?.find((p) => p.recipient_type === "most_games") || null;
+
+  // All most_games prizes — one raffle per prize
+  const mostGamesPrizes = prizesData?.data?.filter((p) => p.recipient_type === "most_games") || [];
+  const totalRaffles = Math.max(mostGamesPrizes.length, 1);
+  const currentPrize = mostGamesPrizes[currentRaffleIdx] || null;
+  const currentPrizeId = currentPrize?._id ? String(currentPrize._id) : null;
+
+  // Results keyed by prize_id
+  const results = existingResults?.data || [];
+  const resultForCurrent = currentPrizeId
+    ? results.find((r) => r.prize_id === currentPrizeId)
+    : results[0] || null;
+  const hasCurrentResult = !!resultForCurrent;
+  const allDone = mostGamesPrizes.length > 0
+    ? mostGamesPrizes.every((p) => results.some((r) => r.prize_id === String(p._id)))
+    : results.length > 0;
+
+  // Exclude previous winners (from saved results + this session's picks)
+  const previousWinnerUids = new Set([
+    ...results.map((r) => r.winner_uid),
+    ...sessionWinnerUids,
+  ]);
 
   const candidates = candidatesData?.data || [];
-  const eligible = candidates.filter((c) => !c.excluded);
-  const hasResult = !!existingResult?.data;
+  const eligible = candidates.filter((c) => !c.excluded && !previousWinnerUids.has(c.player_uid));
 
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
       setPhase("setup");
+      setCurrentRaffleIdx(0);
       setWinner(null);
       setShowParticles(false);
+      setSessionWinnerUids([]);
     }
   }, [open]);
+
+  // Auto-advance to first un-done raffle on load
+  useEffect(() => {
+    if (!open || mostGamesPrizes.length === 0 || results.length === 0) return;
+    const firstUndone = mostGamesPrizes.findIndex(
+      (p) => !results.some((r) => r.prize_id === String(p._id))
+    );
+    if (firstUndone > 0 && phase === "setup") {
+      setCurrentRaffleIdx(firstUndone);
+    }
+  }, [open, mostGamesPrizes.length, results.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
@@ -336,11 +372,24 @@ export default function RaffleModal({ open, month, onClose, onComplete }: Raffle
           exclude_finalists: excludeFinalists,
           winner_uid: winner.player_uid,
           winner_name: winner.player_name,
-          prize_id: mostGamesPrize?._id ? String(mostGamesPrize._id) : null,
+          prize_id: currentPrizeId,
         }),
       });
+      setSessionWinnerUids((prev) => [...prev, winner.player_uid]);
       await mutateResult();
-      onComplete();
+
+      // Advance to next un-done raffle or finish
+      const nextIdx = mostGamesPrizes.findIndex(
+        (p, i) => i > currentRaffleIdx && !results.some((r) => r.prize_id === String(p._id))
+      );
+      if (nextIdx >= 0) {
+        setCurrentRaffleIdx(nextIdx);
+        setPhase("setup");
+        setWinner(null);
+        setShowParticles(false);
+      } else {
+        onComplete();
+      }
     } catch {
       // silent
     } finally {
@@ -409,7 +458,7 @@ export default function RaffleModal({ open, month, onClose, onComplete }: Raffle
         {/* Top bar: settings (left) + controls (right) */}
         <div className="flex items-center justify-between mb-6">
           <div className="relative" ref={menuRef}>
-            {hasResult && phase === "setup" ? (
+            {hasCurrentResult && phase === "setup" ? (
               <>
                 <button
                   onClick={() => { setShowMenu(!showMenu); setConfirmDelete(false); }}
@@ -430,7 +479,7 @@ export default function RaffleModal({ open, month, onClose, onComplete }: Raffle
                         style={{ color: "var(--error)" }}
                       >
                         <Trash2 className="w-5 h-5" />
-                        Delete result
+                        {totalRaffles > 1 ? "Delete this result" : "Delete result"}
                       </button>
                     ) : (
                       <div className="px-3 py-2">
@@ -442,10 +491,14 @@ export default function RaffleModal({ open, month, onClose, onComplete }: Raffle
                             onClick={async () => {
                               setDeleting(true);
                               try {
-                                await fetch(`/api/prizes/raffle?month=${month}`, { method: "DELETE" });
+                                const qs = currentPrizeId
+                                  ? `month=${month}&prize_id=${currentPrizeId}`
+                                  : `month=${month}`;
+                                await fetch(`/api/prizes/raffle?${qs}`, { method: "DELETE" });
                                 await mutateResult();
                                 setShowMenu(false);
                                 setConfirmDelete(false);
+                                setSessionWinnerUids((prev) => prev.filter((u) => u !== resultForCurrent?.winner_uid));
                                 onComplete();
                               } catch {
                                 // silent
@@ -492,8 +545,32 @@ export default function RaffleModal({ open, month, onClose, onComplete }: Raffle
             European cEDH League
           </div>
           <h2 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-            Most Games Raffle
+            {totalRaffles > 1
+              ? `Raffle ${currentRaffleIdx + 1} (${currentPrize?.name || "Prize"})`
+              : "Most Games Raffle"}
           </h2>
+          {totalRaffles > 1 && (
+            <div className="flex items-center gap-1.5 mt-2">
+              {mostGamesPrizes.map((p, i) => {
+                const done = results.some((r) => r.prize_id === String(p._id));
+                const isCurrent = i === currentRaffleIdx;
+                return (
+                  <button
+                    key={String(p._id)}
+                    onClick={() => { if (phase === "setup") { setCurrentRaffleIdx(i); setWinner(null); } }}
+                    className="px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors"
+                    style={{
+                      background: isCurrent ? "rgba(251,191,36,0.2)" : done ? "rgba(52,211,153,0.12)" : "rgba(255,255,255,0.05)",
+                      color: isCurrent ? "var(--accent)" : done ? "var(--success)" : "var(--text-muted)",
+                      border: `1px solid ${isCurrent ? "rgba(251,191,36,0.35)" : "transparent"}`,
+                    }}
+                  >
+                    {i + 1}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Slot machine card */}
@@ -509,13 +586,13 @@ export default function RaffleModal({ open, month, onClose, onComplete }: Raffle
           <div style={{ height: 3, background: "linear-gradient(90deg, transparent, rgba(251,191,36,0.4), transparent)" }} />
 
           <div className="p-5">
-            {hasResult && phase === "setup" ? (
+            {hasCurrentResult && phase === "setup" ? (
               <div className="text-center py-6">
                 <div className="text-sm mb-3" style={{ color: "var(--text-muted)" }}>
-                  Raffle already run this month
+                  {totalRaffles > 1 ? `Raffle ${currentRaffleIdx + 1} already drawn` : "Raffle already run this month"}
                 </div>
                 <div className="text-3xl font-bold" style={{ color: "var(--accent)" }}>
-                  {existingResult!.data!.winner_name}
+                  {resultForCurrent!.winner_name}
                 </div>
               </div>
 
@@ -618,11 +695,11 @@ export default function RaffleModal({ open, month, onClose, onComplete }: Raffle
                   {winner.player_name}
                 </div>
 
-                {mostGamesPrize?.image_url && (
+                {currentPrize?.image_url && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={mostGamesPrize.image_url}
-                    alt={mostGamesPrize.name}
+                    src={currentPrize.image_url}
+                    alt={currentPrize.name}
                     className="mx-auto rounded-xl mb-4"
                     style={{
                       maxHeight: 220,
@@ -648,7 +725,12 @@ export default function RaffleModal({ open, month, onClose, onComplete }: Raffle
                     opacity: saving ? 0.5 : 1,
                   }}
                 >
-                  {saving ? "Saving..." : "Save Result"}
+                  {saving ? "Saving..." : (() => {
+                    const hasNext = mostGamesPrizes.some(
+                      (p, i) => i > currentRaffleIdx && !results.some((r) => r.prize_id === String(p._id))
+                    );
+                    return hasNext ? "Save & Next Raffle" : "Save Result";
+                  })()}
                 </button>
               </div>
             ) : null}

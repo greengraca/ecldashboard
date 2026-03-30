@@ -89,12 +89,10 @@ export default function PrizesPage() {
     globalMutate(`/api/prizes/planning-status?month=${currentMonth}`);
   }, [mutatePrizes, mutateBudget, globalMutate, currentMonth]);
 
-  // Auto-select tab based on pod data availability (skip if user explicitly navigated)
+  // If user lands on pods tab but there's no pod data, fall back to prizes
   useEffect(() => {
     if (!podData || tabSection) return;
-    if (hasPodData && activeTab !== "pods" && activeTab !== "dragon_shield") {
-      setActiveTab("pods");
-    } else if (!hasPodData && activeTab === "pods") {
+    if (!hasPodData && activeTab === "pods") {
       setActiveTab("prizes");
     }
   }, [podData, hasPodData]); // eslint-disable-line react-hooks/exhaustive-deps
