@@ -121,7 +121,7 @@ export default function TreasurePodConfig({ month }: TreasurePodConfigProps) {
       }
       mutate();
       globalMutate(`/api/prizes/planning-status?month=${currentMonth}`);
-      showMessage("success", "Config saved as draft");
+      showMessage("success", config ? "Changes saved" : "Config saved");
     } catch (err) {
       showMessage("error", err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -448,7 +448,7 @@ export default function TreasurePodConfig({ month }: TreasurePodConfigProps) {
           }}
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          Save Draft
+          {config ? "Save Changes" : "Save Draft"}
         </button>
 
         {config && !isActive && (

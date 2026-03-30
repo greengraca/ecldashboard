@@ -10,6 +10,7 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   maxWidth?: string;
+  disableBackdropClose?: boolean;
 }
 
 export default function Modal({
@@ -18,6 +19,7 @@ export default function Modal({
   title,
   children,
   maxWidth = "max-w-lg",
+  disableBackdropClose = false,
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -38,7 +40,7 @@ export default function Modal({
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "var(--overlay-bg)" }}
       onClick={(e) => {
-        if (e.target === overlayRef.current) onClose();
+        if (!disableBackdropClose && e.target === overlayRef.current) onClose();
       }}
     >
       <div

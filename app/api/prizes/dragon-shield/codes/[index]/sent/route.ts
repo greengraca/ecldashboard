@@ -15,9 +15,18 @@ export const PATCH = withAuthParams<{ index: string }>(async (session, request, 
     return NextResponse.json({ error: "Invalid index" }, { status: 400 });
   }
 
+  // Support toggling: body may contain { sent: false } to unsend
+  let sent = true;
+  try {
+    const body = await request.json();
+    if (body.sent === false) sent = false;
+  } catch {
+    // No body = mark as sent (backwards compatible)
+  }
+
   const userId = session!.user!.id!;
   const userName = getUserName(session!);
-  const result = await markCodeSent(month, index, userId, userName);
+  const result = await markCodeSent(month, index, sent, userId, userName);
   if (!result) {
     return NextResponse.json({ error: "Dragon Shield doc not found" }, { status: 404 });
   }

@@ -17,10 +17,9 @@ const PLANNING_ITEMS: {
   tab: string;
   section?: string;
 }[] = [
-  { key: "budget_set", label: "Budget", tab: "prizes", section: "budget" },
-  { key: "pod_config_active", label: "Pod Config", tab: "pods", section: "config" },
-  { key: "card_singles_added", label: "Card Singles", tab: "prizes", section: "mtg_single" },
-  { key: "placement_prizes_set", label: "Placement Prizes", tab: "prizes", section: "placement" },
+  { key: "pod_config_active", label: "Treasure Pod Config", tab: "pods", section: "config" },
+  { key: "card_singles_added", label: "Top 4 Singles", tab: "prizes" },
+  { key: "placement_prizes_set", label: "Most Games Prizes", tab: "prizes" },
   { key: "sleeve_files_uploaded", label: "Sleeve Files", tab: "dragon_shield", section: "files" },
   { key: "playmat_files_uploaded", label: "Playmat Files", tab: "dragon_shield", section: "files" },
 ];
@@ -140,6 +139,9 @@ export default function PlanningCard({ month, onNavigate }: PlanningCardProps) {
               )}
               <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>
                 {item.label}
+                {item.key === "card_singles_added" && !done && (
+                  <span style={{ color: "var(--warning)" }}> ({status.planning.card_singles_count}/4)</span>
+                )}
               </span>
             </button>
           );

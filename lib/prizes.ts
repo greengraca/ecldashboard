@@ -36,6 +36,9 @@ export async function createPrize(
     image_url: string | null;
     r2_key?: string | null;
     value: number;
+    condition?: string | null;
+    card_language?: string | null;
+    set_name?: string | null;
     recipient_type: RecipientType;
     placement: number | null;
     recipient_uid: string | null;
@@ -72,6 +75,9 @@ export async function createPrize(
   const doc: Omit<Prize, "_id"> = {
     ...data,
     r2_key: data.r2_key ?? null,
+    condition: data.condition ?? null,
+    card_language: data.card_language ?? null,
+    set_name: data.set_name ?? null,
     tracking_number: null,
     shipping_date: null,
     delivery_date: null,
@@ -104,6 +110,9 @@ export async function updatePrize(
     image_url: string | null;
     r2_key: string | null;
     value: number;
+    condition: string | null;
+    card_language: string | null;
+    set_name: string | null;
     recipient_type: RecipientType;
     placement: number | null;
     recipient_uid: string | null;
@@ -340,6 +349,9 @@ export async function autoPopulatePrizes(
       image_url: null,
       r2_key: null,
       value: 0,
+      condition: null,
+      card_language: null,
+      set_name: null,
       recipient_type: "placement",
       placement: i + 1,
       recipient_uid: player.uid,
@@ -372,6 +384,9 @@ export async function autoPopulatePrizes(
       image_url: null,
       r2_key: null,
       value: 0,
+      condition: null,
+      card_language: null,
+      set_name: null,
       recipient_type: "most_games",
       placement: null,
       recipient_uid: null,

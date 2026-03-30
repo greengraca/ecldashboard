@@ -12,6 +12,7 @@ import DragonShieldTab from "@/components/prizes/dragon-shield-tab";
 import PrizeForm from "@/components/prizes/prize-form";
 import type { PrizeFormData } from "@/components/prizes/prize-form";
 import CardSingleForm from "@/components/prizes/card-single-form";
+import type { CardGroup } from "@/components/prizes/card-single-form";
 import PrizeDetailModal from "@/components/prizes/prize-detail-modal";
 import ConfirmModal from "@/components/dashboard/confirm-modal";
 import RaffleModal from "@/components/prizes/raffle-modal";
@@ -38,6 +39,7 @@ export default function PrizesPage() {
   const [editingPrize, setEditingPrize] = useState<Prize | undefined>(undefined);
   const [detailPrize, setDetailPrize] = useState<Prize | null>(null);
   const [deletePrize, setDeletePrize] = useState<Prize | null>(null);
+  const [cardFormGroup, setCardFormGroup] = useState<CardGroup | undefined>(undefined);
   const [raffleOpen, setRaffleOpen] = useState(false);
   const [monthHighlight, setMonthHighlight] = useState(false);
 
@@ -87,9 +89,9 @@ export default function PrizesPage() {
     globalMutate(`/api/prizes/planning-status?month=${currentMonth}`);
   }, [mutatePrizes, mutateBudget, globalMutate, currentMonth]);
 
-  // Auto-select tab based on pod data availability
+  // Auto-select tab based on pod data availability (skip if user explicitly navigated)
   useEffect(() => {
-    if (!podData) return;
+    if (!podData || tabSection) return;
     if (hasPodData && activeTab !== "pods" && activeTab !== "dragon_shield") {
       setActiveTab("pods");
     } else if (!hasPodData && activeTab === "pods") {
@@ -122,19 +124,23 @@ export default function PrizesPage() {
   }
 
   async function handleSubmitPrize(data: PrizeFormData) {
-    if (editingPrize) {
-      await fetch(`/api/prizes/${editingPrize._id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-    } else {
-      await fetch("/api/prizes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+    const res = editingPrize
+      ? await fetch(`/api/prizes/${editingPrize._id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+      : await fetch("/api/prizes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Unknown error" }));
+      throw new Error(err.error || "Failed to save prize");
     }
+
     setFormOpen(false);
     setCardFormOpen(false);
     setEditingPrize(undefined);
@@ -255,7 +261,7 @@ export default function PrizesPage() {
           month={month}
           isLoading={prizesLoading}
           onRefreshAll={refreshAll}
-          onAddCard={() => { setEditingPrize(undefined); setCardFormOpen(true); }}
+          onAddCard={(group) => { setEditingPrize(undefined); setCardFormGroup(group); setCardFormOpen(true); }}
           onAddPrize={() => { setEditingPrize(undefined); setFormOpen(true); }}
           onPrizeClick={(p) => setDetailPrize(p)}
           onSaveBudget={handleSaveBudget}
@@ -270,10 +276,11 @@ export default function PrizesPage() {
       {/* Modals */}
       <CardSingleForm
         open={cardFormOpen}
-        onClose={() => { setCardFormOpen(false); setEditingPrize(undefined); }}
+        onClose={() => { setCardFormOpen(false); setEditingPrize(undefined); setCardFormGroup(undefined); }}
         onSubmit={handleSubmitPrize}
         prize={editingPrize}
         defaultMonth={month}
+        defaultGroup={cardFormGroup}
       />
 
       <PrizeForm

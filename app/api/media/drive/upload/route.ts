@@ -13,6 +13,7 @@ export const POST = withAuth(async (session: Session, request: NextRequest) => {
   const file = formData.get("file") as File | null;
   const folderName = formData.get("folder") as string | null;
   const rawParentId = (formData.get("parentId") as string) || null;
+  const skipMetadata = formData.get("skipMetadata") === "true";
   const userName = getUserName(session);
 
   // If a folder name is provided, ensure it exists at root and use its ID
@@ -55,6 +56,13 @@ export const POST = withAuth(async (session: Session, request: NextRequest) => {
     } catch (err) {
       console.warn("Thumbnail generation failed, will retry lazily:", err);
     }
+  }
+
+  // skipMetadata: upload to R2 only, don't create drive entry (created on save)
+  if (skipMetadata) {
+    return NextResponse.json({
+      data: { r2Key, thumbR2Key, name: file.name, size: file.size, mimeType: file.type || "application/octet-stream" },
+    }, { status: 201 });
   }
 
   const metadata = await createFileMetadata({

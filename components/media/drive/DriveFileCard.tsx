@@ -31,13 +31,37 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
-function FileIcon({ mimeType }: { mimeType?: string }) {
+function getExtLabel(name?: string): string | null {
+  if (!name) return null;
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot + 1).toUpperCase() : null;
+}
+
+const EXT_COLORS: Record<string, string> = {
+  PDF: "#ef4444",
+  DOC: "#3b82f6", DOCX: "#3b82f6",
+  XLS: "#22c55e", XLSX: "#22c55e", CSV: "#22c55e",
+  PPT: "#f59e0b", PPTX: "#f59e0b",
+  TXT: "#6b7280",
+  ZIP: "#a855f7",
+};
+
+function FileIcon({ mimeType, name }: { mimeType?: string; name?: string }) {
   if (mimeType?.startsWith("image/"))
     return (
       <FileImage className="w-5 h-5" style={{ color: "var(--accent)" }} />
     );
   if (mimeType?.startsWith("video/"))
     return <FileVideo className="w-5 h-5" style={{ color: "#a78bfa" }} />;
+  const ext = getExtLabel(name);
+  if (ext) {
+    return (
+      <div className="flex flex-col items-center gap-0.5">
+        <File className="w-5 h-5" style={{ color: EXT_COLORS[ext] || "var(--text-muted)" }} />
+        <span className="text-[8px] font-bold uppercase" style={{ color: EXT_COLORS[ext] || "var(--text-muted)" }}>{ext}</span>
+      </div>
+    );
+  }
   return <File className="w-5 h-5" style={{ color: "var(--text-muted)" }} />;
 }
 
@@ -131,7 +155,7 @@ export default function DriveFileCard({
             className="w-8 h-8 rounded object-cover shrink-0"
           />
         ) : (
-          <FileIcon mimeType={item.mimeType} />
+          <FileIcon mimeType={item.mimeType} name={item.name} />
         )}
         <span
           className="flex-1 text-sm truncate"
@@ -225,7 +249,7 @@ export default function DriveFileCard({
             style={{ opacity: 0.4 }}
           />
         ) : isDragging ? (
-          <FileIcon mimeType={item.mimeType} />
+          <FileIcon mimeType={item.mimeType} name={item.name} />
         ) : isImage && item.previewUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -248,7 +272,7 @@ export default function DriveFileCard({
             className="flex items-center justify-center w-full h-full"
             style={{ transition: "background 0.2s" }}
           >
-            <FileIcon mimeType={item.mimeType} />
+            <FileIcon mimeType={item.mimeType} name={item.name} />
           </div>
         )}
       </div>

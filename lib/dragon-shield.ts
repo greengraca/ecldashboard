@@ -74,25 +74,22 @@ export async function loadCodes(
 export async function markCodeSent(
   month: string,
   index: number,
+  sent: boolean,
   userId: string,
   userName: string
 ): Promise<DragonShieldMonth | null> {
   const db = await getDb();
   const now = new Date().toISOString();
+  const update = sent
+    ? { $set: { [`codes.${index}.sent`]: true, [`codes.${index}.sent_at`]: now, modified_by: userId, updated_at: now } }
+    : { $set: { [`codes.${index}.sent`]: false, [`codes.${index}.sent_at`]: null, modified_by: userId, updated_at: now } };
   const result = await db.collection<DragonShieldMonth>(COLLECTION).findOneAndUpdate(
     { month },
-    {
-      $set: {
-        [`codes.${index}.sent`]: true,
-        [`codes.${index}.sent_at`]: now,
-        modified_by: userId,
-        updated_at: now,
-      },
-    },
+    update,
     { returnDocument: "after" }
   );
   if (result) {
-    await logActivity("update", "dragon_shield_code", `${month}:${index}`, { sent: true }, userId, userName);
+    await logActivity("update", "dragon_shield_code", `${month}:${index}`, { sent }, userId, userName);
   }
   return result;
 }

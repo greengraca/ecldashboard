@@ -60,7 +60,7 @@ export async function getTreasurePodData(month: string): Promise<TreasurePodData
   // Compute per-type stats
   const stats: TreasurePodTypeStat[] = [];
   if (schedule) {
-    for (const config of schedule.pod_types_config) {
+    for (const config of schedule.pod_types_config || []) {
       const typePods = pods.filter((p) => p.pod_type === config.type);
       const typeClaims = claims.filter((c) => c.pod_type === config.type);
       stats.push({

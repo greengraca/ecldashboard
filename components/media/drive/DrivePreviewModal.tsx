@@ -39,11 +39,12 @@ export default function DrivePreviewModal({
   const [loading, setLoading] = useState(false);
   const isImage = item.mimeType?.startsWith("image/");
   const isVideo = item.mimeType?.startsWith("video/");
+  const isPdf = item.mimeType === "application/pdf";
 
   // Fetch full-res preview URL (thumbnails are only for grid/list views)
   useEffect(() => {
     setFetchedUrl(null);
-    if (previewUrl || (!isImage && !isVideo)) return;
+    if (previewUrl || (!isImage && !isVideo && !isPdf)) return;
     setLoading(true);
     fetch(`/api/media/drive/${item._id}/preview`)
       .then((r) => r.json())
@@ -52,7 +53,7 @@ export default function DrivePreviewModal({
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [item._id, previewUrl, isImage, isVideo]);
+  }, [item._id, previewUrl, isImage, isVideo, isPdf]);
 
   const resolvedUrl = previewUrl || fetchedUrl;
 
@@ -239,7 +240,7 @@ export default function DrivePreviewModal({
         className="max-w-[90vw] max-h-[80vh] flex items-center justify-center"
         onClick={(e) => e.stopPropagation()}
       >
-        {(isImage || isVideo) && loading ? (
+        {(isImage || isVideo || isPdf) && loading ? (
           <div
             className="w-10 h-10 rounded-full border-2 animate-spin"
             style={{
@@ -268,6 +269,13 @@ export default function DrivePreviewModal({
             autoPlay
             className="rounded-lg"
             style={{ maxWidth: "90vw", maxHeight: "80vh" }}
+          />
+        ) : isPdf && resolvedUrl ? (
+          <iframe
+            src={resolvedUrl}
+            title={item.name}
+            className="rounded-lg"
+            style={{ width: "80vw", height: "80vh", border: "none", background: "#fff" }}
           />
         ) : (
           <div

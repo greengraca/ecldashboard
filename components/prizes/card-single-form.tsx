@@ -1,25 +1,43 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
-import { Upload, Loader2, X } from "lucide-react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { Upload, Loader2, X, Sparkles } from "lucide-react";
 import Modal from "@/components/dashboard/modal";
 import Select from "@/components/dashboard/select";
 import CardImage from "@/components/media/shared/CardImage";
-import type { Prize, ShippingStatus, PrizeStatus } from "@/lib/types";
+import type { Prize, RecipientType } from "@/lib/types";
 import type { PrizeFormData } from "./prize-form";
 
-const STATUS_OPTIONS = [
-  { value: "planned", label: "Planned" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "awarded", label: "Awarded" },
+const CONDITION_OPTIONS = [
+  { value: "NM", label: "NM — Near Mint" },
+  { value: "EX", label: "EX — Excellent" },
+  { value: "GD", label: "GD — Good" },
+  { value: "LP", label: "LP — Lightly Played" },
+  { value: "PL", label: "PL — Played" },
+  { value: "PO", label: "PO — Poor" },
 ];
 
-const SHIPPING_OPTIONS = [
-  { value: "not_applicable", label: "Not Applicable" },
-  { value: "pending", label: "Pending" },
-  { value: "shipped", label: "Shipped" },
-  { value: "delivered", label: "Delivered" },
+export type CardGroup = "top4" | "most_games" | "custom";
+
+export const CARD_GROUP_OPTIONS: { value: CardGroup; label: string }[] = [
+  { value: "top4", label: "Top 4" },
+  { value: "most_games", label: "Most Games" },
+  { value: "custom", label: "Other" },
 ];
+
+function groupToRecipient(group: CardGroup): { recipient_type: RecipientType; placement: number | null } {
+  switch (group) {
+    case "top4": return { recipient_type: "placement", placement: null };
+    case "most_games": return { recipient_type: "most_games", placement: null };
+    default: return { recipient_type: "custom", placement: null };
+  }
+}
+
+export function prizeToGroup(prize: Prize): CardGroup {
+  if (prize.recipient_type === "placement") return "top4";
+  if (prize.recipient_type === "most_games") return "most_games";
+  return "custom";
+}
 
 interface CardSingleFormProps {
   open: boolean;
@@ -27,6 +45,7 @@ interface CardSingleFormProps {
   onSubmit: (data: PrizeFormData) => Promise<void>;
   prize?: Prize;
   defaultMonth: string;
+  defaultGroup?: CardGroup;
 }
 
 export default function CardSingleForm({
@@ -35,24 +54,60 @@ export default function CardSingleForm({
   onSubmit,
   prize,
   defaultMonth,
+  defaultGroup,
 }: CardSingleFormProps) {
+  const [group, setGroup] = useState<CardGroup>(prize ? prizeToGroup(prize) : defaultGroup || "top4");
   const [cardName, setCardName] = useState(prize?.name || "");
   const [scryfallUrl, setScryfallUrl] = useState<string | null>(prize?.image_url || null);
   const [overrideUrl, setOverrideUrl] = useState<string | null>(null);
   const [uploadedR2Key, setUploadedR2Key] = useState<string | null>(prize?.r2_key || null);
   const [value, setValue] = useState(prize?.value?.toString() || "");
+  const [condition, setCondition] = useState(prize?.condition || "NM");
+  const [cardLanguage, setCardLanguage] = useState(prize?.card_language || "en");
+  const [setName, setSetName] = useState(prize?.set_name || "");
   const [description, setDescription] = useState(prize?.description || "");
   const [recipientName, setRecipientName] = useState(prize?.recipient_name || "");
   const [recipientUid, setRecipientUid] = useState(prize?.recipient_uid || "");
-  const [shippingStatus, setShippingStatus] = useState<ShippingStatus>(prize?.shipping_status || "pending");
-  const [status, setStatus] = useState<PrizeStatus>(prize?.status || "planned");
+  const [foil, setFoil] = useState(false);
+  const [uploadMeta, setUploadMeta] = useState<{ name: string; size: number; mimeType: string; thumbR2Key?: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cardImgRef = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      setGroup(prize ? prizeToGroup(prize) : defaultGroup || "top4");
+      setCardName(prize?.name || "");
+      setScryfallUrl(prize?.image_url || null);
+      setOverrideUrl(null);
+      setUploadedR2Key(prize?.r2_key || null);
+      setValue(prize?.value?.toString() || "");
+      setCondition(prize?.condition || "NM");
+      setCardLanguage(prize?.card_language || "en");
+      setSetName(prize?.set_name || "");
+      setDescription(prize?.description || "");
+      setRecipientName(prize?.recipient_name || "");
+      setRecipientUid(prize?.recipient_uid || "");
+      setFoil(false);
+      setUploadMeta(null);
+    }
+  }, [open, prize, defaultGroup]);
 
   const handleCardChange = useCallback((name: string, imageUrl: string | null) => {
     setCardName(name);
     setScryfallUrl(imageUrl);
+  }, []);
+
+  const handleEditionChange = useCallback((sName: string | null, lang: string) => {
+    if (sName) setSetName(sName);
+    setCardLanguage(lang);
+  }, []);
+
+  const handlePriceChange = useCallback((price: number | null) => {
+    if (price != null) {
+      setValue(Math.round(price).toString());
+    }
   }, []);
 
   const handleOverride = useCallback((url: string | null) => {
@@ -66,7 +121,6 @@ export default function CardSingleForm({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Show local preview immediately
     setOverrideUrl(URL.createObjectURL(file));
     setUploading(true);
 
@@ -74,6 +128,7 @@ export default function CardSingleForm({
       const formData = new FormData();
       formData.append("file", file);
       formData.append("folder", "Prizes");
+      formData.append("skipMetadata", "true");
 
       const res = await fetch("/api/media/drive/upload", {
         method: "POST",
@@ -83,11 +138,101 @@ export default function CardSingleForm({
       if (!res.ok) throw new Error("Upload failed");
       const { data } = await res.json();
       setUploadedR2Key(data.r2Key);
+      setUploadMeta({ name: data.name, size: data.size, mimeType: data.mimeType, thumbR2Key: data.thumbR2Key });
     } catch {
       setOverrideUrl(null);
       setUploadedR2Key(null);
+      setUploadMeta(null);
     } finally {
       setUploading(false);
+    }
+  }
+
+  type UploadResult = { r2Key: string; meta: { name: string; size: number; mimeType: string; thumbR2Key?: string } };
+
+  /** Composite card + foil overlay on a canvas and upload the result */
+  async function compositeFoilImage(): Promise<UploadResult | null> {
+    const imgEl = cardImgRef.current;
+    if (!imgEl) return null;
+
+    // Load the card image onto a canvas
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    // Wait for card image to be fully loaded
+    const cardImg = new Image();
+    cardImg.crossOrigin = "anonymous";
+    await new Promise<void>((resolve, reject) => {
+      cardImg.onload = () => resolve();
+      cardImg.onerror = () => reject(new Error("Failed to load card image"));
+      cardImg.src = imgEl.src;
+    });
+
+    canvas.width = cardImg.naturalWidth;
+    canvas.height = cardImg.naturalHeight;
+
+    // Draw card
+    ctx.drawImage(cardImg, 0, 0);
+
+    // Load and draw foil overlay
+    const foilImg = new Image();
+    await new Promise<void>((resolve, reject) => {
+      foilImg.onload = () => resolve();
+      foilImg.onerror = () => reject(new Error("Failed to load foil overlay"));
+      foilImg.src = "/media/assets/foil-overlay.png";
+    });
+
+    ctx.drawImage(foilImg, 0, 0, canvas.width, canvas.height);
+
+    // Export as blob and upload
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((b) => resolve(b), "image/png")
+    );
+    if (!blob) return null;
+
+    const foilName = `${cardName || "card"}-foil.png`;
+    const formData = new FormData();
+    formData.append("file", blob, foilName);
+    formData.append("folder", "Prizes");
+    formData.append("skipMetadata", "true");
+
+    const res = await fetch("/api/media/drive/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) return null;
+    const { data } = await res.json();
+    const meta = { name: data.name || foilName, size: data.size || blob.size, mimeType: "image/png", thumbR2Key: data.thumbR2Key };
+    setUploadMeta(meta);
+    return { r2Key: data.r2Key, meta };
+  }
+
+  /** Download a proxied image and upload to R2 */
+  async function uploadImageToR2(imageUrl: string, fileName: string): Promise<UploadResult | null> {
+    try {
+      const res = await fetch(imageUrl);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+
+      const formData = new FormData();
+      formData.append("file", blob, fileName);
+      formData.append("folder", "Prizes");
+      formData.append("skipMetadata", "true");
+
+      const uploadRes = await fetch("/api/media/drive/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadRes.ok) return null;
+      const { data } = await uploadRes.json();
+      const meta = { name: data.name || fileName, size: data.size || blob.size, mimeType: blob.type || "image/png", thumbR2Key: data.thumbR2Key };
+      setUploadMeta(meta);
+      return { r2Key: data.r2Key, meta };
+    } catch {
+      return null;
     }
   }
 
@@ -95,25 +240,41 @@ export default function CardSingleForm({
     e.preventDefault();
     setSubmitting(true);
     try {
-      const finalImageUrl = overrideUrl && uploadedR2Key
-        ? null // Will use r2_key for image resolution
-        : scryfallUrl || null;
+      let finalR2Key = uploadedR2Key || null;
+      let finalMeta = uploadMeta;
+
+      if (foil && displayUrl) {
+        // Foil composite: canvas merge + upload
+        const result = await compositeFoilImage();
+        if (result) { finalR2Key = result.r2Key; finalMeta = result.meta; }
+      } else if (!finalR2Key && scryfallUrl) {
+        // Plain Scryfall image: download and upload to R2
+        const fileName = `${cardName || "card"}.png`;
+        const result = await uploadImageToR2(scryfallUrl, fileName);
+        if (result) { finalR2Key = result.r2Key; finalMeta = result.meta; }
+      }
+
+      const { recipient_type, placement } = groupToRecipient(group);
 
       await onSubmit({
         month: defaultMonth,
         category: "mtg_single",
         name: cardName,
         description,
-        image_url: finalImageUrl,
-        r2_key: uploadedR2Key || null,
+        image_url: null,
+        r2_key: finalR2Key,
+        r2_upload_meta: finalR2Key && finalMeta ? finalMeta : null,
         value: Number(value) || 0,
-        recipient_type: "custom",
-        placement: null,
+        condition,
+        card_language: cardLanguage,
+        set_name: setName || null,
+        recipient_type,
+        placement,
         recipient_uid: recipientUid || null,
         recipient_name: recipientName,
         recipient_discord_id: null,
-        shipping_status: shippingStatus,
-        status,
+        shipping_status: "pending",
+        status: "confirmed",
       });
       onClose();
     } finally {
@@ -136,6 +297,7 @@ export default function CardSingleForm({
       onClose={onClose}
       title={prize ? "Edit Card Single" : "Add Card Single"}
       maxWidth="max-w-xl"
+      disableBackdropClose
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Scryfall search */}
@@ -151,6 +313,9 @@ export default function CardSingleForm({
             onOverride={handleOverride}
             placeholder="Search Scryfall for a card..."
             hidePreview
+            showEditionPicker
+            onPriceChange={handlePriceChange}
+            onEditionChange={handleEditionChange}
           />
         </div>
 
@@ -163,11 +328,21 @@ export default function CardSingleForm({
             <div className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
+                ref={cardImgRef}
                 src={displayUrl}
                 alt={cardName || "Card"}
                 className="rounded-lg"
                 style={{ maxHeight: 200, width: "auto" }}
               />
+              {/* Foil overlay */}
+              {foil && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src="/media/assets/foil-overlay.png"
+                  alt=""
+                  className="absolute inset-0 w-full h-full rounded-lg pointer-events-none"
+                />
+              )}
               {overrideUrl && (
                 <button
                   type="button"
@@ -194,16 +369,33 @@ export default function CardSingleForm({
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-            style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
-          >
-            {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-            Upload Custom Image
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+              style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+            >
+              {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+              Upload Custom Image
+            </button>
+            {displayUrl && (
+              <button
+                type="button"
+                onClick={() => setFoil(!foil)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                style={{
+                  background: foil ? "rgba(251, 191, 36, 0.2)" : "var(--bg-hover)",
+                  color: foil ? "var(--accent)" : "var(--text-secondary)",
+                  border: foil ? "1px solid rgba(251, 191, 36, 0.35)" : "1px solid transparent",
+                }}
+              >
+                <Sparkles className="w-3 h-3" />
+                Foil
+              </button>
+            )}
+          </div>
           <input
             ref={fileRef}
             type="file"
@@ -213,7 +405,31 @@ export default function CardSingleForm({
           />
         </div>
 
-        {/* Value + Status */}
+        {/* Card Group */}
+        <div>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
+            For
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {CARD_GROUP_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setGroup(opt.value)}
+                className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+                style={{
+                  background: group === opt.value ? "rgba(251, 191, 36, 0.2)" : "rgba(255,255,255,0.05)",
+                  color: group === opt.value ? "var(--accent)" : "var(--text-muted)",
+                  border: `1px solid ${group === opt.value ? "rgba(251, 191, 36, 0.35)" : "var(--border)"}`,
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Value + Condition */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
@@ -232,12 +448,12 @@ export default function CardSingleForm({
           </div>
           <div>
             <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
-              Status
+              Condition
             </label>
             <Select
-              value={status}
-              onChange={(v) => setStatus(v as PrizeStatus)}
-              options={STATUS_OPTIONS}
+              value={condition}
+              onChange={(v) => setCondition(v)}
+              options={CONDITION_OPTIONS}
               className="w-full"
             />
           </div>
@@ -258,7 +474,7 @@ export default function CardSingleForm({
           />
         </div>
 
-        {/* Recipient */}
+        {/* Recipient (optional — filled when winner is known) */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
@@ -268,10 +484,9 @@ export default function CardSingleForm({
               type="text"
               value={recipientName}
               onChange={(e) => setRecipientName(e.target.value)}
-              required
               className={inputClass}
               style={inputStyle}
-              placeholder="Player name"
+              placeholder="TBD (filled when winner is known)"
             />
           </div>
           <div>
@@ -287,19 +502,6 @@ export default function CardSingleForm({
               placeholder="Optional"
             />
           </div>
-        </div>
-
-        {/* Shipping */}
-        <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
-            Shipping
-          </label>
-          <Select
-            value={shippingStatus}
-            onChange={(v) => setShippingStatus(v as ShippingStatus)}
-            options={SHIPPING_OPTIONS}
-            className="w-full"
-          />
         </div>
 
         {/* Actions */}

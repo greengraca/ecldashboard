@@ -1,22 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, ChevronDown } from "lucide-react";
+import { Plus } from "lucide-react";
 import type { Prize, PrizeBudget, PrizeBudgetAllocations } from "@/lib/types";
-import BudgetConfigurator from "./budget-configurator";
-import AutoPopulateButton from "./auto-populate-button";
-
-type CategoryFilter = "all" | "mtg_single" | "placement" | "most_games" | "treasure_pod" | "sponsor" | "other";
-
-const CATEGORY_FILTERS: { key: CategoryFilter; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "mtg_single", label: "Card Singles" },
-  { key: "placement", label: "Placements" },
-  { key: "most_games", label: "Most Games" },
-  { key: "treasure_pod", label: "Treasure Pod" },
-  { key: "sponsor", label: "Sponsor" },
-  { key: "other", label: "Other" },
-];
+import type { CardGroup } from "./card-single-form";
+import { prizeToGroup } from "./card-single-form";
 
 const SHIPPING_BADGE: Record<string, { label: string; color: string; bg: string }> = {
   not_applicable: { label: "N/A", color: "#6b7280", bg: "rgba(107,114,128,0.12)" },
@@ -31,13 +18,19 @@ const STATUS_BADGE: Record<string, { label: string; color: string; bg: string }>
   awarded: { label: "Awarded", color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
 };
 
+const GROUP_HEADER: Record<CardGroup, { label: string; color: string; bg: string; border: string }> = {
+  top4: { label: "Top 4", color: "#fbbf24", bg: "rgba(251,191,36,0.08)", border: "rgba(251,191,36,0.25)" },
+  most_games: { label: "Most Games", color: "#a855f7", bg: "rgba(168,85,247,0.08)", border: "rgba(168,85,247,0.25)" },
+  custom: { label: "Other", color: "var(--text-muted)", bg: "rgba(255,255,255,0.03)", border: "var(--border)" },
+};
+
 interface PrizesTabProps {
   prizes: Prize[];
   budget: PrizeBudget | null;
   month: string;
   isLoading: boolean;
   onRefreshAll: () => void;
-  onAddCard: () => void;
+  onAddCard: (group?: CardGroup) => void;
   onAddPrize: () => void;
   onPrizeClick: (prize: Prize) => void;
   onSaveBudget: (data: {
@@ -51,202 +44,140 @@ interface PrizesTabProps {
 
 export default function PrizesTab({
   prizes,
-  budget,
-  month,
   isLoading,
-  onRefreshAll,
   onAddCard,
   onAddPrize,
   onPrizeClick,
-  onSaveBudget,
-  initialFilter,
 }: PrizesTabProps) {
-  const [filter, setFilter] = useState<CategoryFilter>(
-    (initialFilter as CategoryFilter) || "all"
-  );
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
-  const [showBudget, setShowBudget] = useState(false);
+  // Group card singles by group
+  const cardSingles = prizes.filter((p) => p.category === "mtg_single");
+  const cardsByGroup: Record<CardGroup, Prize[]> = { top4: [], most_games: [], custom: [] };
+  for (const card of cardSingles) {
+    cardsByGroup[prizeToGroup(card)].push(card);
+  }
+  const totalCardValue = cardSingles.reduce((sum, p) => sum + p.value, 0);
+  const nonCardPrizes = prizes.filter((p) => p.category !== "mtg_single");
 
-  const filtered = filter === "all"
-    ? prizes
-    : filter === "placement"
-      ? prizes.filter((p) => p.recipient_type === "placement")
-      : filter === "most_games"
-        ? prizes.filter((p) => p.recipient_type === "most_games")
-        : prizes.filter((p) => p.category === filter);
-
-  const counts: Record<CategoryFilter, number> = {
-    all: prizes.length,
-    mtg_single: prizes.filter((p) => p.category === "mtg_single").length,
-    placement: prizes.filter((p) => p.recipient_type === "placement").length,
-    most_games: prizes.filter((p) => p.recipient_type === "most_games").length,
-    treasure_pod: prizes.filter((p) => p.category === "treasure_pod").length,
-    sponsor: prizes.filter((p) => p.category === "sponsor").length,
-    other: prizes.filter(
-      (p) =>
-        !["mtg_single", "sponsor", "treasure_pod"].includes(p.category) &&
-        !["placement", "most_games"].includes(p.recipient_type)
-    ).length,
-  };
-
-  const totalValue = prizes.reduce((sum, p) => sum + p.value, 0);
-  const budgetTotal = budget?.total_budget ?? 0;
+  if (isLoading) {
+    return <div className="text-center py-12" style={{ color: "var(--text-muted)" }}>Loading...</div>;
+  }
 
   return (
-    <div>
-      {/* Filter chips + actions */}
-      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {CATEGORY_FILTERS.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-              style={{
-                background: filter === f.key ? "rgba(168,85,247,0.2)" : "rgba(255,255,255,0.05)",
-                color: filter === f.key ? "var(--accent)" : "var(--text-muted)",
-                border: `1px solid ${filter === f.key ? "rgba(168,85,247,0.3)" : "var(--border)"}`,
-              }}
-            >
-              {f.label} {counts[f.key] > 0 && <span className="ml-1 opacity-60">{counts[f.key]}</span>}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {filter === "placement" && (
-            <AutoPopulateButton month={month} onComplete={onRefreshAll} />
+    <div className="space-y-6">
+      {/* Card singles grouped gallery */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+            Card Singles
+          </h3>
+          {totalCardValue > 0 && (
+            <span className="text-xs font-medium" style={{ color: "var(--accent)" }}>
+              Total: €{totalCardValue.toFixed(2)}
+            </span>
           )}
-          <button
-            onClick={() => setShowBudget(!showBudget)}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-            style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
-          >
-            Budget
-          </button>
-          <div className="relative">
-            <button
-              onClick={() => setAddMenuOpen(!addMenuOpen)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{ background: "var(--accent)", color: "#fff" }}
-            >
-              <Plus className="w-3.5 h-3.5" /> Add <ChevronDown className="w-3 h-3" />
-            </button>
-            {addMenuOpen && (
-              <div
-                className="absolute right-0 mt-1 rounded-lg shadow-lg py-1 z-10"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", minWidth: 140 }}
-              >
-                <button
-                  onClick={() => { onAddCard(); setAddMenuOpen(false); }}
-                  className="w-full text-left px-3 py-2 text-xs hover:opacity-80"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  Card Single
-                </button>
-                <button
-                  onClick={() => { onAddPrize(); setAddMenuOpen(false); }}
-                  className="w-full text-left px-3 py-2 text-xs hover:opacity-80"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  Other Prize
-                </button>
-              </div>
-            )}
-          </div>
         </div>
-      </div>
 
-      {/* Budget bar */}
-      {budget && !showBudget && (
-        <div className="flex items-center gap-3 mb-4 px-3 py-2 rounded-lg" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>Budget:</span>
-          <div className="flex-1 h-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.1)" }}>
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${Math.min((totalValue / budgetTotal) * 100, 100)}%`,
-                background: totalValue > budgetTotal ? "#ef4444" : "var(--accent)",
-              }}
-            />
-          </div>
-          <span className="text-xs font-medium" style={{ color: totalValue > budgetTotal ? "#ef4444" : "var(--text-primary)" }}>
-            €{totalValue.toFixed(0)} / €{budgetTotal.toFixed(0)}
-          </span>
-        </div>
-      )}
+        {(["top4", "most_games", "custom"] as CardGroup[]).map((grp) => {
+          const cards = cardsByGroup[grp];
+          const header = GROUP_HEADER[grp];
+          if (cards.length === 0 && grp === "custom") return null;
 
-      {/* Budget configurator (expandable) */}
-      {showBudget && (
-        <div className="mb-4">
-          <BudgetConfigurator
-            budget={budget}
-            month={month}
-            totalSpent={totalValue}
-            onSave={onSaveBudget}
-          />
-        </div>
-      )}
-
-      {/* Prize grid */}
-      {isLoading ? (
-        <div className="text-center py-12" style={{ color: "var(--text-muted)" }}>Loading...</div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-12" style={{ color: "var(--text-muted)" }}>
-          No prizes yet for this category.
-        </div>
-      ) : filter === "mtg_single" ? (
-        /* Gallery view for card singles */
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {filtered.map((prize) => (
-            <button
-              key={String(prize._id)}
-              onClick={() => onPrizeClick(prize)}
-              className="rounded-lg overflow-hidden text-left transition-transform hover:scale-[1.02]"
-              style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
-            >
-              {prize.image_url ? (
-                <div style={{ aspectRatio: "5/7" }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={prize.image_url} alt={prize.name} className="w-full h-full object-cover" />
-                </div>
-              ) : (
-                <div className="flex items-center justify-center" style={{ aspectRatio: "5/7", background: "rgba(255,255,255,0.03)" }}>
-                  <span style={{ color: "var(--text-muted)" }}>No image</span>
-                </div>
-              )}
-              <div className="p-2">
-                <div className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>{prize.name}</div>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-xs" style={{ color: "var(--accent)" }}>€{prize.value.toFixed(2)}</span>
-                  {prize.shipping_status !== "not_applicable" && (
-                    <span
-                      className="text-[10px] px-1.5 py-0.5 rounded"
-                      style={{
-                        background: SHIPPING_BADGE[prize.shipping_status]?.bg,
-                        color: SHIPPING_BADGE[prize.shipping_status]?.color,
-                      }}
-                    >
-                      {SHIPPING_BADGE[prize.shipping_status]?.label}
+          return (
+            <div key={grp} className="mb-4">
+              {/* Group header */}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
+                    style={{ color: header.color, background: header.bg, border: `1px solid ${header.border}` }}
+                  >
+                    {header.label}
+                  </span>
+                  {cards.length > 0 && (
+                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                      {cards.length} card{cards.length !== 1 ? "s" : ""}
+                      {" — "}€{cards.reduce((s, c) => s + c.value, 0).toFixed(2)}
                     </span>
                   )}
                 </div>
-                {prize.recipient_name && (
-                  <div className="text-[10px] mt-1 truncate" style={{ color: "var(--text-muted)" }}>{prize.recipient_name}</div>
-                )}
+                <button
+                  onClick={() => onAddCard(grp)}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors hover:brightness-125"
+                  style={{ color: header.color, background: header.bg, border: `1px solid ${header.border}` }}
+                >
+                  <Plus className="w-3 h-3" /> Add
+                </button>
               </div>
-            </button>
-          ))}
-        </div>
-      ) : (
-        /* List view for other prizes */
+
+              {/* Cards grid */}
+              {cards.length > 0 ? (
+                <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9 gap-2">
+                  {cards.map((card) => (
+                    <button
+                      key={String(card._id)}
+                      onClick={() => onPrizeClick(card)}
+                      className="w-full p-0 rounded-lg overflow-hidden text-left transition-transform hover:scale-[1.02]"
+                      style={{ background: "var(--surface-gradient)", border: `1px solid ${header.border}` }}
+                    >
+                      {card.image_url ? (
+                        <div style={{ aspectRatio: "488/680", position: "relative", overflow: "hidden" }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={card.image_url}
+                            alt={card.name}
+                            style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "fill" }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center" style={{ aspectRatio: "488/680", background: "rgba(255,255,255,0.03)" }}>
+                          <span className="text-xs" style={{ color: "var(--text-muted)" }}>No image</span>
+                        </div>
+                      )}
+                      <div className="p-1.5">
+                        <div className="text-[10px] font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                          {card.name}{card.condition ? ` (${card.condition})` : ""}
+                        </div>
+                        {card.set_name && (
+                          <div className="text-[9px] truncate" style={{ color: "var(--text-muted)" }}>{card.set_name}</div>
+                        )}
+                        <div className="flex items-center justify-between mt-0.5">
+                          <span className="text-[10px] font-medium" style={{ color: "var(--accent)" }}>€{card.value.toFixed(2)}</span>
+                          {card.card_language && card.card_language !== "en" && (
+                            <span className="text-[9px] font-bold uppercase" style={{ color: "var(--text-muted)" }}>{card.card_language}</span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div
+                  className="rounded-lg border border-dashed py-6 text-center cursor-pointer transition-colors hover:brightness-125"
+                  style={{ borderColor: header.border, background: header.bg }}
+                  onClick={() => onAddCard(grp)}
+                >
+                  <Plus className="w-5 h-5 mx-auto mb-1" style={{ color: header.color, opacity: 0.5 }} />
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>Add a card for {header.label}</p>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Other prizes */}
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
+          Other Prizes
+        </h3>
+
         <div className="flex flex-col gap-2">
-          {filtered.map((prize) => (
+          {nonCardPrizes.map((prize) => (
             <button
               key={String(prize._id)}
               onClick={() => onPrizeClick(prize)}
               className="flex items-center gap-3 rounded-lg px-4 py-3 text-left transition-colors hover:opacity-90"
-              style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+              style={{ background: "var(--surface-gradient)", border: "1px solid var(--border)" }}
             >
               {prize.image_url && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -276,8 +207,18 @@ export default function PrizesTab({
               )}
             </button>
           ))}
+
+          {/* Add prize card */}
+          <div
+            className="flex items-center justify-center gap-2 rounded-lg px-4 py-4 cursor-pointer transition-colors hover:brightness-125 border border-dashed"
+            style={{ borderColor: "var(--border)", background: "rgba(255,255,255,0.02)" }}
+            onClick={() => onAddPrize()}
+          >
+            <Plus className="w-4 h-4" style={{ color: "var(--text-muted)", opacity: 0.5 }} />
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>Add a new prize</span>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

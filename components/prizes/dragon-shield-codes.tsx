@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Circle, Send, Loader2 } from "lucide-react";
+import { Check, Circle, Send, Loader2, X, Copy, MessageSquare } from "lucide-react";
+import { useSensitiveData } from "@/contexts/SensitiveDataContext";
 import type { DragonShieldMonth } from "@/lib/types";
 
 interface DragonShieldCodesProps {
@@ -20,6 +21,9 @@ export default function DragonShieldCodes({ data, month, onRefresh }: DragonShie
   const [codeText, setCodeText] = useState("");
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState<number | null>(null);
+  const [copied, setCopied] = useState<number | null>(null);
+  const [copiedMsg, setCopiedMsg] = useState<number | null>(null);
+  const { hidden: sensitiveHidden } = useSensitiveData();
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const codes = data?.codes || [];
@@ -61,6 +65,23 @@ export default function DragonShieldCodes({ data, month, onRefresh }: DragonShie
     try {
       const res = await fetch(`/api/prizes/dragon-shield/codes/${index}/sent?month=${month}`, {
         method: "PATCH",
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      onRefresh();
+    } catch (e) {
+      showMsg("error", String(e));
+    } finally {
+      setSending(null);
+    }
+  }
+
+  async function handleMarkUnsent(index: number) {
+    setSending(index);
+    try {
+      const res = await fetch(`/api/prizes/dragon-shield/codes/${index}/sent?month=${month}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sent: false }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       onRefresh();
@@ -125,8 +146,13 @@ export default function DragonShieldCodes({ data, month, onRefresh }: DragonShie
             <button
               onClick={handleLoadCodes}
               disabled={loading}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium"
-              style={{ background: "var(--accent)", color: "#fff", opacity: loading ? 0.5 : 1 }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-colors hover:brightness-125"
+              style={{
+                background: "rgba(251, 191, 36, 0.15)",
+                color: "var(--accent)",
+                border: "1px solid rgba(251, 191, 36, 0.35)",
+                opacity: loading ? 0.5 : 1,
+              }}
             >
               {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Load Codes
@@ -135,27 +161,15 @@ export default function DragonShieldCodes({ data, month, onRefresh }: DragonShie
         </div>
       ) : (
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-              {codes.filter((c) => c.sent).length} / {codes.length} sent
-            </span>
-            {codes.some((c) => !c.sent) && (
-              <button
-                onClick={handleMarkAllSent}
-                disabled={loading}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium"
-                style={{ background: "var(--accent)", color: "#fff", opacity: loading ? 0.5 : 1 }}
-              >
-                <Send className="w-3 h-3" /> Mark All Sent
-              </button>
-            )}
-          </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 mt-2">
             {codes.map((code, i) => (
               <div
                 key={i}
                 className="flex items-center gap-3 rounded-lg px-3 py-2"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+                style={{
+                  background: code.sent ? "rgba(251,191,36,0.05)" : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${code.sent ? "rgba(251,191,36,0.15)" : "var(--border)"}`,
+                }}
               >
                 <span className="text-xs font-mono w-6 text-center" style={{ color: "var(--text-muted)" }}>
                   {code.placement}
@@ -169,24 +183,71 @@ export default function DragonShieldCodes({ data, month, onRefresh }: DragonShie
                 >
                   {TIER_BADGE[code.sleeve_tier]?.label}
                 </span>
-                <span className="text-xs font-mono truncate" style={{ color: "var(--text-muted)", maxWidth: 120 }}>
-                  {code.code}
+                <span className="text-xs font-mono shrink-0" style={{ color: "var(--text-muted)" }}>
+                  {sensitiveHidden ? "••••••••" : code.code}
                 </span>
-                {code.sent ? (
-                  <Check className="w-4 h-4 shrink-0" style={{ color: "#22c55e" }} />
-                ) : (
-                  <button
-                    onClick={() => handleMarkSent(i)}
-                    disabled={sending === i}
-                    className="p-1 rounded transition-colors hover:opacity-80 shrink-0"
-                  >
-                    {sending === i ? (
-                      <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--text-muted)" }} />
-                    ) : (
-                      <Circle className="w-4 h-4" style={{ color: "#f59e0b" }} />
-                    )}
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    const ta = document.createElement("textarea");
+                    ta.value = code.code;
+                    ta.style.position = "fixed";
+                    ta.style.opacity = "0";
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(ta);
+                    setCopied(i);
+                    setTimeout(() => setCopied(null), 1500);
+                  }}
+                  className="p-1 rounded transition-colors shrink-0"
+                  title="Copy code"
+                >
+                  {copied === i ? (
+                    <Check className="w-3 h-3" style={{ color: "var(--success)" }} />
+                  ) : (
+                    <Copy className="w-3 h-3" style={{ color: "var(--text-muted)" }} />
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    const msg = `Congrats once again!\n\nThe code can be used on DragonShield Sleeve Crafter and it will give you a 100% discount on checkout!\nAny issues you have let us know!\n\nHere's your code: **${code.code}**\n\nhttps://www.dragonshield.com/p/sleeve-crafter`;
+                    const ta = document.createElement("textarea");
+                    ta.value = msg;
+                    ta.style.position = "fixed";
+                    ta.style.opacity = "0";
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(ta);
+                    setCopiedMsg(i);
+                    setTimeout(() => setCopiedMsg(null), 1500);
+                  }}
+                  className="p-1 rounded transition-colors shrink-0"
+                  title="Copy message with code"
+                >
+                  {copiedMsg === i ? (
+                    <Check className="w-3 h-3" style={{ color: "var(--success)" }} />
+                  ) : (
+                    <MessageSquare className="w-3 h-3" style={{ color: "var(--text-muted)" }} />
+                  )}
+                </button>
+                <button
+                  onClick={() => code.sent ? handleMarkUnsent(i) : handleMarkSent(i)}
+                  disabled={sending === i}
+                  className={`p-1 rounded transition-colors shrink-0 ${code.sent ? "group/sent" : ""}`}
+                  style={{ cursor: "pointer" }}
+                >
+                  {sending === i ? (
+                    <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--text-muted)" }} />
+                  ) : code.sent ? (
+                    <>
+                      <Check className="w-4 h-4 group-hover/sent:hidden" style={{ color: "#22c55e" }} />
+                      <X className="w-4 h-4 hidden group-hover/sent:block" style={{ color: "var(--error)" }} />
+                    </>
+                  ) : (
+                    <Circle className="w-4 h-4 hover:opacity-80" style={{ color: "#f59e0b" }} />
+                  )}
+                </button>
               </div>
             ))}
           </div>

@@ -422,6 +422,74 @@ export async function reorderItem(
   }
 }
 
+/** Create a drive entry for an r2Key if one doesn't already exist. */
+export async function ensureDriveEntry(params: {
+  r2Key: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  thumbR2Key?: string;
+  folder: string;
+  uploadedBy: string;
+}): Promise<void> {
+  await ensureIndexes();
+  const c = await col();
+
+  // Check if a drive entry already exists for this r2Key
+  const existing = await c.findOne({ r2Key: params.r2Key });
+  if (existing) return;
+
+  const folderId = params.folder.includes("/")
+    ? await ensureFolderPath(params.folder, params.uploadedBy)
+    : await ensureFolder(params.folder, params.uploadedBy);
+
+  await createFileMetadata({
+    name: params.name,
+    parentId: folderId,
+    mimeType: params.mimeType,
+    size: params.size,
+    r2Key: params.r2Key,
+    thumbR2Key: params.thumbR2Key,
+    uploadedBy: params.uploadedBy,
+  });
+}
+
+/** Ensure a nested folder path exists (e.g. "Prizes/Sleeves/2026-02"). Returns the leaf folder _id. */
+export async function ensureFolderPath(
+  path: string,
+  uploadedBy: string
+): Promise<string> {
+  const parts = path.split("/").filter(Boolean);
+  let parentId: string | null = null;
+  for (const name of parts) {
+    await ensureIndexes();
+    const c = await col();
+    const pid: ObjectId | null = parentId ? new ObjectId(parentId) : null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existing: any = await c.findOne({ parentId: pid, type: "folder", name });
+    if (existing) {
+      parentId = existing._id.toString();
+    } else {
+      const folderPath = await buildPath(parentId, name);
+      const now = new Date();
+      const sortOrder = await nextSortOrder(parentId);
+      const doc = {
+        name,
+        type: "folder" as const,
+        parentId: pid,
+        path: folderPath,
+        sortOrder,
+        uploadedBy,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const result = await c.insertOne(doc);
+      parentId = result.insertedId.toString();
+    }
+  }
+  return parentId!;
+}
+
 /** Find or create a root-level folder by name. Returns its _id as a string. */
 export async function ensureFolder(
   name: string,

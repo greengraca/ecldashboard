@@ -51,7 +51,11 @@ export interface PrizeFormData {
   description: string;
   image_url: string | null;
   r2_key?: string | null;
+  r2_upload_meta?: { name: string; size: number; mimeType: string; thumbR2Key?: string } | null;
   value: number;
+  condition?: string | null;
+  card_language?: string | null;
+  set_name?: string | null;
   recipient_type: RecipientType;
   placement: number | null;
   recipient_uid: string | null;
@@ -74,6 +78,7 @@ export default function PrizeForm({
   const [imageUrl, setImageUrl] = useState("");
   const [uploadedR2Key, setUploadedR2Key] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadMeta, setUploadMeta] = useState<{ name: string; size: number; mimeType: string; thumbR2Key?: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [value, setValue] = useState("");
   const [recipientType, setRecipientType] = useState<RecipientType>("custom");
@@ -107,6 +112,7 @@ export default function PrizeForm({
       setImageUrl("");
       setUploadedR2Key(null);
       setPreviewUrl(null);
+      setUploadMeta(null);
       setValue("");
       setRecipientType("custom");
       setPlacement("");
@@ -128,6 +134,7 @@ export default function PrizeForm({
       const formData = new FormData();
       formData.append("file", file);
       formData.append("folder", "Prizes");
+      formData.append("skipMetadata", "true");
 
       const res = await fetch("/api/media/drive/upload", {
         method: "POST",
@@ -137,10 +144,12 @@ export default function PrizeForm({
       if (!res.ok) throw new Error("Upload failed");
       const { data } = await res.json();
       setUploadedR2Key(data.r2Key);
+      setUploadMeta({ name: data.name, size: data.size, mimeType: data.mimeType, thumbR2Key: data.thumbR2Key });
       setImageUrl("");
     } catch {
       setPreviewUrl(null);
       setUploadedR2Key(null);
+      setUploadMeta(null);
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -164,6 +173,7 @@ export default function PrizeForm({
         description,
         image_url: finalImageUrl,
         r2_key: uploadedR2Key || null,
+        r2_upload_meta: uploadedR2Key && uploadMeta ? uploadMeta : null,
         value: Number(value) || 0,
         recipient_type: recipientType,
         placement: recipientType === "placement" ? Number(placement) || null : null,
@@ -378,10 +388,9 @@ export default function PrizeForm({
               type="text"
               value={recipientName}
               onChange={(e) => setRecipientName(e.target.value)}
-              required
               className={inputClass}
               style={inputStyle}
-              placeholder="Player name"
+              placeholder="TBD (filled when winner is known)"
             />
           </div>
           <div>

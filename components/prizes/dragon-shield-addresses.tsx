@@ -2,9 +2,19 @@
 
 import { useState, useEffect } from "react";
 import useSWR from "swr";
-import { Check, Loader2, Undo2 } from "lucide-react";
+import { Check, Loader2, Undo2, Copy } from "lucide-react";
 import { fetcher } from "@/lib/fetcher";
 import type { DragonShieldMonth, PlayerAddress } from "@/lib/types";
+
+interface BracketResults {
+  top4_order: (string | { uid: string; name: string })[];
+  top4_winner: string | null;
+}
+
+interface Top4Player {
+  uid: string;
+  name: string;
+}
 
 interface DragonShieldAddressesProps {
   data: DragonShieldMonth | null;
@@ -24,11 +34,40 @@ const EMPTY_ADDRESS: AddressForm = { full_name: "", street: "", city: "", postal
 const PLACEMENT_LABELS = ["1st — Champion", "2nd", "3rd", "4th"];
 
 export default function DragonShieldAddresses({ data, month, onRefresh }: DragonShieldAddressesProps) {
-  const codes = data?.codes || [];
-  const top4 = codes.slice(0, 4);
+  const { data: bracketData } = useSWR<{ data: BracketResults | null }>(
+    `/api/players/brackets?month=${month}`,
+    fetcher
+  );
 
-  const { data: allAddresses } = useSWR<{ data: PlayerAddress[] }>("/api/players/addresses", fetcher);
+  const { data: allAddresses, mutate: mutateAddresses } = useSWR<{ data: PlayerAddress[] }>("/api/players/addresses", fetcher);
   const addressMap = new Map((allAddresses?.data || []).map((a) => [a.player_uid, a]));
+
+  // Fetch players for name resolution
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: playersData } = useSWR<{ data: { players: any[] } }>(
+    `/api/players?month=${month}`,
+    fetcher
+  );
+  const playerMap = new Map(
+    (playersData?.data?.players || []).map((p: { uid: string; name: string }) => [p.uid, p.name])
+  );
+
+  // Normalize top4_order: may be string[] (UIDs) or {uid,name}[]
+  const codes = data?.codes || [];
+  const codeMap = new Map(codes.map((c) => [c.player_uid, c.player_name]));
+  const rawTop4 = bracketData?.data?.top4_order || [];
+  const normalized: Top4Player[] = rawTop4.map((entry) => {
+    if (typeof entry === "string") {
+      const name = playerMap.get(entry) || addressMap.get(entry)?.player_name || codeMap.get(entry) || entry;
+      return { uid: entry, name };
+    }
+    return entry;
+  });
+  // Swap 3rd/4th visually for clockwise 2x2 layout: [1st, 2nd, 4th, 3rd]
+  const top4 = normalized.length === 4
+    ? [normalized[0], normalized[1], normalized[3], normalized[2]]
+    : normalized;
+  const placementForIndex = [0, 1, 3, 2]; // maps visual index to actual placement index
 
   const [forms, setForms] = useState<Record<string, AddressForm>>({});
   const [saving, setSaving] = useState<string | null>(null);
@@ -38,11 +77,11 @@ export default function DragonShieldAddresses({ data, month, onRefresh }: Dragon
   // Initialize forms from saved addresses
   useEffect(() => {
     const initial: Record<string, AddressForm> = {};
-    top4.forEach((code) => {
-      if (code.player_uid) {
-        const saved = addressMap.get(code.player_uid);
+    top4.forEach((player) => {
+      if (player.uid) {
+        const saved = addressMap.get(player.uid);
         if (saved) {
-          initial[code.player_uid] = {
+          initial[player.uid] = {
             full_name: saved.full_name,
             street: saved.street,
             city: saved.city,
@@ -53,7 +92,7 @@ export default function DragonShieldAddresses({ data, month, onRefresh }: Dragon
       }
     });
     setForms((prev) => ({ ...initial, ...prev }));
-  }, [allAddresses, codes.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [allAddresses, top4.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function showMsg(type: "success" | "error", text: string) {
     setMessage({ type, text });
@@ -78,6 +117,7 @@ export default function DragonShieldAddresses({ data, month, onRefresh }: Dragon
         body: JSON.stringify({ player_uid: uid, player_name: playerName, ...form }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
+      mutateAddresses();
       showMsg("success", `Address saved for ${playerName}`);
     } catch (e) {
       showMsg("error", String(e));
@@ -107,7 +147,7 @@ export default function DragonShieldAddresses({ data, month, onRefresh }: Dragon
   if (top4.length === 0) {
     return (
       <div className="text-center py-8" style={{ color: "var(--text-muted)" }}>
-        Load sleeve codes first to see Top 4 players.
+        Set Top 4 bracket results first to see players.
       </div>
     );
   }
@@ -126,32 +166,72 @@ export default function DragonShieldAddresses({ data, month, onRefresh }: Dragon
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-        {top4.map((code, i) => {
-          const uid = code.player_uid || `unknown-${i}`;
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 mt-2">
+        {top4.map((player, i) => {
+          const uid = player.uid || `unknown-${i}`;
           const form = getForm(uid);
           const isSaving = saving === uid;
+          const saved = addressMap.get(uid);
+          const hasSaved = !!saved;
+          const hasChanges = !hasSaved
+            ? Object.values(form).some((v) => v.trim() !== "")
+            : (["full_name", "street", "city", "postal_code", "country"] as const).some((f) => form[f] !== (saved[f] || ""));
 
           return (
             <div
               key={uid}
               className="rounded-lg p-3"
-              style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}
             >
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <div className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{code.player_name}</div>
-                  <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>{PLACEMENT_LABELS[i]}</div>
+                  <div className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{player.name}</div>
+                  <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>{PLACEMENT_LABELS[placementForIndex[i]]}</div>
                 </div>
-                <button
-                  onClick={() => saveAddress(uid, code.player_name)}
-                  disabled={isSaving}
-                  className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium"
-                  style={{ background: "var(--accent)", color: "#fff", opacity: isSaving ? 0.5 : 1 }}
-                >
-                  {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                  Save
-                </button>
+                <div className="flex items-stretch gap-1.5">
+                  {hasSaved && (
+                    <button
+                      onClick={() => {
+                        const f = getForm(uid);
+                        const text = [f.full_name, f.street, `${f.postal_code} ${f.city}`, f.country].filter(Boolean).join("\n");
+                        const ta = document.createElement("textarea");
+                        ta.value = text;
+                        ta.style.position = "fixed";
+                        ta.style.opacity = "0";
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand("copy");
+                        document.body.removeChild(ta);
+                        showMsg("success", `Address copied for ${player.name}`);
+                      }}
+                      className="flex items-center justify-center px-2 py-1 rounded text-[10px] font-medium transition-colors hover:brightness-125"
+                      style={{
+                        background: "rgba(255,255,255,0.05)",
+                        color: "var(--text-muted)",
+                        border: "1px solid var(--border)",
+                      }}
+                      title="Copy address"
+                    >
+                      <Copy className="w-3 h-3 shrink-0" />
+                    </button>
+                  )}
+                  {hasChanges && (
+                    <button
+                      onClick={() => saveAddress(uid, player.name)}
+                      disabled={isSaving}
+                      className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium"
+                      style={{
+                        background: hasSaved ? "rgba(251,191,36,0.15)" : "rgba(34,197,94,0.15)",
+                        color: hasSaved ? "var(--accent)" : "var(--success)",
+                        border: `1px solid ${hasSaved ? "rgba(251,191,36,0.35)" : "rgba(34,197,94,0.35)"}`,
+                        opacity: isSaving ? 0.5 : 1,
+                      }}
+                    >
+                      {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                      {hasSaved ? "Save" : "Save"}
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {(["full_name", "street", "city", "postal_code", "country"] as const).map((field) => (
@@ -162,9 +242,9 @@ export default function DragonShieldAddresses({ data, month, onRefresh }: Dragon
                     placeholder={field.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                     className={`rounded px-2 py-1.5 text-xs ${field === "street" ? "col-span-2" : ""}`}
                     style={{
-                      background: "var(--bg-primary)",
-                      color: "var(--text-primary)",
-                      border: "1px solid var(--border)",
+                      background: "var(--bg-page)",
+                      color: "var(--text-muted)",
+                      border: "1px solid rgba(255,255,255,0.06)",
                     }}
                   />
                 ))}
@@ -205,8 +285,13 @@ export default function DragonShieldAddresses({ data, month, onRefresh }: Dragon
           <button
             onClick={toggleHandoff}
             disabled={handoffLoading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium w-full justify-center"
-            style={{ background: "var(--accent)", color: "#fff", opacity: handoffLoading ? 0.5 : 1 }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium w-full justify-center transition-colors hover:brightness-125"
+            style={{
+              background: "rgba(251, 191, 36, 0.15)",
+              color: "var(--accent)",
+              border: "1px solid rgba(251, 191, 36, 0.35)",
+              opacity: handoffLoading ? 0.5 : 1,
+            }}
           >
             {handoffLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             Mark Playmats Sent to Dragon Shield

@@ -316,6 +316,9 @@ export interface Prize {
   image_url: string | null;
   r2_key: string | null;
   value: number;
+  condition: string | null;
+  card_language: string | null;
+  set_name: string | null;
   recipient_type: RecipientType;
   placement: number | null;
   recipient_uid: string | null;
@@ -508,6 +511,7 @@ export interface DragonShieldCode {
 
 export interface DragonShieldFile {
   r2_key: string;
+  preview_r2_key?: string | null;
   filename: string;
   uploaded_at: string;
 }
@@ -576,6 +580,7 @@ export interface PlanningStatus {
     budget_set: boolean;
     pod_config_active: boolean;
     card_singles_added: boolean;
+    card_singles_count: number;
     placement_prizes_set: boolean;
     sleeve_files_uploaded: boolean;
     playmat_files_uploaded: boolean;

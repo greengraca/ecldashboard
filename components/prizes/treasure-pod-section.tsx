@@ -192,8 +192,8 @@ const STATUS_COLORS: Record<string, string> = {
 
 const CARD_PRIZE_COLOR = "#34d399"; // emerald — distinct from won green
 
-function cleanPodTitle(title: string): string {
-  return title.replace(/\s*Treasure Pod!?/i, "").trim();
+function cleanPodTitle(title: string | undefined | null): string {
+  return (title || "").replace(/\s*Treasure Pod!?/i, "").trim();
 }
 
 interface TimelinePoint {

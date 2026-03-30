@@ -17,8 +17,8 @@ export async function getPlanningStatus(viewingMonth: string): Promise<PlanningS
     await Promise.all([
       db.collection("dashboard_prize_budgets").findOne({ month: planningMonth }),
       db.collection("dashboard_treasure_pod_config").findOne({ month: planningMonth, status: "active" }),
-      db.collection("dashboard_prizes").countDocuments({ month: planningMonth, category: "mtg_single" }),
-      db.collection("dashboard_prizes").countDocuments({ month: planningMonth, recipient_type: "placement" }),
+      db.collection("dashboard_prizes").countDocuments({ month: planningMonth, category: "mtg_single", recipient_type: "placement" }),
+      db.collection("dashboard_prizes").countDocuments({ month: planningMonth, recipient_type: "most_games" }),
       db.collection("dashboard_dragon_shield").findOne({ month: planningMonth }),
       db.collection("dashboard_dragon_shield").findOne({ month: distributionMonth }),
       db.collection("dashboard_raffle_results").findOne({ month: distributionMonth }),
@@ -55,8 +55,9 @@ export async function getPlanningStatus(viewingMonth: string): Promise<PlanningS
     planning: {
       budget_set: !!budget,
       pod_config_active: !!podConfig,
-      card_singles_added: cardSingles > 0,
-      placement_prizes_set: placements >= 4,
+      card_singles_added: cardSingles >= 4,
+      card_singles_count: cardSingles as number,
+      placement_prizes_set: placements >= 1,
       sleeve_files_uploaded: sleeveFilesUploaded,
       playmat_files_uploaded: playmatFilesUploaded,
     },
