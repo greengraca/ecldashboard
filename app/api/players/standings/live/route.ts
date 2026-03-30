@@ -11,21 +11,26 @@ const MIN_TOTAL_GAMES = TOP16_MIN_TOTAL_GAMES;
 const NO_RECENCY_GAMES = TOP16_NO_RECENCY_GAMES;
 const RECENCY_AFTER_DAY = TOP16_RECENCY_AFTER_DAY;
 
-async function getOnlineGameCounts(): Promise<Map<string, number>> {
+async function getOnlineGameCounts(voidedMatchIds: { season: number; table: number }[]): Promise<Map<string, number>> {
   const db = await getDb();
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const matchFilter: Record<string, any> = {
+    bracket_id: TOPDECK_BRACKET_ID,
+    year,
+    month,
+    online: true,
+  };
+
+  if (voidedMatchIds.length > 0) {
+    matchFilter.$nor = voidedMatchIds.map((v) => ({ season: v.season, tid: v.table }));
+  }
+
   const pipeline = [
-    {
-      $match: {
-        bracket_id: TOPDECK_BRACKET_ID,
-        year,
-        month,
-        online: true,
-      },
-    },
+    { $match: matchFilter },
     { $unwind: "$topdeck_uids" },
     { $group: { _id: "$topdeck_uids", count: { $sum: 1 } } },
   ];
@@ -40,7 +45,7 @@ async function getOnlineGameCounts(): Promise<Map<string, number>> {
 }
 
 /** UIDs that have at least one online game on or after RECENCY_AFTER_DAY of the current month */
-async function getRecentGameUids(): Promise<Set<string>> {
+async function getRecentGameUids(voidedMatchIds: { season: number; table: number }[]): Promise<Set<string>> {
   const db = await getDb();
   const now = new Date();
   const year = now.getFullYear();
@@ -48,16 +53,21 @@ async function getRecentGameUids(): Promise<Set<string>> {
 
   const cutoffTs = new Date(Date.UTC(year, month - 1, RECENCY_AFTER_DAY)).getTime() / 1000;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const matchFilter: Record<string, any> = {
+    bracket_id: TOPDECK_BRACKET_ID,
+    year,
+    month,
+    online: true,
+    start_ts: { $gte: cutoffTs },
+  };
+
+  if (voidedMatchIds.length > 0) {
+    matchFilter.$nor = voidedMatchIds.map((v) => ({ season: v.season, tid: v.table }));
+  }
+
   const pipeline = [
-    {
-      $match: {
-        bracket_id: TOPDECK_BRACKET_ID,
-        year,
-        month,
-        online: true,
-        start_ts: { $gte: cutoffTs },
-      },
-    },
+    { $match: matchFilter },
     { $unwind: "$topdeck_uids" },
     { $group: { _id: "$topdeck_uids" } },
   ];
@@ -72,11 +82,14 @@ async function getRecentGameUids(): Promise<Set<string>> {
 }
 
 export const GET = withAuthRead(async () => {
-  const [liveResult, onlineCounts, recentUids, guildMembers] = await Promise.all([
+  const [liveResult, guildMembers] = await Promise.all([
     fetchLiveStandings(),
-    getOnlineGameCounts(),
-    getRecentGameUids(),
     fetchGuildMembers(),
+  ]);
+
+  const [onlineCounts, recentUids] = await Promise.all([
+    getOnlineGameCounts(liveResult.voidedMatchIds),
+    getRecentGameUids(liveResult.voidedMatchIds),
   ]);
 
   // Build discord username → avatar_url lookup
@@ -88,13 +101,16 @@ export const GET = withAuthRead(async () => {
     }
   }
 
+  // Recency requirement only applies from 2026-03 onwards
+  const now = new Date();
+  const recencyApplies = now.getFullYear() > 2026 || (now.getFullYear() === 2026 && now.getMonth() + 1 >= 3);
+
   // Build standings with eligibility
   let rank = 0;
   const standings: LiveStanding[] = liveResult.rows.map((r) => {
     rank++;
     const onlineGames = r.uid ? (onlineCounts.get(r.uid) ?? 0) : 0;
-    // Recency: 20+ online games skip check, 10-19 need a game after day 20
-    const meetsRecency =
+    const meetsRecency = !recencyApplies ||
       onlineGames >= NO_RECENCY_GAMES ||
       onlineGames < MIN_ONLINE_GAMES ||
       (r.uid ? recentUids.has(r.uid) : false);

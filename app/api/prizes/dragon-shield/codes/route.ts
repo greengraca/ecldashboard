@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-helpers";
 import { getUserName } from "@/lib/auth";
 import { loadCodes } from "@/lib/dragon-shield";
-import { getStandings } from "@/lib/players";
+import { getEligibleTop16 } from "@/lib/players";
 import { getCurrentMonth } from "@/lib/utils";
 
 export const POST = withAuth(async (session, request) => {
@@ -15,8 +15,7 @@ export const POST = withAuth(async (session, request) => {
     return NextResponse.json({ error: "codes must be a non-empty array" }, { status: 400 });
   }
 
-  const { standings } = await getStandings(month);
-  const top16 = standings.slice(0, 16).map((s) => ({ uid: s.uid, name: s.name }));
+  const top16 = await getEligibleTop16(month);
 
   const userId = session!.user!.id!;
   const userName = getUserName(session!);

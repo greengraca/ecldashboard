@@ -8,7 +8,13 @@ import type { MonthDumpPayload, EntrantStats } from "./topdeck";
 import { fetchPublicPData } from "./topdeck-cache";
 import { fetchLiveStandings } from "./topdeck-live";
 import { fetchGuildMembers } from "./discord";
-import { TOPDECK_BRACKET_ID } from "./constants";
+import {
+  TOPDECK_BRACKET_ID,
+  TOP16_MIN_ONLINE_GAMES,
+  TOP16_MIN_TOTAL_GAMES,
+  TOP16_NO_RECENCY_GAMES,
+  TOP16_RECENCY_AFTER_DAY,
+} from "./constants";
 import type {
   Player,
   PlayerDetail,
@@ -478,4 +484,131 @@ export async function getStandings(month?: string): Promise<{ standings: Standin
   }));
 
   return { standings, resolvedMonth, totalPlayers: players.length };
+}
+
+// ─── Eligibility helpers (shared with live standings & Dragon Shield codes) ───
+
+async function getOnlineGameCountsForMonth(
+  bracketId: string, year: number, month: number,
+  voidedMatchIds: { season: number; table: number }[] = [],
+): Promise<Map<string, number>> {
+  const db = await getDb();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const matchFilter: Record<string, any> = { bracket_id: bracketId, year, month, online: true };
+  if (voidedMatchIds.length > 0) {
+    matchFilter.$nor = voidedMatchIds.map((v) => ({ season: v.season, tid: v.table }));
+  }
+  const pipeline = [
+    { $match: matchFilter },
+    { $unwind: "$topdeck_uids" },
+    { $group: { _id: "$topdeck_uids", count: { $sum: 1 } } },
+  ];
+  const results = await db.collection("online_games").aggregate(pipeline).toArray();
+  const counts = new Map<string, number>();
+  for (const row of results) {
+    const uid = String(row._id).trim();
+    if (uid) counts.set(uid, row.count as number);
+  }
+  return counts;
+}
+
+async function getRecentGameUidsForMonth(
+  bracketId: string, year: number, month: number,
+  voidedMatchIds: { season: number; table: number }[] = [],
+): Promise<Set<string>> {
+  const db = await getDb();
+  const cutoffTs = new Date(Date.UTC(year, month - 1, TOP16_RECENCY_AFTER_DAY)).getTime() / 1000;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const matchFilter: Record<string, any> = {
+    bracket_id: bracketId, year, month, online: true, start_ts: { $gte: cutoffTs },
+  };
+  if (voidedMatchIds.length > 0) {
+    matchFilter.$nor = voidedMatchIds.map((v) => ({ season: v.season, tid: v.table }));
+  }
+  const pipeline = [
+    { $match: matchFilter },
+    { $unwind: "$topdeck_uids" },
+    { $group: { _id: "$topdeck_uids" } },
+  ];
+  const results = await db.collection("online_games").aggregate(pipeline).toArray();
+  const uids = new Set<string>();
+  for (const row of results) {
+    const uid = String(row._id).trim();
+    if (uid) uids.add(uid);
+  }
+  return uids;
+}
+
+function isEligible(
+  uid: string | null,
+  totalGames: number,
+  onlineGames: number,
+  dropped: boolean,
+  recencyApplies: boolean,
+  recentUids: Set<string>,
+): boolean {
+  const meetsRecency = !recencyApplies ||
+    onlineGames >= TOP16_NO_RECENCY_GAMES ||
+    onlineGames < TOP16_MIN_ONLINE_GAMES ||
+    (uid ? recentUids.has(uid) : false);
+  return !dropped &&
+    totalGames >= TOP16_MIN_TOTAL_GAMES &&
+    onlineGames >= TOP16_MIN_ONLINE_GAMES &&
+    meetsRecency;
+}
+
+/**
+ * Get the top 16 eligible players for a month, applying the same
+ * eligibility rules as live standings (min games, online games, recency).
+ * Uses live standings for the current month, dump-based for historical.
+ */
+export async function getEligibleTop16(month?: string): Promise<{ uid: string; name: string }[]> {
+  const targetMonth = month || getCurrentMonth();
+  const [yearStr, monthStr] = targetMonth.split("-");
+  const year = parseInt(yearStr);
+  const monthNum = parseInt(monthStr);
+  const recencyApplies = year > 2026 || (year === 2026 && monthNum >= 3);
+  const currentMonth = getCurrentMonth();
+
+  // Resolve bracket ID: current env var for current month, historical data for past months
+  let bracketId = TOPDECK_BRACKET_ID;
+  if (targetMonth !== currentMonth) {
+    const months = await getHistoricalMonths();
+    const monthInfo = months.find((m) => m.month === targetMonth);
+    if (monthInfo) bracketId = monthInfo.bracket_id;
+  }
+
+  if (targetMonth === currentMonth) {
+    // Current month: use live standings (has dropped status + voided match IDs)
+    const liveResult = await fetchLiveStandings();
+    const [onlineCounts, recentUids] = await Promise.all([
+      getOnlineGameCountsForMonth(bracketId, year, monthNum, liveResult.voidedMatchIds),
+      getRecentGameUidsForMonth(bracketId, year, monthNum, liveResult.voidedMatchIds),
+    ]);
+    const eligible = liveResult.rows
+      .filter((r) => isEligible(r.uid, r.games, onlineCounts.get(r.uid || "") ?? 0, r.dropped, recencyApplies, recentUids))
+      .slice(0, 16)
+      .map((r) => ({ uid: r.uid || r.entrant_id.toString(), name: r.name }));
+    return eligible;
+  }
+
+  // Historical month: use dump-based standings (no voided match filtering needed — dumps are finalized)
+  const [onlineCounts, recentUids] = await Promise.all([
+    getOnlineGameCountsForMonth(bracketId, year, monthNum),
+    getRecentGameUidsForMonth(bracketId, year, monthNum),
+  ]);
+
+  const { players } = await getPlayers(targetMonth);
+
+  // If no online game data exists for this month, skip eligibility filter
+  const hasOnlineData = onlineCounts.size > 0;
+  if (!hasOnlineData) {
+    return players.slice(0, 16).map((p) => ({ uid: p.uid, name: p.name }));
+  }
+
+  const eligible = players
+    .filter((p) => isEligible(p.uid, p.games, onlineCounts.get(p.uid) ?? 0, false, recencyApplies, recentUids))
+    .slice(0, 16)
+    .map((p) => ({ uid: p.uid, name: p.name }));
+  return eligible;
 }

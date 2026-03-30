@@ -54,6 +54,7 @@ export interface LiveStandingsResult {
   totalMatches: number;
   inProgress: number;
   voided: number;
+  voidedMatchIds: { season: number; table: number }[];
   gamePods: GamePod[];
 }
 
@@ -218,6 +219,7 @@ function computeStandings(matches: RawMatch[], entrantIds: Set<number>) {
   let totalMatches = 0;
   let inProgress = 0;
   let voided = 0;
+  const voidedMatchIds: { season: number; table: number }[] = [];
 
   for (const eid of entrantIds) {
     points.set(eid, START_POINTS);
@@ -228,7 +230,10 @@ function computeStandings(matches: RawMatch[], entrantIds: Set<number>) {
     if (!isValidCompletedMatch(m)) {
       if (m.es.length >= 2) {
         if (m.end === null) inProgress++;
-        else voided++; // muted or no valid winner
+        else {
+          voided++;
+          voidedMatchIds.push({ season: m.season, table: m.table });
+        }
       }
       continue;
     }
@@ -299,7 +304,7 @@ function computeStandings(matches: RawMatch[], entrantIds: Set<number>) {
     owPct.set(eid, avg);
   }
 
-  return { points, stats, winPct, owPct, totalMatches, inProgress, voided };
+  return { points, stats, winPct, owPct, totalMatches, inProgress, voided, voidedMatchIds };
 }
 
 // ─── Main fetch ───
@@ -342,7 +347,7 @@ export async function fetchLiveStandings(bracketId?: string): Promise<LiveStandi
     for (const eid of m.es) entrantIds.add(eid);
   }
 
-  const { points, stats, winPct, owPct, totalMatches, inProgress, voided } = computeStandings(matches, entrantIds);
+  const { points, stats, winPct, owPct, totalMatches, inProgress, voided, voidedMatchIds } = computeStandings(matches, entrantIds);
 
   // Build rows
   const rows: LivePlayerRow[] = [];
@@ -422,7 +427,7 @@ export async function fetchLiveStandings(bracketId?: string): Promise<LiveStandi
     });
 
   // Cache
-  const result: LiveStandingsResult = { rows, totalMatches, inProgress, voided, gamePods };
+  const result: LiveStandingsResult = { rows, totalMatches, inProgress, voided, voidedMatchIds, gamePods };
   cachedResult = result;
   cacheExpires = Date.now() + CACHE_TTL_MS;
 
