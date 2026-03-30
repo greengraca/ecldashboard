@@ -494,6 +494,103 @@ export interface TreasurePodMonthlyConfig {
   updated_at: string;
 }
 
+// ─── Dragon Shield Types ───
+
+export interface DragonShieldCode {
+  code: string;
+  player_uid: string | null;
+  player_name: string;
+  placement: number; // 1-16
+  sleeve_tier: "champion" | "top4" | "top16";
+  sent: boolean;
+  sent_at: string | null;
+}
+
+export interface DragonShieldFile {
+  r2_key: string;
+  filename: string;
+  uploaded_at: string;
+}
+
+export interface DragonShieldMonth {
+  _id?: ObjectId | string;
+  month: string;
+  codes: DragonShieldCode[];
+  sleeve_files: {
+    champion: DragonShieldFile | null;
+    top4: DragonShieldFile | null;
+    top16: DragonShieldFile | null;
+  };
+  playmat_files: {
+    champion: DragonShieldFile | null;
+    top4: DragonShieldFile | null;
+  };
+  playmat_handoff: boolean;
+  playmat_handoff_at: string | null;
+  created_by: string;
+  modified_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─── Player Address Types ───
+
+export interface PlayerAddress {
+  _id?: ObjectId | string;
+  player_uid: string;
+  player_name: string;
+  full_name: string;
+  street: string;
+  city: string;
+  postal_code: string;
+  country: string;
+  updated_at: string;
+  updated_by: string;
+}
+
+// ─── Raffle Types ───
+
+export interface RaffleCandidate {
+  player_uid: string;
+  player_name: string;
+  game_count: number;
+  excluded: boolean;
+}
+
+export interface RaffleResult {
+  _id?: ObjectId | string;
+  month: string;
+  candidates: RaffleCandidate[];
+  exclude_finalists: boolean;
+  winner_uid: string;
+  winner_name: string;
+  prize_id: string | null;
+  created_at: string;
+  created_by: string;
+}
+
+// ─── Planning Status Types ───
+
+export interface PlanningStatus {
+  planning: {
+    budget_set: boolean;
+    pod_config_active: boolean;
+    card_singles_added: boolean;
+    placement_prizes_set: boolean;
+    sleeve_files_uploaded: boolean;
+    playmat_files_uploaded: boolean;
+  };
+  distribution: {
+    codes_loaded: boolean;
+    codes_sent: boolean;
+    addresses_collected: boolean;
+    raffle_done: boolean;
+    playmats_handed_off: boolean;
+  };
+  planning_month: string;
+  distribution_month: string;
+}
+
 // ─── Error Log Types ───
 
 export type ErrorLogLevel = "error" | "warn" | "info";

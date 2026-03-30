@@ -11,12 +11,14 @@ interface TreasurePodConfigProps {
   month: string;
 }
 
+const BRING_A_FRIEND_IMAGE = "https://i.ibb.co/sph1YjFr/c4eb2988-cc01-48b1-aa8a-faf899b76fe6.png";
+
 const DEFAULT_POD_TYPE: TreasurePodTypeConfig = {
   type: "bring_a_friend",
   count: 5,
   title: "Bring a Friend Treasure Pod!",
   description: "",
-  image_url: null,
+  image_url: BRING_A_FRIEND_IMAGE,
 };
 
 const POD_TYPE_PRESETS: { value: string; label: string }[] = [
@@ -64,7 +66,15 @@ export default function TreasurePodConfig({ month }: TreasurePodConfigProps) {
 
   function updatePodType(index: number, field: keyof TreasurePodTypeConfig, value: string | number | null) {
     setPodTypes((prev) =>
-      prev.map((pt, i) => (i === index ? { ...pt, [field]: value } : pt))
+      prev.map((pt, i) => {
+        if (i !== index) return pt;
+        const updated = { ...pt, [field]: value };
+        // Auto-fill BaF image when type changes to bring_a_friend
+        if (field === "type" && value === "bring_a_friend" && !pt.image_url) {
+          updated.image_url = BRING_A_FRIEND_IMAGE;
+        }
+        return updated;
+      })
     );
   }
 

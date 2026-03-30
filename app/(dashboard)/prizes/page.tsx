@@ -2,41 +2,45 @@
 
 import { useState, useCallback, useTransition } from "react";
 import useSWR from "swr";
-import { Trophy, Package, Euro, Gift, Settings, BarChart3, Image, Award } from "lucide-react";
+import { Trophy, Shield, Gem } from "lucide-react";
 import MonthPicker from "@/components/dashboard/month-picker";
-import StatCard from "@/components/dashboard/stat-card";
-import TreasurePodConfig from "@/components/prizes/treasure-pod-config";
-import TreasurePodMonitor from "@/components/prizes/treasure-pod-monitor";
-import CardGallery from "@/components/prizes/card-gallery";
-import CardSingleForm from "@/components/prizes/card-single-form";
-import AwardsShippingTab from "@/components/prizes/awards-shipping-tab";
+import PlanningCard from "@/components/prizes/planning-card";
+import DistributionCard from "@/components/prizes/distribution-card";
+import TreasurePodsTab from "@/components/prizes/treasure-pods-tab";
+import PrizesTab from "@/components/prizes/prizes-tab";
+import DragonShieldTab from "@/components/prizes/dragon-shield-tab";
 import PrizeForm from "@/components/prizes/prize-form";
 import type { PrizeFormData } from "@/components/prizes/prize-form";
+import CardSingleForm from "@/components/prizes/card-single-form";
 import PrizeDetailModal from "@/components/prizes/prize-detail-modal";
 import ConfirmModal from "@/components/dashboard/confirm-modal";
-import type { Prize, PrizeBudget, PrizeBudgetAllocations, PrizeSummary } from "@/lib/types";
+import RaffleModal from "@/components/prizes/raffle-modal";
+import type { Prize, PrizeBudget, PrizeBudgetAllocations } from "@/lib/types";
 import { fetcher } from "@/lib/fetcher";
 import { getCurrentMonth } from "@/lib/utils";
 
-type Tab = "pods_config" | "pods_monitor" | "card_gallery" | "awards_shipping";
+type Tab = "pods" | "prizes" | "dragon_shield";
 
 const TAB_CONFIG: { key: Tab; label: string; icon: typeof Trophy }[] = [
-  { key: "pods_config", label: "Pods Config", icon: Settings },
-  { key: "pods_monitor", label: "Pods Monitor", icon: BarChart3 },
-  { key: "card_gallery", label: "Card Singles", icon: Image },
-  { key: "awards_shipping", label: "Awards & Shipping", icon: Award },
+  { key: "pods", label: "Treasure Pods", icon: Gem },
+  { key: "prizes", label: "Prizes", icon: Trophy },
+  { key: "dragon_shield", label: "Dragon Shield", icon: Shield },
 ];
 
 export default function PrizesPage() {
   const currentMonth = getCurrentMonth();
   const [month, setMonth] = useState(currentMonth);
-  const [isPending, startTransition] = useTransition();
-  const [activeTab, setActiveTab] = useState<Tab>("pods_monitor");
+  const [, startTransition] = useTransition();
+  const [activeTab, setActiveTab] = useState<Tab>("pods");
+  const [tabSection, setTabSection] = useState<string | undefined>();
   const [formOpen, setFormOpen] = useState(false);
   const [cardFormOpen, setCardFormOpen] = useState(false);
   const [editingPrize, setEditingPrize] = useState<Prize | undefined>(undefined);
   const [detailPrize, setDetailPrize] = useState<Prize | null>(null);
   const [deletePrize, setDeletePrize] = useState<Prize | null>(null);
+  const [raffleOpen, setRaffleOpen] = useState(false);
+
+  const isCurrentMonth = month === currentMonth;
 
   const {
     data: prizesData,
@@ -45,28 +49,33 @@ export default function PrizesPage() {
   } = useSWR<{ data: Prize[] }>(`/api/prizes?month=${month}`, fetcher);
 
   const {
-    data: summaryData,
-    isLoading: summaryLoading,
-    mutate: mutateSummary,
-  } = useSWR<{ data: PrizeSummary }>(`/api/prizes/summary?month=${month}`, fetcher);
-
-  const {
     data: budgetData,
     mutate: mutateBudget,
   } = useSWR<{ data: PrizeBudget | null }>(`/api/prizes/budget?month=${month}`, fetcher);
 
   const prizes = prizesData?.data || [];
-  const summary = summaryData?.data || null;
   const budget = budgetData?.data || null;
 
   const refreshAll = useCallback(() => {
     mutatePrizes();
-    mutateSummary();
     mutateBudget();
-  }, [mutatePrizes, mutateSummary, mutateBudget]);
+  }, [mutatePrizes, mutateBudget]);
 
   function handleMonthChange(m: string) {
     startTransition(() => setMonth(m));
+  }
+
+  function handleNavigate(tab: string, section?: string) {
+    if (tab === "pods") {
+      setActiveTab("pods");
+      setTabSection(section);
+    } else if (tab === "prizes") {
+      setActiveTab("prizes");
+      setTabSection(section);
+    } else if (tab === "dragon_shield") {
+      setActiveTab("dragon_shield");
+      setTabSection(section);
+    }
   }
 
   async function handleSubmitPrize(data: PrizeFormData) {
@@ -124,76 +133,32 @@ export default function PrizesPage() {
     refreshAll();
   }
 
-  async function handleUpdateShipping(
-    id: string,
-    data: {
-      shipping_status: string;
-      tracking_number?: string | null;
-      shipping_date?: string | null;
-      delivery_date?: string | null;
-      shipping_notes?: string | null;
-    }
-  ) {
-    await fetch(`/api/prizes/${id}/shipping`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    refreshAll();
-  }
-
-  const isLoading = prizesLoading || summaryLoading;
-
   return (
     <div>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1
-            className="text-2xl font-bold"
-            style={{ color: "var(--text-primary)" }}
-          >
+          <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
             Prizes
           </h1>
-          <p
-            className="text-sm mt-1"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            Treasure pods, card singles, awards, and shipping
+          <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+            Treasure pods, prizes, and Dragon Shield
           </p>
         </div>
         <MonthPicker value={month} onChange={handleMonthChange} minMonth="2025-11" />
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard
-          title="Total Prizes"
-          value={isLoading ? "..." : summary?.total_prizes ?? 0}
-          icon={<Trophy className="w-4 h-4" style={{ color: "var(--accent)" }} />}
-        />
-        <StatCard
-          title="Total Value"
-          value={isLoading ? "..." : `€${(summary?.total_value ?? 0).toFixed(2)}`}
-          icon={<Euro className="w-4 h-4" style={{ color: "var(--accent)" }} />}
-        />
-        <StatCard
-          title="Pending Shipment"
-          value={isLoading ? "..." : summary?.pending_shipment ?? 0}
-          icon={<Package className="w-4 h-4" style={{ color: "var(--accent)" }} />}
-        />
-        <StatCard
-          title="Budget Remaining"
-          value={
-            isLoading
-              ? "..."
-              : summary?.budget_remaining != null
-                ? `€${summary.budget_remaining.toFixed(2)}`
-                : "No budget"
-          }
-          icon={<Gift className="w-4 h-4" style={{ color: "var(--accent)" }} />}
-        />
-      </div>
+      {/* Planning + Distribution cards (current month only) */}
+      {isCurrentMonth && (
+        <>
+          <PlanningCard month={month} onNavigate={handleNavigate} />
+          <DistributionCard
+            month={month}
+            onNavigate={handleNavigate}
+            onOpenRaffle={() => setRaffleOpen(true)}
+          />
+        </>
+      )}
 
       {/* Tab bar */}
       <div
@@ -205,7 +170,7 @@ export default function PrizesPage() {
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => { setActiveTab(tab.key); setTabSection(undefined); }}
               className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors relative whitespace-nowrap"
               style={{
                 color: activeTab === tab.key ? "var(--accent)" : "var(--text-muted)",
@@ -225,69 +190,46 @@ export default function PrizesPage() {
       </div>
 
       {/* Tab content */}
-      {activeTab === "pods_config" && (
-        <TreasurePodConfig month={month} />
+      {activeTab === "pods" && (
+        <TreasurePodsTab month={month} showConfig={tabSection === "config"} />
       )}
 
-      {activeTab === "pods_monitor" && (
-        <TreasurePodMonitor month={month} />
-      )}
-
-      {activeTab === "card_gallery" && (
-        <CardGallery
-          prizes={prizes}
-          isLoading={isLoading}
-          onAddCard={() => {
-            setEditingPrize(undefined);
-            setCardFormOpen(true);
-          }}
-          onCardClick={(prize) => setDetailPrize(prize)}
-        />
-      )}
-
-      {activeTab === "awards_shipping" && (
-        <AwardsShippingTab
+      {activeTab === "prizes" && (
+        <PrizesTab
           prizes={prizes}
           budget={budget}
-          summary={summary}
           month={month}
-          isLoading={isLoading}
+          isLoading={prizesLoading}
           onRefreshAll={refreshAll}
-          onOpenForm={() => {
-            setEditingPrize(undefined);
-            setFormOpen(true);
-          }}
-          onRowClick={(p) => setDetailPrize(p)}
+          onAddCard={() => { setEditingPrize(undefined); setCardFormOpen(true); }}
+          onAddPrize={() => { setEditingPrize(undefined); setFormOpen(true); }}
+          onPrizeClick={(p) => setDetailPrize(p)}
           onSaveBudget={handleSaveBudget}
-          onUpdateShipping={handleUpdateShipping}
+          initialFilter={tabSection}
         />
       )}
 
-      {/* Card single form modal */}
+      {activeTab === "dragon_shield" && (
+        <DragonShieldTab month={month} initialSection={tabSection} />
+      )}
+
+      {/* Modals */}
       <CardSingleForm
         open={cardFormOpen}
-        onClose={() => {
-          setCardFormOpen(false);
-          setEditingPrize(undefined);
-        }}
+        onClose={() => { setCardFormOpen(false); setEditingPrize(undefined); }}
         onSubmit={handleSubmitPrize}
         prize={editingPrize}
         defaultMonth={month}
       />
 
-      {/* General prize form modal */}
       <PrizeForm
         open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setEditingPrize(undefined);
-        }}
+        onClose={() => { setFormOpen(false); setEditingPrize(undefined); }}
         onSubmit={handleSubmitPrize}
         prize={editingPrize}
         defaultMonth={month}
       />
 
-      {/* Prize detail modal */}
       <PrizeDetailModal
         prize={detailPrize}
         open={!!detailPrize}
@@ -296,7 +238,6 @@ export default function PrizesPage() {
         onDelete={handleDeletePrize}
       />
 
-      {/* Delete Prize Confirm */}
       <ConfirmModal
         open={!!deletePrize}
         onClose={() => setDeletePrize(null)}
@@ -305,6 +246,13 @@ export default function PrizesPage() {
         message={deletePrize ? `Delete "${deletePrize.name}" (€${deletePrize.value.toFixed(2)})?` : ""}
         confirmLabel="Delete"
         variant="danger"
+      />
+
+      <RaffleModal
+        open={raffleOpen}
+        month={month}
+        onClose={() => setRaffleOpen(false)}
+        onComplete={() => { setRaffleOpen(false); refreshAll(); }}
       />
     </div>
   );
