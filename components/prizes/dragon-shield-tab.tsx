@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { ChevronDown, ChevronUp, Shield } from "lucide-react";
 import { fetcher } from "@/lib/fetcher";
+import { getCurrentMonth } from "@/lib/utils";
 import type { DragonShieldMonth } from "@/lib/types";
 import DragonShieldCodes from "./dragon-shield-codes";
 import DragonShieldFiles from "./dragon-shield-files";
@@ -46,13 +47,17 @@ function Section({ title, defaultOpen = true, children }: SectionProps) {
 }
 
 export default function DragonShieldTab({ month, initialSection }: DragonShieldTabProps) {
+  const { mutate: globalMutate } = useSWRConfig();
   const { data, mutate } = useSWR<{ data: DragonShieldMonth | null }>(
     `/api/prizes/dragon-shield?month=${month}`,
     fetcher
   );
 
   const dsData = data?.data ?? null;
-  const refresh = () => mutate();
+  const refresh = () => {
+    mutate();
+    globalMutate(`/api/prizes/planning-status?month=${getCurrentMonth()}`);
+  };
 
   return (
     <div>

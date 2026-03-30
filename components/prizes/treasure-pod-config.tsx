@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { Plus, Trash2, Copy, CheckCircle, Save, Loader2 } from "lucide-react";
 import type { TreasurePodMonthlyConfig, TreasurePodTypeConfig } from "@/lib/types";
 import { fetcher } from "@/lib/fetcher";
@@ -44,6 +44,7 @@ export default function TreasurePodConfig({ month }: TreasurePodConfigProps) {
   const nextMonth = getNextMonth();
   const isNextMonth = month === nextMonth;
 
+  const { mutate: globalMutate } = useSWRConfig();
   const { data, mutate } = useSWR<{ data: TreasurePodMonthlyConfig | null }>(
     `/api/prizes/treasure-pod-config?month=${month}`,
     fetcher
@@ -119,6 +120,7 @@ export default function TreasurePodConfig({ month }: TreasurePodConfigProps) {
         throw new Error(err.error || "Save failed");
       }
       mutate();
+      globalMutate(`/api/prizes/planning-status?month=${currentMonth}`);
       showMessage("success", "Config saved as draft");
     } catch (err) {
       showMessage("error", err instanceof Error ? err.message : "Save failed");
@@ -141,6 +143,7 @@ export default function TreasurePodConfig({ month }: TreasurePodConfigProps) {
         throw new Error(err.error || "Activation failed");
       }
       mutate();
+      globalMutate(`/api/prizes/planning-status?month=${currentMonth}`);
       showMessage("success", "Config activated");
     } catch (err) {
       showMessage("error", err instanceof Error ? err.message : "Activation failed");
@@ -162,6 +165,7 @@ export default function TreasurePodConfig({ month }: TreasurePodConfigProps) {
         throw new Error(err.error || "Copy failed");
       }
       mutate();
+      globalMutate(`/api/prizes/planning-status?month=${currentMonth}`);
       showMessage("success", "Copied from current month");
     } catch (err) {
       showMessage("error", err instanceof Error ? err.message : "No config found for current month");
