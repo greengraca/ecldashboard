@@ -23,8 +23,8 @@ import { getCurrentMonth, getNextMonth } from "@/lib/utils";
 type Tab = "pods" | "prizes" | "dragon_shield";
 
 const TAB_CONFIG: { key: Tab; label: string; icon: typeof Trophy }[] = [
-  { key: "pods", label: "Treasure Pods", icon: Gem },
   { key: "prizes", label: "Prizes", icon: Trophy },
+  { key: "pods", label: "Treasure Pods", icon: Gem },
   { key: "dragon_shield", label: "Dragon Shield", icon: Shield },
 ];
 
@@ -32,7 +32,7 @@ export default function PrizesPage() {
   const currentMonth = getCurrentMonth();
   const [month, setMonth] = useState(currentMonth);
   const [, startTransition] = useTransition();
-  const [activeTab, setActiveTab] = useState<Tab>("pods");
+  const [activeTab, setActiveTab] = useState<Tab>("prizes");
   const [tabSection, setTabSection] = useState<string | undefined>();
   const [formOpen, setFormOpen] = useState(false);
   const [cardFormOpen, setCardFormOpen] = useState(false);
