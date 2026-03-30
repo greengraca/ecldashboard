@@ -30,6 +30,14 @@ async function ensureIndexes() {
 
 // ─── Template Auto-Population ───
 
+/** Resolve day_of_month: positive = fixed day, negative = offset from end (-1 = last, -2 = second-to-last) */
+function resolveDay(dayOfMonth: number, month: string): number {
+  if (dayOfMonth > 0) return dayOfMonth;
+  const [y, m] = month.split("-").map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  return daysInMonth + dayOfMonth + 1;
+}
+
 function monthRange(month: string): { $gte: string; $lt: string } {
   const [y, m] = month.split("-").map(Number);
   const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
@@ -63,7 +71,7 @@ async function populateFromTemplates(month: string): Promise<void> {
     const tid = String(template._id);
     if (existingTemplateIds.has(tid)) continue;
 
-    const day = String(template.day_of_month).padStart(2, "0");
+    const day = String(resolveDay(template.day_of_month, month)).padStart(2, "0");
     const date = `${month}-${day}`;
 
     const doc: Omit<CalendarEvent, "_id"> = {
