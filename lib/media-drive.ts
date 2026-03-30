@@ -422,6 +422,33 @@ export async function reorderItem(
   }
 }
 
+/** Find or create a root-level folder by name. Returns its _id as a string. */
+export async function ensureFolder(
+  name: string,
+  uploadedBy: string
+): Promise<string> {
+  await ensureIndexes();
+  const c = await col();
+  const existing = await c.findOne({ parentId: null, type: "folder", name });
+  if (existing) return existing._id.toString();
+
+  const path = `/${name}`;
+  const now = new Date();
+  const sortOrder = await nextSortOrder(null);
+  const doc = {
+    name,
+    type: "folder" as const,
+    parentId: null,
+    path,
+    sortOrder,
+    uploadedBy,
+    createdAt: now,
+    updatedAt: now,
+  };
+  const result = await c.insertOne(doc);
+  return result.insertedId.toString();
+}
+
 /** Check which required asset names exist in the drive (by filename match) */
 export async function checkAssetStatus(requiredNames: string[]) {
   const c = await col();

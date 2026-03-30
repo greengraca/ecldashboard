@@ -73,7 +73,7 @@ export default function CardSingleForm({
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("prefix", "prizes");
+      formData.append("folder", "Prizes");
 
       const res = await fetch("/api/media/drive/upload", {
         method: "POST",

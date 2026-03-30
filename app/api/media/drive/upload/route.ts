@@ -3,7 +3,7 @@ import { getUserName } from "@/lib/auth";
 import { withAuth } from "@/lib/api-helpers";
 import { randomUUID } from "crypto";
 import { uploadToR2 } from "@/lib/r2";
-import { createFileMetadata } from "@/lib/media-drive";
+import { createFileMetadata, ensureFolder } from "@/lib/media-drive";
 import { generateAndStoreThumbnail } from "@/lib/thumbnails";
 import { validateFileExtension, sanitizeFilename } from "@/lib/validation";
 import type { Session } from "next-auth";
@@ -11,7 +11,14 @@ import type { Session } from "next-auth";
 export const POST = withAuth(async (session: Session, request: NextRequest) => {
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
-  const parentId = (formData.get("parentId") as string) || null;
+  const folderName = formData.get("folder") as string | null;
+  const rawParentId = (formData.get("parentId") as string) || null;
+  const userName = getUserName(session);
+
+  // If a folder name is provided, ensure it exists at root and use its ID
+  const parentId = folderName
+    ? await ensureFolder(folderName.trim(), userName)
+    : rawParentId;
 
   if (!file) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -49,8 +56,6 @@ export const POST = withAuth(async (session: Session, request: NextRequest) => {
       console.warn("Thumbnail generation failed, will retry lazily:", err);
     }
   }
-
-  const userName = getUserName(session);
 
   const metadata = await createFileMetadata({
     name: file.name,

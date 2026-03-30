@@ -69,7 +69,7 @@ export const prizeCreateSchema = z.object({
   recipient_type: z.enum(["placement", "most_games", "treasure_pod", "top16", "custom"]),
   recipient_name: z.string().min(1).max(200),
   description: z.string().max(500).optional(),
-  image_url: z.string().url().max(500).optional(),
+  image_url: z.string().url().max(500).nullable().optional(),
   r2_key: z.string().max(500).nullable().optional(),
   placement: z.number().int().optional(),
   recipient_uid: z.string().max(100).optional(),

@@ -102,6 +102,7 @@ export async function updatePrize(
     name: string;
     description: string;
     image_url: string | null;
+    r2_key: string | null;
     value: number;
     recipient_type: RecipientType;
     placement: number | null;
