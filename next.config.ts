@@ -3,7 +3,7 @@ import packageJson from "./package.json";
 
 const nextConfig: NextConfig = {
   experimental: {
-    middlewareClientMaxBodySize: "50mb",
+    proxyClientMaxBodySize: "50mb",
   },
   env: {
     NEXT_PUBLIC_APP_VERSION: packageJson.version,
