@@ -445,7 +445,9 @@ export default function PlayersPage() {
   const liveTotalMatches: number = liveData?.data?.total_matches ?? 0;
   const liveInProgress: number = liveData?.data?.in_progress ?? 0;
   const liveVoided: number = liveData?.data?.voided ?? 0;
-  const bracketId = liveData?.data?.bracket_id || playersData?.data?.bracket_id || "";
+  const bracketId = isCurrentMonth
+    ? (liveData?.data?.bracket_id || "")
+    : (playersData?.data?.bracket_id || "");
 
   // Resolve champion name + uid from bracket data + player list
   const champion = useMemo(() => {

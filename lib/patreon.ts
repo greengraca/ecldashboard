@@ -228,6 +228,7 @@ export async function syncPatreonForMonth(
       pledge_start: pledgeStart,
       last_charge_date: lastChargeDate,
       synced_at: now,
+      cancelled_at: null,
     };
     if (discordId) {
       setFields.discord_id = discordId;
