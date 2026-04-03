@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import ConfirmModal from "@/components/dashboard/confirm-modal";
 import { Sensitive } from "@/components/dashboard/sensitive";
+import dynamic from "next/dynamic";
 import {
   Users2,
   ArrowLeft,
@@ -12,6 +13,7 @@ import {
   Square,
   Trash2,
   Loader2,
+  Trophy,
 } from "lucide-react";
 import MeetingTable from "@/components/meetings/MeetingTable";
 import MeetingNotes from "@/components/meetings/MeetingNotes";
@@ -19,6 +21,8 @@ import MeetingHistory from "@/components/meetings/MeetingHistory";
 import DetectionPanel from "@/components/meetings/DetectionPanel";
 import { fetcher } from "@/lib/fetcher";
 import type { Meeting, MeetingNote, MeetingItem, UserMapping } from "@/lib/types";
+
+const PrizePlannerModal = dynamic(() => import("@/components/prizes/prize-planner-modal"), { ssr: false });
 
 type ViewState = "lobby" | "active" | "detection" | "history-detail";
 
@@ -59,6 +63,7 @@ export default function MeetingsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentUserId = (sessionData?.user as any)?.discordId || sessionData?.user?.id || null;
   const [view, setView] = useState<ViewState>("lobby");
+  const [plannerOpen, setPlannerOpen] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   const [elapsedText, setElapsedText] = useState("");
   const [endedBanner, setEndedBanner] = useState(false);
@@ -363,30 +368,44 @@ export default function MeetingsPage() {
     <div>
       {/* Page header */}
       <div className="mb-8">
-        <div className="flex items-center gap-3 mb-1">
-          <div
-            className="p-2 rounded-lg"
-            style={{ background: "var(--accent-light)" }}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 mb-1">
+            <div
+              className="p-2 rounded-lg"
+              style={{ background: "var(--accent-light)" }}
+            >
+              <Users2
+                className="w-5 h-5"
+                style={{ color: "var(--accent)" }}
+              />
+            </div>
+            <div>
+              <h1
+                className="text-2xl font-bold"
+                style={{ color: "var(--text-primary)" }}
+              >
+                Meeting Room
+              </h1>
+              <p
+                className="text-sm mt-0.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                Live team meetings with note-taking
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setPlannerOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+            style={{
+              background: "rgba(251,191,36,0.12)",
+              color: "var(--accent)",
+              border: "1px solid rgba(251,191,36,0.25)",
+            }}
           >
-            <Users2
-              className="w-5 h-5"
-              style={{ color: "var(--accent)" }}
-            />
-          </div>
-          <div>
-            <h1
-              className="text-2xl font-bold"
-              style={{ color: "var(--text-primary)" }}
-            >
-              Meeting Room
-            </h1>
-            <p
-              className="text-sm mt-0.5"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              Live team meetings with note-taking
-            </p>
-          </div>
+            <Trophy className="w-4 h-4" />
+            Prize Planner
+          </button>
         </div>
       </div>
 
@@ -727,6 +746,12 @@ export default function MeetingsPage() {
         message="This will permanently delete this meeting, all its notes, and any detected items. This action cannot be undone."
         confirmLabel="Discard"
         variant="danger"
+      />
+
+      {/* Prize Planner modal */}
+      <PrizePlannerModal
+        open={plannerOpen}
+        onClose={() => setPlannerOpen(false)}
       />
     </div>
   );

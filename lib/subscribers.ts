@@ -260,9 +260,13 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
   // Get registered players for this month (null = no filtering)
   const registeredUsernames = await getRegisteredDiscordUsernames(month);
 
-  // Build set of Discord IDs with Ko-fi activity for this month
+  // Build set of Discord IDs with Ko-fi presence for this month.
+  // Three sources: snapshots (daily role sync), one-time pass events, CSV backfill.
   const kofiActiveIds = new Set<string>();
-  const [kofiEvents, kofiBackfill] = await Promise.all([
+  const [kofiSnapshots, kofiEvents, kofiBackfill] = await Promise.all([
+    db.collection("dashboard_kofi_snapshots")
+      .find({ month, cancelled_at: null }, { projection: { discord_id: 1 } })
+      .toArray(),
     db.collection("subs_kofi_events")
       .find({ purchase_month: month }, { projection: { user_id: 1 } })
       .toArray(),
@@ -270,6 +274,9 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
       .find({ month }, { projection: { discord_username: 1 } })
       .toArray(),
   ]);
+  for (const s of kofiSnapshots) {
+    kofiActiveIds.add(s.discord_id?.toString() ?? "");
+  }
   for (const evt of kofiEvents) {
     kofiActiveIds.add(evt.user_id?.toString() ?? "");
   }
@@ -733,30 +740,15 @@ export async function getSubscriberSummary(
     });
   }
 
-  // Check Ko-fi role holders vs events
-  const kofiEventCount = await db
-    .collection("subs_kofi_events")
-    .aggregate<{ _id: null; count: number }>([
-      { $match: { purchase_month: month } },
-      { $group: { _id: "$user_id" } },
-      { $count: "count" },
-    ])
-    .toArray()
-    .then((r) => r[0]?.count ?? 0);
-  if (kofi > 0 && kofiEventCount === 0) {
-    const backfillCount = await db
-      .collection("dashboard_kofi_backfill")
-      .aggregate<{ _id: null; count: number }>([
-        { $match: { month } },
-        { $group: { _id: "$discord_username" } },
-        { $count: "count" },
-      ])
-      .toArray()
-      .then((r) => r[0]?.count ?? 0);
-    if (backfillCount === 0) {
+  // Check Ko-fi role holders vs snapshots/events
+  if (kofi > 0) {
+    const kofiSnapshotCount = await db
+      .collection("dashboard_kofi_snapshots")
+      .countDocuments({ month, cancelled_at: null });
+    if (kofiSnapshotCount === 0) {
       warnings.push({
         source: "kofi",
-        message: `${kofi} Ko-fi role holders but no Ko-fi events or backfill for this month`,
+        message: `${kofi} Ko-fi role holders but no Ko-fi snapshot, events, or backfill for this month — run a sync`,
       });
     }
   }
