@@ -37,31 +37,45 @@ export async function getSubscriptionIncome(
   // Tiers that require bracket registration to count
   const REGISTRATION_REQUIRED_TIERS = new Set(["Gold", "Diamond"]);
 
-  // 1. Ko-fi: count distinct user_ids (no registration filter — all Ko-fi counts)
-  const kofiFromBot = await db
-    .collection("subs_kofi_events")
-    .aggregate<{ _id: null; count: number }>([
-      { $match: { purchase_month: month } },
-      { $group: { _id: "$user_id" } },
-      { $count: "count" },
-    ])
-    .toArray()
-    .then((r) => r[0]?.count ?? 0);
+  // 1. Ko-fi: merge all sources (snapshots, events, backfill), deduplicate by discord_id
+  const kofiIds = new Set<string>();
 
-  // Only use backfill if bot has no data for this month (avoids double-counting)
-  let totalKofi = kofiFromBot;
-  if (kofiFromBot === 0) {
-    const kofiBackfillCount = await db
-      .collection("dashboard_kofi_backfill")
-      .aggregate<{ _id: null; count: number }>([
+  const [kofiSnapshots_inc, kofiEvents_inc, kofiBackfill_inc] = await Promise.all([
+    db.collection("dashboard_kofi_snapshots")
+      .find({ month, cancelled_at: null }, { projection: { discord_id: 1 } })
+      .toArray(),
+    db.collection("subs_kofi_events")
+      .aggregate<{ _id: unknown }>([
+        { $match: { purchase_month: month } },
+        { $group: { _id: "$user_id" } },
+      ])
+      .toArray(),
+    db.collection("dashboard_kofi_backfill")
+      .aggregate<{ _id: string }>([
         { $match: { month } },
         { $group: { _id: "$discord_username" } },
-        { $count: "count" },
       ])
-      .toArray()
-      .then((r) => r[0]?.count ?? 0);
-    totalKofi = kofiBackfillCount;
+      .toArray(),
+  ]);
+
+  for (const s of kofiSnapshots_inc) {
+    const id = s.discord_id?.toString() ?? "";
+    if (id) kofiIds.add(id);
   }
+  for (const e of kofiEvents_inc) {
+    const id = typeof e._id === "object" && e._id !== null && "toString" in e._id
+      ? (e._id as { toString(): string }).toString()
+      : String(e._id);
+    if (id) kofiIds.add(id);
+  }
+  // Backfill uses usernames — resolve to IDs via guild members (fetched later for breakdown)
+  // For count purposes, add as-is if no other source covers them
+  if (kofiSnapshots_inc.length === 0 && kofiEvents_inc.length === 0) {
+    for (const b of kofiBackfill_inc) {
+      kofiIds.add(b._id); // username as key — still deduped
+    }
+  }
+  const totalKofi = kofiIds.size;
 
   // 2. Patreon: fetch all snapshots, filter Gold/Diamond by registration
   const allSnapshots = await db
@@ -220,51 +234,68 @@ export async function getSubscriptionIncomeBreakdown(
     .filter((e): e is NonNullable<typeof e> => e !== null)
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  // ─── 2. Ko-fi: individual users ───
-  const kofiFromBot = await db
-    .collection("subs_kofi_events")
-    .aggregate<{ _id: unknown }>([
-      { $match: { purchase_month: month } },
-      { $group: { _id: "$user_id" } },
-    ])
-    .toArray();
-
+  // ─── 2. Ko-fi: merge all sources, deduplicate by discord_id ───
   type BreakdownEntry = { name: string; discord_id?: string; topdeck_uid?: string; amount: number };
-  let kofiEntries: BreakdownEntry[];
+  const kofiMap = new Map<string, BreakdownEntry>();
 
-  if (kofiFromBot.length > 0) {
-    kofiEntries = kofiFromBot.map((k) => {
-      // user_id may be BSON Long — use .toString() for safe conversion
-      const id = typeof k._id === "object" && k._id !== null && "toString" in k._id
-        ? (k._id as { toString(): string }).toString()
-        : String(k._id);
-      return {
-        name: resolveName(id),
-        discord_id: id,
-        topdeck_uid: discordIdToUid.get(id),
-        amount: rates.kofi_net,
-      };
-    });
-  } else {
-    const kofiBackfill = await db
-      .collection("dashboard_kofi_backfill")
+  const [kofiSnaps, kofiEvts, kofiBf] = await Promise.all([
+    db.collection("dashboard_kofi_snapshots")
+      .find({ month, cancelled_at: null }, { projection: { discord_id: 1, display_name: 1, username: 1 } })
+      .toArray(),
+    db.collection("subs_kofi_events")
+      .aggregate<{ _id: unknown }>([
+        { $match: { purchase_month: month } },
+        { $group: { _id: "$user_id" } },
+      ])
+      .toArray(),
+    db.collection("dashboard_kofi_backfill")
       .aggregate<{ _id: string }>([
         { $match: { month } },
         { $group: { _id: "$discord_username" } },
       ])
-      .toArray();
-    kofiEntries = kofiBackfill.map((k) => {
-      const username = k._id.toLowerCase().trim();
+      .toArray(),
+  ]);
+
+  // Snapshots have the best name info
+  for (const s of kofiSnaps) {
+    const id = s.discord_id?.toString() ?? "";
+    if (!id) continue;
+    kofiMap.set(id, {
+      name: (s.display_name as string) || (s.username as string) || resolveName(id),
+      discord_id: id,
+      topdeck_uid: discordIdToUid.get(id),
+      amount: rates.kofi_net,
+    });
+  }
+  // Events fill in anyone not already covered
+  for (const e of kofiEvts) {
+    const id = typeof e._id === "object" && e._id !== null && "toString" in e._id
+      ? (e._id as { toString(): string }).toString()
+      : String(e._id);
+    if (!id || kofiMap.has(id)) continue;
+    kofiMap.set(id, {
+      name: resolveName(id),
+      discord_id: id,
+      topdeck_uid: discordIdToUid.get(id),
+      amount: rates.kofi_net,
+    });
+  }
+  // Backfill only if no other sources covered this month
+  if (kofiSnaps.length === 0 && kofiEvts.length === 0) {
+    for (const b of kofiBf) {
+      const username = b._id.toLowerCase().trim();
       const discordId = usernameToId.get(username);
-      return {
-        name: k._id,
+      const key = discordId || b._id;
+      if (kofiMap.has(key)) continue;
+      kofiMap.set(key, {
+        name: b._id,
         discord_id: discordId,
         topdeck_uid: discordId ? discordIdToUid.get(discordId) : undefined,
         amount: rates.kofi_net,
-      };
-    });
+      });
+    }
   }
-  kofiEntries.sort((a, b) => a.name.localeCompare(b.name));
+  const kofiEntries = [...kofiMap.values()].sort((a, b) => a.name.localeCompare(b.name));
 
   // ─── 3. Manual: individual payments ───
   const manualPayments = await db
