@@ -42,7 +42,8 @@ export default function PlanningCard({ month, onNavigate }: PlanningCardProps) {
   const total = PLANNING_ITEMS.length;
   const allDone = doneCount === total;
 
-  const [collapsed, setCollapsed] = useState(false);
+  // Start collapsed unless day 15+ of the month
+  const [collapsed, setCollapsed] = useState(() => new Date().getDate() < 15);
 
   useEffect(() => {
     if (allDone) setCollapsed(true);

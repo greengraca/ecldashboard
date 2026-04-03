@@ -48,7 +48,7 @@ export default function PrizesPage() {
   const isCurrentMonth = month === currentMonth;
   const isPlanningMonth = month === nextMonth;
   const showPlanningCard = isCurrentMonth || isPlanningMonth;
-  const showDistributionCard = isCurrentMonth;
+  const showDistributionCard = true;
 
   const {
     data: prizesData,

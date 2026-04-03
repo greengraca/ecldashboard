@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import useSWR from "swr";
-import { ChevronDown, ChevronUp, Check, Package } from "lucide-react";
+import { ChevronDown, ChevronUp, Package } from "lucide-react";
 import { fetcher } from "@/lib/fetcher";
 import type { PlanningStatus } from "@/lib/types";
 
@@ -41,11 +41,10 @@ export default function DistributionCard({ month, onNavigate, onOpenRaffle }: Di
 
   const [collapsed, setCollapsed] = useState(false);
 
-  useEffect(() => {
-    if (allDone) setCollapsed(true);
-  }, [allDone]);
-
   if (!status) return null;
+
+  // Disappear entirely when all distribution items are done
+  if (allDone) return null;
 
   if (collapsed) {
     return (
@@ -53,18 +52,14 @@ export default function DistributionCard({ month, onNavigate, onOpenRaffle }: Di
         onClick={() => setCollapsed(false)}
         className="w-full flex items-center justify-between rounded-lg px-4 py-3 mb-4 transition-colors cursor-pointer hover:brightness-110"
         style={{
-          background: allDone ? "var(--success-light)" : "rgba(255,255,255,0.03)",
-          border: `1px solid ${allDone ? "var(--success)" : "var(--border)"}`,
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid var(--border)",
         }}
       >
         <div className="flex items-center gap-2">
-          {allDone ? (
-            <Check className="w-4 h-4" style={{ color: "var(--success)" }} />
-          ) : (
-            <Package className="w-4 h-4" style={{ color: "var(--text-secondary)" }} />
-          )}
+          <Package className="w-4 h-4" style={{ color: "var(--text-secondary)" }} />
           <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-            Distribution — {allDone ? "Complete" : `${doneCount}/${total} done`}
+            Distribution — {doneCount}/{total} done
           </span>
         </div>
         <ChevronDown className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
