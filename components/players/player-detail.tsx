@@ -5,10 +5,11 @@ import type {
   PlayerDetail as PlayerDetailType,
   PlayerMatchStats,
 } from "@/lib/types";
-import SeasonRecordChart from "./charts/season-record-chart";
-import MonthlyActivityChart from "./charts/monthly-activity-chart";
-import PointsRankChart from "./charts/points-rank-chart";
-import WinRateChart from "./charts/win-rate-chart";
+import dynamic from "next/dynamic";
+const SeasonRecordChart = dynamic(() => import("./charts/season-record-chart"), { ssr: false });
+const MonthlyActivityChart = dynamic(() => import("./charts/monthly-activity-chart"), { ssr: false });
+const PointsRankChart = dynamic(() => import("./charts/points-rank-chart"), { ssr: false });
+const WinRateChart = dynamic(() => import("./charts/win-rate-chart"), { ssr: false });
 
 
 interface PlayerDetailProps {

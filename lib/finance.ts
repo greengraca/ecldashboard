@@ -78,7 +78,7 @@ export async function createTransaction(
     .collection("dashboard_transactions")
     .insertOne(doc);
 
-  await logActivity("create", "transaction", result.insertedId.toString(), {
+  logActivity("create", "transaction", result.insertedId.toString(), {
     description: data.description,
     amount: data.amount,
     type: data.type,
@@ -114,7 +114,7 @@ export async function updateTransaction(
     .collection("dashboard_transactions")
     .updateOne({ _id: new ObjectId(id) }, { $set: updateData });
 
-  await logActivity("update", "transaction", id, {
+  logActivity("update", "transaction", id, {
     updated_fields: Object.keys(data),
   }, userId, userName);
 }
@@ -134,7 +134,7 @@ export async function deleteTransaction(
     .collection("dashboard_transactions")
     .deleteOne({ _id: new ObjectId(id) });
 
-  await logActivity("delete", "transaction", id, {
+  logActivity("delete", "transaction", id, {
     description: doc?.description,
     amount: doc?.amount,
   }, userId, userName);
@@ -177,7 +177,7 @@ export async function createFixedCost(
     .collection("dashboard_fixed_costs")
     .insertOne(doc);
 
-  await logActivity("create", "fixed_cost", result.insertedId.toString(), {
+  logActivity("create", "fixed_cost", result.insertedId.toString(), {
     name: data.name,
     amount: data.amount,
   }, userId, userName);
@@ -210,7 +210,7 @@ export async function updateFixedCost(
     .collection("dashboard_fixed_costs")
     .updateOne({ _id: new ObjectId(id) }, { $set: updateData });
 
-  await logActivity("update", "fixed_cost", id, {
+  logActivity("update", "fixed_cost", id, {
     updated_fields: Object.keys(data),
   }, userId, userName);
 }
@@ -226,16 +226,12 @@ export async function deleteFixedCost(
     .collection("dashboard_fixed_costs")
     .findOne({ _id: new ObjectId(id) });
 
-  await db
-    .collection("dashboard_fixed_costs")
-    .deleteOne({ _id: new ObjectId(id) });
+  await Promise.all([
+    db.collection("dashboard_fixed_costs").deleteOne({ _id: new ObjectId(id) }),
+    db.collection("dashboard_fixed_cost_payments").deleteMany({ fixed_cost_id: id }),
+  ]);
 
-  // Cascade-delete all payment records for this fixed cost
-  await db
-    .collection("dashboard_fixed_cost_payments")
-    .deleteMany({ fixed_cost_id: id });
-
-  await logActivity("delete", "fixed_cost", id, {
+  logActivity("delete", "fixed_cost", id, {
     name: doc?.name,
     amount: doc?.amount,
   }, userId, userName);
@@ -415,7 +411,7 @@ export async function reimburseExpense(
     { $set: { reimbursed: true, reimbursed_at: now, updated_at: now } }
   );
 
-  await logActivity("update", source, id, {
+  logActivity("update", source, id, {
     action: "reimburse",
   }, userId, userName);
 }
@@ -437,7 +433,7 @@ export async function unreimburseExpense(
     { $set: { reimbursed: false, reimbursed_at: null, updated_at: now } }
   );
 
-  await logActivity("update", source, id, {
+  logActivity("update", source, id, {
     action: "unreimburse",
   }, userId, userName);
 }

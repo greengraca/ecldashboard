@@ -67,7 +67,7 @@ export async function loadCodes(
     { returnDocument: "after" }
   );
 
-  await logActivity("create", "dragon_shield_codes", month, { count: codes.length }, userId, userName);
+  logActivity("create", "dragon_shield_codes", month, { count: codes.length }, userId, userName);
   return result!;
 }
 
@@ -89,7 +89,7 @@ export async function markCodeSent(
     { returnDocument: "after" }
   );
   if (result) {
-    await logActivity("update", "dragon_shield_code", `${month}:${index}`, { sent }, userId, userName);
+    logActivity("update", "dragon_shield_code", `${month}:${index}`, { sent }, userId, userName);
   }
   return result;
 }
@@ -117,7 +117,7 @@ export async function markAllCodesSent(
     { $set: updates },
     { returnDocument: "after" }
   );
-  await logActivity("update", "dragon_shield_codes", month, { action: "mark_all_sent" }, userId, userName);
+  logActivity("update", "dragon_shield_codes", month, { action: "mark_all_sent" }, userId, userName);
   return result;
 }
 
@@ -137,7 +137,7 @@ export async function setFile(
     { $set: { [field]: file, modified_by: userId, updated_at: new Date().toISOString() } },
     { returnDocument: "after" }
   );
-  await logActivity("update", "dragon_shield_file", `${month}:${fileType}:${tier}`, { filename: file.filename }, userId, userName);
+  logActivity("update", "dragon_shield_file", `${month}:${fileType}:${tier}`, { filename: file.filename }, userId, userName);
   return result!;
 }
 
@@ -162,7 +162,7 @@ export async function markPlaymatHandoff(
     { returnDocument: "after" }
   );
   if (result) {
-    await logActivity("update", "dragon_shield_handoff", month, { handoff }, userId, userName);
+    logActivity("update", "dragon_shield_handoff", month, { handoff }, userId, userName);
   }
   return result;
 }

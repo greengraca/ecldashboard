@@ -73,7 +73,7 @@ export async function createMapping(
 
   const result = await db.collection(COLLECTION).insertOne(doc);
 
-  await logActivity("create", "user_mapping", result.insertedId.toString(), {
+  logActivity("create", "user_mapping", result.insertedId.toString(), {
     display_name: data.display_name,
     color: data.color,
   }, userId, userName);
@@ -102,7 +102,7 @@ export async function updateMapping(
   );
 
   if (result) {
-    await logActivity("update", "user_mapping", id, data, userId, userName);
+    logActivity("update", "user_mapping", id, data, userId, userName);
   }
 
   return result;
@@ -120,7 +120,7 @@ export async function deleteMapping(
 
   await db.collection(COLLECTION).deleteOne({ _id: new ObjectId(id) });
 
-  await logActivity("delete", "user_mapping", id, {
+  logActivity("delete", "user_mapping", id, {
     display_name: existing?.display_name,
   }, userId, userName);
 }

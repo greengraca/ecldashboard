@@ -70,11 +70,21 @@ export function clearDumpCache(): void {
 
 // ─── Functions ───
 
+// Cache for getHistoricalMonths (data changes at most once per month)
+let historyCache: { data: MonthInfo[]; expires: number } | null = null;
+const HISTORY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Find distinct (bracket_id, month) pairs from topdeck_month_dump_runs.
  * Falls back to chunks collection if runs collection has no data.
+ * Cached for 5 minutes (data changes at most monthly).
  */
 export async function getHistoricalMonths(bracketId?: string): Promise<MonthInfo[]> {
+  // Use cache only for unfiltered calls (the common case)
+  if (!bracketId && historyCache && Date.now() < historyCache.expires) {
+    return historyCache.data;
+  }
+
   const db = await getDb();
 
   // Try runs collection first
@@ -124,6 +134,12 @@ export async function getHistoricalMonths(bracketId?: string): Promise<MonthInfo
 
   // Sort ascending by month
   results.sort((a, b) => a.month.localeCompare(b.month));
+
+  // Cache unfiltered results
+  if (!bracketId) {
+    historyCache = { data: results, expires: Date.now() + HISTORY_CACHE_TTL };
+  }
+
   return results;
 }
 

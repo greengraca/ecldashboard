@@ -6,6 +6,8 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import type { SubscriptionIncome, SubscriptionIncomeBreakdown, SubscriptionBreakdownEntry } from "@/lib/types";
 import { Sensitive } from "@/components/dashboard/sensitive";
 
+const TIER_VALUE: Record<string, number> = { Diamond: 5, Gold: 4, "ECL Grinder": 3, Silver: 2, Bronze: 1 };
+
 interface SubscriptionIncomeCardProps {
   income: SubscriptionIncome | null;
   isLoading: boolean;
@@ -123,10 +125,8 @@ export default function SubscriptionIncomeCard({
 
   // Collect unique tiers from the current Patreon breakdown
   const patreonEntries = breakdown?.patreon ?? [];
-  const uniqueTiers = [...new Set(patreonEntries.map((e) => e.tier).filter(Boolean))] as string[];
-  // Sort tiers by value descending
-  const TIER_VALUE: Record<string, number> = { "Diamond": 5, "Gold": 4, "ECL Grinder": 3, "Silver": 2, "Bronze": 1 };
-  uniqueTiers.sort((a, b) => (TIER_VALUE[b] ?? 0) - (TIER_VALUE[a] ?? 0));
+  const uniqueTiers = [...new Set(patreonEntries.map((e) => e.tier).filter(Boolean))]
+    .toSorted((a, b) => (TIER_VALUE[b as string] ?? 0) - (TIER_VALUE[a as string] ?? 0)) as string[];
 
   function renderEntry(entry: SubscriptionBreakdownEntry, key: string, muted: boolean) {
     const inner = (
@@ -198,8 +198,18 @@ export default function SubscriptionIncomeCard({
 
     // If tier filter is active, split into matched (top) and rest (muted)
     const hasTierFilter = activeTierFilter && sourceKey === "patreon";
-    const matched = hasTierFilter ? sorted.filter((e) => e.tier === activeTierFilter) : sorted;
-    const rest = hasTierFilter ? sorted.filter((e) => e.tier !== activeTierFilter) : [];
+    let matched: typeof sorted;
+    let rest: typeof sorted;
+    if (hasTierFilter) {
+      matched = [];
+      rest = [];
+      for (const e of sorted) {
+        (e.tier === activeTierFilter ? matched : rest).push(e);
+      }
+    } else {
+      matched = sorted;
+      rest = [];
+    }
 
     return (
       <div className="mt-2 ml-4" style={{ borderLeft: `2px solid ${color}`, paddingLeft: "12px" }}>

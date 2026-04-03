@@ -7,8 +7,10 @@ export const POST = withAuth(async (session, _request) => {
   const userId = session!.user!.id!;
   const userName = getUserName(session!);
 
-  const patreonResult = await backfillPatreon(userId, userName);
-  const kofiResult = await backfillKofi(userId, userName);
+  const [patreonResult, kofiResult] = await Promise.all([
+    backfillPatreon(userId, userName),
+    backfillKofi(userId, userName),
+  ]);
 
   return NextResponse.json({
     data: { patreon: patreonResult, kofi: kofiResult },

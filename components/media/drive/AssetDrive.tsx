@@ -7,7 +7,8 @@ import AssetWarningBar from "./AssetWarningBar";
 import DriveToolbar from "./DriveToolbar";
 import DriveDropZone from "./DriveDropZone";
 import DriveFileGrid from "./DriveFileGrid";
-import DrivePreviewModal from "./DrivePreviewModal";
+import dynamic from "next/dynamic";
+const DrivePreviewModal = dynamic(() => import("./DrivePreviewModal"), { ssr: false });
 import DriveConfirmModal from "./DriveConfirmModal";
 import { fetcher } from "@/lib/fetcher";
 

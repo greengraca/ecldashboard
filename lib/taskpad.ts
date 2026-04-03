@@ -84,7 +84,7 @@ export async function createTask(
     .collection(`projects/${TASKPAD_TEAM_ID}/tasks`)
     .add(docData);
 
-  await logActivity(
+  logActivity(
     "create",
     "taskpad_task",
     docRef.id,
@@ -128,7 +128,7 @@ export async function updateTask(
     .doc(`projects/${TASKPAD_TEAM_ID}/tasks/${taskId}`)
     .update(updateData);
 
-  await logActivity(
+  logActivity(
     "update",
     "taskpad_task",
     taskId,
@@ -152,7 +152,7 @@ export async function deleteTask(
     .doc(`projects/${TASKPAD_TEAM_ID}/tasks/${taskId}`)
     .update({ deleted: true, deletedAt: Date.now() });
 
-  await logActivity(
+  logActivity(
     "delete",
     "taskpad_task",
     taskId,

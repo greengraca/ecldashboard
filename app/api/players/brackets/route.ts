@@ -53,7 +53,7 @@ export const PUT = withAuth(async (session: Session, req: NextRequest) => {
     { upsert: true }
   );
 
-  await logActivity(
+  logActivity(
     "update",
     "bracket",
     month,

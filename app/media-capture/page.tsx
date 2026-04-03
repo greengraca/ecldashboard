@@ -5,27 +5,20 @@ import { useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import useSWR from "swr";
 
-import SeasonRecap from "@/components/media/templates/SeasonRecap";
-import RegistrationOpen from "@/components/media/templates/RegistrationOpen";
-import MatchDayModern from "@/components/media/templates/MatchDayModern";
-import PlayerSpotlight from "@/components/media/templates/PlayerSpotlight";
-import ResultsDrop2 from "@/components/media/templates/ResultsDrop2";
-import ResultsDropTop4v2 from "@/components/media/templates/ResultsDropTop4v2";
-import ResultsDropWinner from "@/components/media/templates/ResultsDropWinner";
-import EventHype from "@/components/media/templates/EventHype";
+import dynamic from "next/dynamic";
 import { TEMPLATES } from "@/components/media/template-registry";
 import { fetcher } from "@/lib/fetcher";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const COMPONENT_MAP: Record<string, React.ComponentType<{ data: any }>> = {
-  "season-recap": SeasonRecap,
-  "registration-open": RegistrationOpen,
-  "match-day-modern": MatchDayModern,
-  "player-spotlight": PlayerSpotlight,
-  "results-drop-2": ResultsDrop2,
-  "results-drop-top4-v2": ResultsDropTop4v2,
-  "results-drop-winner": ResultsDropWinner,
-  "event-hype": EventHype,
+  "season-recap": dynamic(() => import("@/components/media/templates/SeasonRecap")),
+  "registration-open": dynamic(() => import("@/components/media/templates/RegistrationOpen")),
+  "match-day-modern": dynamic(() => import("@/components/media/templates/MatchDayModern")),
+  "player-spotlight": dynamic(() => import("@/components/media/templates/PlayerSpotlight")),
+  "results-drop-2": dynamic(() => import("@/components/media/templates/ResultsDrop2")),
+  "results-drop-top4-v2": dynamic(() => import("@/components/media/templates/ResultsDropTop4v2")),
+  "results-drop-winner": dynamic(() => import("@/components/media/templates/ResultsDropWinner")),
+  "event-hype": dynamic(() => import("@/components/media/templates/EventHype")),
 };
 
 const PRIZE_TEMPLATES = new Set<string>([]);

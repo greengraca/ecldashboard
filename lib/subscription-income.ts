@@ -28,9 +28,11 @@ export async function getSubscriptionIncome(
     };
   }
 
-  const db = await getDb();
-  const rates = await getRatesForMonth(month);
-  const registeredIds = await getRegisteredDiscordIds(month);
+  const [db, rates, registeredIds] = await Promise.all([
+    getDb(),
+    getRatesForMonth(month),
+    getRegisteredDiscordIds(month),
+  ]);
 
   // Tiers that require bracket registration to count
   const REGISTRATION_REQUIRED_TIERS = new Set(["Gold", "Diamond"]);
@@ -115,9 +117,11 @@ export async function getSubscriptionIncomeBreakdown(
     return { patreon: [], kofi: [], manual: [] };
   }
 
-  const db = await getDb();
-  const rates = await getRatesForMonth(month);
-  const registeredIds = await getRegisteredDiscordIds(month);
+  const [db, rates, registeredIds] = await Promise.all([
+    getDb(),
+    getRatesForMonth(month),
+    getRegisteredDiscordIds(month),
+  ]);
 
   // Tiers that require bracket registration to count
   const REGISTRATION_REQUIRED_TIERS = new Set(["Gold", "Diamond"]);

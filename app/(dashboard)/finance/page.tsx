@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useTransition } from "react";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { Plus } from "lucide-react";
 import MonthPicker from "@/components/dashboard/month-picker";
 import Modal from "@/components/dashboard/modal";
@@ -10,7 +10,8 @@ import BalanceCard from "@/components/finance/balance-card";
 import TransactionForm from "@/components/finance/transaction-form";
 import TransactionTable from "@/components/finance/transaction-table";
 import FixedCostManager from "@/components/finance/fixed-cost-manager";
-import MonthlyBreakdownChart from "@/components/finance/monthly-breakdown-chart";
+import dynamic from "next/dynamic";
+const MonthlyBreakdownChart = dynamic(() => import("@/components/finance/monthly-breakdown-chart"), { ssr: false });
 import SubscriptionIncomeCard from "@/components/finance/SubscriptionIncomeCard";
 import GroupSummaryCard from "@/components/finance/group-summary-card";
 import type {
@@ -25,6 +26,7 @@ import { fetcher } from "@/lib/fetcher";
 import { getCurrentMonth } from "@/lib/utils";
 
 export default function FinancePage() {
+  const { mutate: globalMutate } = useSWRConfig();
   const [month, setMonth] = useState(getCurrentMonth);
   const [isPending, startTransition] = useTransition();
   const [modalOpen, setModalOpen] = useState(false);
@@ -76,7 +78,13 @@ export default function FinancePage() {
     mutateSummary();
     mutateFc();
     mutateGroup();
-  }, [mutateTx, mutateSummary, mutateFc, mutateGroup]);
+    // Invalidate multi-month summary used by dashboard home FinanceOverview
+    globalMutate(
+      (key: string) => typeof key === "string" && key.startsWith("/api/finance/summary?months="),
+      undefined,
+      { revalidate: true },
+    );
+  }, [mutateTx, mutateSummary, mutateFc, mutateGroup, globalMutate]);
 
   function openAdd() {
     setEditingTx(undefined);

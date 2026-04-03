@@ -245,11 +245,13 @@ export async function getPlayers(month?: string): Promise<{ players: Player[]; b
 export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null> {
   const months = await getHistoricalMonths();
 
-  const subscriberLookup = await getSubscriberLookup();
   const latestBracketId = months.length > 0
     ? months[months.length - 1].bracket_id
     : TOPDECK_BRACKET_ID;
-  const nameLookup = await getUidNameLookup(latestBracketId);
+  const [subscriberLookup, nameLookup] = await Promise.all([
+    getSubscriberLookup(),
+    getUidNameLookup(latestBracketId),
+  ]);
 
   const monthlyHistory: PlayerMonthStats[] = [];
 

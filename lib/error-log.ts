@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { getDb } from "./mongodb";
 import type { ErrorLogLevel } from "./types";
 
@@ -23,25 +24,32 @@ async function ensureIndexes() {
   }
 }
 
-export async function logError(
+export function logError(
   level: ErrorLogLevel,
   source: string,
   message: string,
   details: Record<string, unknown> | null = null
-): Promise<void> {
+): void {
+  const doLog = async () => {
+    try {
+      await ensureIndexes();
+      const db = await getDb();
+      await db.collection("dashboard_error_log").insertOne({
+        level,
+        source,
+        message,
+        details,
+        timestamp: new Date().toISOString(),
+        created_at: new Date(),
+      });
+    } catch (err) {
+      console.error("Failed to write error log:", err);
+    }
+  };
   try {
-    await ensureIndexes();
-    const db = await getDb();
-    await db.collection("dashboard_error_log").insertOne({
-      level,
-      source,
-      message,
-      details,
-      timestamp: new Date().toISOString(),
-      created_at: new Date(),
-    });
-  } catch (err) {
-    console.error("Failed to write error log:", err);
+    after(doLog);
+  } catch {
+    doLog();
   }
 }
 

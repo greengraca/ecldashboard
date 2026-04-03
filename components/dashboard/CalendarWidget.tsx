@@ -75,10 +75,7 @@ export default function CalendarWidget() {
   const events = eventsData?.data;
 
   // Parse year/month from currentMonth
-  const [year, month] = useMemo(() => {
-    const [y, m] = currentMonth.split("-").map(Number);
-    return [y, m];
-  }, [currentMonth]);
+  const [year, month] = currentMonth.split("-").map(Number);
 
   const { daysInMonth, startDow, prevMonthDays } = useMemo(
     () => getMonthData(year, month - 1),

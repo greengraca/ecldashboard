@@ -50,3 +50,7 @@ plans/
 
 # superpowers brainstorm artifacts
 .superpowers/
+
+# skills.sh agent skills
+.agents/
+skills-lock.json

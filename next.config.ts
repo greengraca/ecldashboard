@@ -4,6 +4,7 @@ import packageJson from "./package.json";
 const nextConfig: NextConfig = {
   experimental: {
     proxyClientMaxBodySize: "50mb",
+    optimizePackageImports: ["lucide-react", "recharts"],
   },
   env: {
     NEXT_PUBLIC_APP_VERSION: packageJson.version,

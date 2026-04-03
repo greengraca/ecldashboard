@@ -34,19 +34,16 @@ export default function MonthPicker({
   highlight,
 }: MonthPickerProps) {
   const [y, m] = parseMonth(value);
+  const outlined = highlight;
   const [blinking, setBlinking] = useState(false);
-  const [outlined, setOutlined] = useState(false);
 
   useEffect(() => {
     if (highlight) {
       setBlinking(true);
-      setOutlined(true);
       const blinkTimer = setTimeout(() => setBlinking(false), 1200);
       return () => { clearTimeout(blinkTimer); };
-    } else {
-      setBlinking(false);
-      setOutlined(false);
     }
+    setBlinking(false);
   }, [highlight, value]);
 
   function prev() {

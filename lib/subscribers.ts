@@ -285,6 +285,7 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
 
   // Build discord_id → patreon tier lookup (always — used for tier display + Gold/Diamond filtering)
   const patreonTierById = new Map<string, string>();
+  const memberByUsername = new Map(members.map((m) => [m.username.toLowerCase(), m]));
   const patreonSnapshots = await db
     .collection("dashboard_patreon_snapshots")
     .find({ month }, { projection: { discord_id: 1, tier: 1 } })
@@ -296,9 +297,7 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
       patreonTierById.set(raw, tier);
     } else if (raw) {
       // CSV backfill: discord_id is actually a username — look up by username
-      const member = members.find(
-        (m) => m.username.toLowerCase() === raw.toLowerCase()
-      );
+      const member = memberByUsername.get(raw.toLowerCase());
       if (member) patreonTierById.set(member.id, tier);
     }
   }
@@ -554,32 +553,24 @@ export async function detectSubscriberChanges(
   const newJoins = joined.filter((m) => !loggedIds.has(m.id));
   const newLeaves = left.filter((m) => !loggedIds.has(m.id));
 
-  // Log each new change
-  const logPromises: Promise<void>[] = [];
-
+  // Log each new change (deferred via after())
   for (const member of newJoins) {
-    logPromises.push(
-      logActivity("join", "subscriber", member.id, {
-        month,
-        name: member.name,
-        source: member.source,
-        tier: member.tier,
-      }, userId, userName)
-    );
+    logActivity("join", "subscriber", member.id, {
+      month,
+      name: member.name,
+      source: member.source,
+      tier: member.tier,
+    }, userId, userName);
   }
 
   for (const member of newLeaves) {
-    logPromises.push(
-      logActivity("leave", "subscriber", member.id, {
-        month,
-        name: member.name,
-        source: member.source,
-        tier: member.tier,
-      }, userId, userName)
-    );
+    logActivity("leave", "subscriber", member.id, {
+      month,
+      name: member.name,
+      source: member.source,
+      tier: member.tier,
+    }, userId, userName);
   }
-
-  await Promise.all(logPromises);
 
   const allAlreadyLogged = newJoins.length === 0 && newLeaves.length === 0;
   return { joined: newJoins, left: newLeaves, alreadyLogged: allAlreadyLogged };

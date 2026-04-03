@@ -16,11 +16,6 @@ export const POST = withAuth(async (session: Session, request: NextRequest) => {
   const skipMetadata = formData.get("skipMetadata") === "true";
   const userName = getUserName(session);
 
-  // If a folder name is provided, ensure it exists at root and use its ID
-  const parentId = folderName
-    ? await ensureFolder(folderName.trim(), userName)
-    : rawParentId;
-
   if (!file) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
@@ -41,6 +36,11 @@ export const POST = withAuth(async (session: Session, request: NextRequest) => {
       { status: 413 }
     );
   }
+
+  // If a folder name is provided, ensure it exists at root and use its ID
+  const parentId = folderName
+    ? await ensureFolder(folderName.trim(), userName)
+    : rawParentId;
 
   const safeName = sanitizeFilename(file.name);
   const r2Key = `media/${randomUUID()}-${safeName}`;

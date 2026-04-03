@@ -1,5 +1,7 @@
 import type { MeetingNote, MeetingItemMetadata, UserMapping } from "./types";
 
+const COMMON_WORDS = new Set(["we", "it", "that", "this", "there", "they", "the", "he", "she"]);
+
 export interface DetectedItem {
   type: "task" | "deadline" | "prize";
   title: string;
@@ -15,6 +17,7 @@ const MONTHS: Record<string, string> = {
 };
 
 const MONTH_NAMES = Object.keys(MONTHS);
+const MONTH_DAY_PATTERN_SRC = `(?:by|before|until|on|due)\\s+(${MONTH_NAMES.join("|")})\\s+(\\d{1,2})(?:st|nd|rd|th)?`;
 
 // ─── Main detection entry point ───
 
@@ -83,7 +86,7 @@ function detectTasks(
     const taskText = match[2].trim();
 
     // Skip if the "name" is a common word
-    if (["we", "it", "that", "this", "there", "they", "the", "he", "she"].includes(personName.toLowerCase())) {
+    if (COMMON_WORDS.has(personName.toLowerCase())) {
       continue;
     }
     if (taskText.length < 5 || taskText.length > 200) continue;
@@ -149,10 +152,7 @@ function detectDeadlines(content: string, meetingDate: string): DetectedItem[] {
   const items: DetectedItem[] = [];
 
   // "by/before/until/on/due [Month Day]"
-  const monthDayPattern = new RegExp(
-    `(?:by|before|until|on|due)\\s+(${MONTH_NAMES.join("|")})\\s+(\\d{1,2})(?:st|nd|rd|th)?`,
-    "gi"
-  );
+  const monthDayPattern = new RegExp(MONTH_DAY_PATTERN_SRC, "gi");
 
   let match;
   while ((match = monthDayPattern.exec(content)) !== null) {

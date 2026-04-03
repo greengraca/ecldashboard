@@ -8,8 +8,9 @@ import ActivityFilters, {
   ActivityFilterValues,
 } from "@/components/activity/activity-filters";
 import Accordion from "@/components/dashboard/accordion";
-import HerokuLogViewer from "@/components/activity/heroku-log-viewer";
-import ErrorLogViewer from "@/components/activity/error-log-viewer";
+import dynamic from "next/dynamic";
+const HerokuLogViewer = dynamic(() => import("@/components/activity/heroku-log-viewer"), { ssr: false });
+const ErrorLogViewer = dynamic(() => import("@/components/activity/error-log-viewer"), { ssr: false });
 import type { ActivityEntry } from "@/lib/types";
 import { fetcher } from "@/lib/fetcher";
 

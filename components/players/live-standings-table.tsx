@@ -95,7 +95,7 @@ export default function LiveStandingsTable({
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
+      setSortDir((prev) => prev === "asc" ? "desc" : "asc");
     } else {
       setSortKey(key);
       setSortDir(key === "rank" ? "asc" : "desc");

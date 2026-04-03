@@ -56,7 +56,7 @@ export default function DataTable<T extends Record<string, unknown>>({
 
   function handleSort(key: string) {
     if (sortKey === key) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
+      setSortDir((prev) => prev === "asc" ? "desc" : "asc");
     } else {
       setSortKey(key);
       setSortDir("desc");
@@ -152,6 +152,8 @@ export default function DataTable<T extends Record<string, unknown>>({
                       rowIndex < sorted.length - 1
                         ? "1px solid var(--border-subtle)"
                         : "none",
+                    contentVisibility: "auto",
+                    containIntrinsicSize: "0 45px",
                   }}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                 >

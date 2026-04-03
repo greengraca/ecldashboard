@@ -28,7 +28,7 @@ export async function markManualPaid(
 
   const result = await db.collection(COLLECTION).insertOne(doc);
 
-  await logActivity(
+  logActivity(
     "create",
     "manual_payment",
     result.insertedId.toString(),
@@ -58,7 +58,7 @@ export async function unmarkManualPaid(
     .collection(COLLECTION)
     .deleteOne({ month, discord_id: discordId });
 
-  await logActivity(
+  logActivity(
     "delete",
     "manual_payment",
     doc._id.toString(),

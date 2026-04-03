@@ -3,12 +3,8 @@ import type { DiscordMember } from "./types";
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-interface MemberCache {
-  members: DiscordMember[];
-  fetchedAt: number;
-}
-
-let memberCache: MemberCache | null = null;
+let memberCachePromise: Promise<DiscordMember[]> | null = null;
+let memberCacheExpires = 0;
 
 function buildAvatarUrl(userId: string, avatarHash: string | null): string | null {
   if (!avatarHash) return null;
@@ -69,17 +65,21 @@ async function fetchAllGuildMembers(): Promise<DiscordMember[]> {
 }
 
 export async function fetchGuildMembers(): Promise<DiscordMember[]> {
-  const now = Date.now();
-
-  if (memberCache && now - memberCache.fetchedAt < CACHE_TTL) {
-    return memberCache.members;
+  if (memberCachePromise && Date.now() < memberCacheExpires) {
+    return memberCachePromise;
   }
 
-  const members = await fetchAllGuildMembers();
-  memberCache = { members, fetchedAt: now };
-  return members;
+  memberCacheExpires = Date.now() + CACHE_TTL;
+  memberCachePromise = fetchAllGuildMembers().catch((err) => {
+    // On failure, clear the cached promise so next call retries
+    memberCachePromise = null;
+    memberCacheExpires = 0;
+    throw err;
+  });
+  return memberCachePromise;
 }
 
 export function clearMemberCache(): void {
-  memberCache = null;
+  memberCachePromise = null;
+  memberCacheExpires = 0;
 }

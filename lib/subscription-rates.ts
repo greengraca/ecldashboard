@@ -15,7 +15,16 @@ export interface ActiveRates {
   manual_net: number;
 }
 
+// Cache rates per month (rates change extremely rarely)
+const ratesCache = new Map<string, { data: ActiveRates; expires: number }>();
+const RATES_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
 export async function getRatesForMonth(month: string): Promise<ActiveRates> {
+  const cached = ratesCache.get(month);
+  if (cached && Date.now() < cached.expires) {
+    return cached.data;
+  }
+
   const db = await getDb();
   const rate = await db
     .collection<SubscriptionRate>(COLLECTION)
@@ -24,19 +33,17 @@ export async function getRatesForMonth(month: string): Promise<ActiveRates> {
     .limit(1)
     .toArray();
 
-  if (rate.length === 0) {
-    return {
-      patreon_net: DEFAULT_PATREON_NET,
-      kofi_net: DEFAULT_KOFI_NET,
-      manual_net: DEFAULT_MANUAL_NET,
-    };
-  }
+  const result: ActiveRates = rate.length === 0
+    ? { patreon_net: DEFAULT_PATREON_NET, kofi_net: DEFAULT_KOFI_NET, manual_net: DEFAULT_MANUAL_NET }
+    : { patreon_net: rate[0].patreon_net, kofi_net: rate[0].kofi_net, manual_net: rate[0].manual_net };
 
-  return {
-    patreon_net: rate[0].patreon_net,
-    kofi_net: rate[0].kofi_net,
-    manual_net: rate[0].manual_net,
-  };
+  ratesCache.set(month, { data: result, expires: Date.now() + RATES_CACHE_TTL });
+  return result;
+}
+
+/** Clear rates cache (called after creating new rates) */
+export function clearRatesCache(): void {
+  ratesCache.clear();
 }
 
 export async function getAllRates(): Promise<SubscriptionRate[]> {
@@ -73,8 +80,9 @@ export async function createRate(
   };
 
   const result = await db.collection(COLLECTION).insertOne(doc);
+  clearRatesCache();
 
-  await logActivity(
+  logActivity(
     "create",
     "subscription_rate",
     result.insertedId.toString(),

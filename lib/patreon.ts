@@ -245,7 +245,7 @@ export async function syncPatreonForMonth(
     if (isFormer) formerIncluded++;
   }
 
-  await logActivity(
+  logActivity(
     "sync",
     "patreon_sync",
     month,

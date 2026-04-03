@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { getDb } from "./mongodb";
 import type { ActivityAction } from "./types";
 
@@ -20,27 +21,39 @@ async function ensureIndexes() {
   }
 }
 
-export async function logActivity(
+/**
+ * Log activity to the audit trail. Deferred via after() so it doesn't
+ * block the API response. Safe to call without await.
+ */
+export function logActivity(
   action: ActivityAction,
   entityType: string,
   entityId: string,
   details: Record<string, unknown>,
   userId: string,
   userName: string
-): Promise<void> {
+): void {
+  const doLog = async () => {
+    try {
+      await ensureIndexes();
+      const db = await getDb();
+      await db.collection("dashboard_activity_log").insertOne({
+        action,
+        entity_type: entityType,
+        entity_id: entityId,
+        details,
+        user_id: userId,
+        user_name: userName,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error("Failed to log activity:", err);
+    }
+  };
   try {
-    await ensureIndexes();
-    const db = await getDb();
-    await db.collection("dashboard_activity_log").insertOne({
-      action,
-      entity_type: entityType,
-      entity_id: entityId,
-      details,
-      user_id: userId,
-      user_name: userName,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (err) {
-    console.error("Failed to log activity:", err);
+    after(doLog);
+  } catch {
+    // Outside request context (e.g., scripts/tests) — fire and forget
+    doLog();
   }
 }

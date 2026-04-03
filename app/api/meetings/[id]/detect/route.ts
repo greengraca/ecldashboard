@@ -10,12 +10,13 @@ export const POST = withAuthParams<{ id: string }>(async (_session, _request, { 
     return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
   }
 
-  const notes = await getNotes(id);
+  const [notes, teamMembers] = await Promise.all([
+    getNotes(id),
+    getAllMappings(),
+  ]);
   if (notes.length === 0) {
     return NextResponse.json({ data: [] });
   }
-
-  const teamMembers = await getAllMappings();
   const detected = detectItems(notes, meeting.date, teamMembers);
 
   if (detected.length === 0) {

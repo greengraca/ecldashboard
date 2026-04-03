@@ -23,13 +23,13 @@ export const GET = withAuthRead(async (request: NextRequest) => {
     return NextResponse.json({ data: [] });
   }
 
-  const dump = await reassembleMonthDump(monthInfo);
-
-  // Fetch player names
-  let playerData: Record<string, { name?: string; discord?: string }> = {};
-  try {
-    playerData = await fetchPublicPData(dump.bracket_id);
-  } catch (err) { console.warn("TopDeck PublicPData unavailable:", err); }
+  const [dump, playerData] = await Promise.all([
+    reassembleMonthDump(monthInfo),
+    fetchPublicPData(monthInfo.bracket_id).catch((err) => {
+      console.warn("TopDeck PublicPData unavailable:", err);
+      return {} as Record<string, { name?: string; discord?: string }>;
+    }),
+  ]);
 
   // Build GamePod[] from dump matches
   const gamePods: GamePod[] = dump.matches

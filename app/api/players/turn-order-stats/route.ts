@@ -134,10 +134,10 @@ async function handlePastMonth(month: string) {
     });
   }
 
-  const dump = await reassembleMonthDump(monthInfo);
-
-  // Build player names from PublicPData
-  const players = await fetchPublicPData(dump.bracket_id).catch(() => ({}));
+  const [dump, players] = await Promise.all([
+    reassembleMonthDump(monthInfo),
+    fetchPublicPData(monthInfo.bracket_id).catch(() => ({})),
+  ]);
   const playerNames = new Map<number, { name: string; discord: string }>();
   for (const [eidStr, uid] of Object.entries(dump.entrant_to_uid)) {
     const eid = parseInt(eidStr, 10);

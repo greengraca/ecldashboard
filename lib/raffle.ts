@@ -85,7 +85,7 @@ export async function saveRaffleResult(
     { upsert: true, returnDocument: "after" }
   );
 
-  await logActivity("create", "raffle_result", month, { winner: data.winner_name, prize_id: data.prize_id }, userId, userName);
+  logActivity("create", "raffle_result", month, { winner: data.winner_name, prize_id: data.prize_id }, userId, userName);
   return result!;
 }
 
@@ -98,5 +98,5 @@ export async function deleteRaffleResult(
   const db = await getDb();
   const filter = prizeId ? { month, prize_id: prizeId } : { month };
   await db.collection<RaffleResult>(COLLECTION).deleteMany(filter);
-  await logActivity("delete", "raffle_result", month, { prize_id: prizeId || "all" }, userId, userName);
+  logActivity("delete", "raffle_result", month, { prize_id: prizeId || "all" }, userId, userName);
 }

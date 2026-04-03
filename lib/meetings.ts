@@ -85,8 +85,10 @@ export async function startMeeting(
     throw new Error("A meeting is already active");
   }
 
-  const mapping = await getMappingByDiscordId(userId);
-  const number = await getNextMeetingNumber();
+  const [mapping, number] = await Promise.all([
+    getMappingByDiscordId(userId),
+    getNextMeetingNumber(),
+  ]);
   const now = new Date().toISOString();
   const today = now.substring(0, 10);
 
@@ -127,7 +129,7 @@ export async function startMeeting(
     userName
   );
 
-  await logActivity(
+  logActivity(
     "create",
     "meeting",
     meetingId,
@@ -155,7 +157,7 @@ export async function endMeeting(
   );
 
   if (result) {
-    await logActivity(
+    logActivity(
       "end",
       "meeting",
       id,
@@ -184,7 +186,7 @@ export async function updateMeeting(
   );
 
   if (result) {
-    await logActivity(
+    logActivity(
       "update",
       "meeting",
       id,
@@ -208,12 +210,14 @@ export async function deleteMeeting(
   const meeting = await db.collection<Meeting>(MEETINGS).findOne({ _id: new ObjectId(id) });
 
   // Delete notes, items, and linked calendar event for this meeting
-  await db.collection(NOTES).deleteMany({ meeting_id: id });
-  await db.collection(ITEMS).deleteMany({ meeting_id: id });
-  await deleteEventByMeetingId(id);
-  await db.collection(MEETINGS).deleteOne({ _id: new ObjectId(id) });
+  await Promise.all([
+    db.collection(NOTES).deleteMany({ meeting_id: id }),
+    db.collection(ITEMS).deleteMany({ meeting_id: id }),
+    deleteEventByMeetingId(id),
+    db.collection(MEETINGS).deleteOne({ _id: new ObjectId(id) }),
+  ]);
 
-  await logActivity(
+  logActivity(
     "delete",
     "meeting",
     id,
@@ -263,7 +267,7 @@ export async function joinMeeting(
   );
 
   if (result) {
-    await logActivity(
+    logActivity(
       "join",
       "meeting",
       id,
@@ -350,7 +354,7 @@ export async function addNote(
   const db = await getDb();
   const result = await db.collection(NOTES).insertOne(doc);
 
-  await logActivity(
+  logActivity(
     "create",
     "meeting_note",
     result.insertedId.toString(),
@@ -412,7 +416,7 @@ export async function updateItem(
   );
 
   if (result) {
-    await logActivity(
+    logActivity(
       "update",
       "meeting_item",
       itemId,
@@ -472,7 +476,7 @@ export async function acceptItem(
     createdEntityType = "calendar_event";
   } else if (item.type === "prize") {
     // Prize creation — log it but don't auto-create (too many fields needed)
-    await logActivity(
+    logActivity(
       "create",
       "meeting_item",
       itemId,

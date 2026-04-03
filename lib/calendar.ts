@@ -135,7 +135,7 @@ export async function createEvent(
 
   const result = await db.collection(EVENTS_COLLECTION).insertOne(doc);
 
-  await logActivity("create", "calendar_event", result.insertedId.toString(), {
+  logActivity("create", "calendar_event", result.insertedId.toString(), {
     title: data.title,
     date: data.date,
     type: data.type,
@@ -181,7 +181,7 @@ export async function updateEvent(
 
   if (!result) return null;
 
-  await logActivity("update", "calendar_event", id, {
+  logActivity("update", "calendar_event", id, {
     updated_fields: Object.keys(data),
   }, userId, userName);
 
@@ -200,7 +200,7 @@ export async function deleteEvent(
 
   await db.collection(EVENTS_COLLECTION).deleteOne({ _id: new ObjectId(id) });
 
-  await logActivity("delete", "calendar_event", id, {
+  logActivity("delete", "calendar_event", id, {
     title: doc?.title,
     date: doc?.date,
   }, userId, userName);
@@ -250,7 +250,7 @@ export async function createTemplate(
 
   const result = await db.collection(TEMPLATES_COLLECTION).insertOne(doc);
 
-  await logActivity("create", "calendar_template", result.insertedId.toString(), {
+  logActivity("create", "calendar_template", result.insertedId.toString(), {
     title: data.title,
     type: data.type,
     day_of_month: data.day_of_month,
@@ -282,7 +282,7 @@ export async function updateTemplate(
 
   if (!result) return null;
 
-  await logActivity("update", "calendar_template", id, {
+  logActivity("update", "calendar_template", id, {
     updated_fields: Object.keys(data),
   }, userId, userName);
 
@@ -301,7 +301,7 @@ export async function deleteTemplate(
 
   await db.collection(TEMPLATES_COLLECTION).deleteOne({ _id: new ObjectId(id) });
 
-  await logActivity("delete", "calendar_template", id, {
+  logActivity("delete", "calendar_template", id, {
     title: doc?.title,
     day_of_month: doc?.day_of_month,
   }, userId, userName);

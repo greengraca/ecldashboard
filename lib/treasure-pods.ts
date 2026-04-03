@@ -91,13 +91,13 @@ export async function claimTreasurePod(
 ): Promise<TreasurePodClaim> {
   const db = await getDb();
 
-  // Validate pod exists and is won
-  const pod = await db.collection<TreasurePod>("treasure_pods").findOne({ _id: new ObjectId(podId) });
+  // Validate pod exists, is won, and not already claimed
+  const [pod, existing] = await Promise.all([
+    db.collection<TreasurePod>("treasure_pods").findOne({ _id: new ObjectId(podId) }),
+    db.collection<TreasurePodClaim>(CLAIMS_COLLECTION).findOne({ treasure_pod_id: podId }),
+  ]);
   if (!pod) throw new Error("Pod not found");
   if (pod.status !== "won") throw new Error("Pod has not been won");
-
-  // Check not already claimed
-  const existing = await db.collection<TreasurePodClaim>(CLAIMS_COLLECTION).findOne({ treasure_pod_id: podId });
   if (existing) throw new Error("Pod already claimed");
 
   const now = new Date().toISOString();
@@ -114,7 +114,7 @@ export async function claimTreasurePod(
 
   const result = await db.collection(CLAIMS_COLLECTION).insertOne(doc);
 
-  await logActivity("create", "treasure_pod_claim", podId, {
+  logActivity("create", "treasure_pod_claim", podId, {
     pod_type: data.pod_type,
     winner: pod.winner_discord_handle,
     friend_name: data.friend_name || null,
@@ -135,7 +135,7 @@ export async function unclaimTreasurePod(
 
   await db.collection(CLAIMS_COLLECTION).deleteOne({ treasure_pod_id: podId });
 
-  await logActivity("delete", "treasure_pod_claim", podId, {
+  logActivity("delete", "treasure_pod_claim", podId, {
     pod_type: claim.pod_type,
   }, userId, userName);
 }

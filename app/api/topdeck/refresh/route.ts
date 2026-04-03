@@ -37,7 +37,7 @@ export const POST = withAuth(async (session: Session) => {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const user = session.user as any;
-  await logActivity(
+  logActivity(
     "sync",
     "topdeck_cache",
     "all",

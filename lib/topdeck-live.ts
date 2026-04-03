@@ -502,8 +502,13 @@ export async function fetchEliminationPods(bracketId: string): Promise<Eliminati
   }
 
   // Season 1 = Top 16 (4 pods of 4), Season 2 = Top 4 (1 pod of 4)
-  const top16 = matches.filter((m) => m.season === 1 && m.es.length >= 2).map(buildPod);
-  const top4 = matches.filter((m) => m.season === 2 && m.es.length >= 2).map(buildPod);
+  const top16: EliminationPod[] = [];
+  const top4: EliminationPod[] = [];
+  for (const m of matches) {
+    if (m.es.length < 2) continue;
+    if (m.season === 1) top16.push(buildPod(m));
+    else if (m.season === 2) top4.push(buildPod(m));
+  }
 
   // Champion = winner of the Top 4 pod
   const champion = top4.length > 0 && top4[0].winner ? top4[0].winner : null;

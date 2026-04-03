@@ -91,7 +91,7 @@ export async function createPrize(
 
   const result = await db.collection(COLLECTION).insertOne(doc);
 
-  await logActivity("create", "prize", result.insertedId.toString(), {
+  logActivity("create", "prize", result.insertedId.toString(), {
     name: data.name,
     category: data.category,
     value: data.value,
@@ -175,7 +175,7 @@ export async function updatePrize(
     .collection(COLLECTION)
     .updateOne({ _id: new ObjectId(id) }, { $set: updateData });
 
-  await logActivity("update", "prize", id, {
+  logActivity("update", "prize", id, {
     updated_fields: Object.keys(data),
   }, userId, userName);
 
@@ -198,7 +198,7 @@ export async function deletePrize(
 
   await db.collection(COLLECTION).deleteOne({ _id: new ObjectId(id) });
 
-  await logActivity("delete", "prize", id, {
+  logActivity("delete", "prize", id, {
     name: doc?.name,
     value: doc?.value,
   }, userId, userName);
@@ -234,7 +234,7 @@ export async function updateShipping(
 
   if (!result) return null;
 
-  await logActivity("update", "prize", id, {
+  logActivity("update", "prize", id, {
     action: "shipping_update",
     ...data,
   }, userId, userName);
@@ -279,7 +279,7 @@ export async function upsertPrizeBudget(
     { upsert: true, returnDocument: "after" }
   );
 
-  await logActivity("update", "prize_budget", month, {
+  logActivity("update", "prize_budget", month, {
     total_budget: data.total_budget,
   }, userId, userName);
 
@@ -410,7 +410,7 @@ export async function autoPopulatePrizes(
   }
 
   if (created > 0) {
-    await logActivity("create", "prize", month, {
+    logActivity("create", "prize", month, {
       action: "auto_populate",
       count: created,
     }, userId, userName);

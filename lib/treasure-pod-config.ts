@@ -48,7 +48,7 @@ export async function upsertTreasurePodConfig(
     { upsert: true, returnDocument: "after" }
   );
 
-  await logActivity(
+  logActivity(
     "update",
     "treasure_pod_config",
     month,
@@ -80,7 +80,7 @@ export async function activateTreasurePodConfig(
     );
 
   if (result) {
-    await logActivity(
+    logActivity(
       "update",
       "treasure_pod_config",
       month,

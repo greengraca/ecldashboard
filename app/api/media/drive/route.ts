@@ -14,21 +14,16 @@ export const GET = withAuthRead(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
   const parentId = searchParams.get("parentId") || null;
 
-  const items = await listFolder(parentId);
-
-  // Return breadcrumbs for the current folder
-  let breadcrumbs: { _id: string; name: string }[] = [];
-  if (parentId) {
-    breadcrumbs = await getBreadcrumbs(parentId);
-  }
+  const [items, breadcrumbs] = await Promise.all([
+    listFolder(parentId),
+    parentId ? getBreadcrumbs(parentId) : Promise.resolve([]),
+  ]);
 
   // Batch-generate presigned preview URLs for image files
   const folderIds = items
     .filter((i) => i.type === "folder")
     .map((i) => i._id);
-  const [folderPreviewKeys] = await Promise.all([
-    getFolderPreviews(folderIds),
-  ]);
+  const folderPreviewKeys = await getFolderPreviews(folderIds);
 
   const withPreviews = await Promise.all(
     items.map(async (item) => {

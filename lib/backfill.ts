@@ -139,7 +139,7 @@ export async function backfillPatreon(
     }
   }
 
-  await logActivity(
+  logActivity(
     "create",
     "backfill",
     "patreon_csv",
@@ -218,7 +218,7 @@ export async function backfillKofi(
     }
   }
 
-  await logActivity(
+  logActivity(
     "create",
     "backfill",
     "kofi_csv",

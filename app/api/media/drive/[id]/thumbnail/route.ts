@@ -31,16 +31,15 @@ export const GET = withAuthReadParams<{ id: string }>(async (_request, { id }) =
   // Generate thumbnail lazily
   const thumbR2Key = await generateAndStoreThumbnail(item.r2Key);
 
-  // Store the thumb key in MongoDB
+  // Store thumb key + get presigned URL in parallel
   const db = await getDb();
-  await db
-    .collection("dashboard_media_files")
-    .updateOne(
+  const [, url] = await Promise.all([
+    db.collection("dashboard_media_files").updateOne(
       { _id: new ObjectId(id) },
       { $set: { thumbR2Key, updatedAt: new Date() } }
-    );
-
-  const url = await getPresignedDownloadUrl(thumbR2Key, 86400);
+    ),
+    getPresignedDownloadUrl(thumbR2Key, 86400),
+  ]);
   return NextResponse.redirect(url, {
     headers: { "Cache-Control": "public, max-age=86400" },
   });

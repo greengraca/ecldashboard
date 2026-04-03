@@ -471,7 +471,7 @@ export default function PlayersPage() {
       const top = liveStandings.length > 0 ? liveStandings[0].points.toFixed(0) : "--";
       const topName = liveStandings.length > 0 ? liveStandings[0].name : "";
       const mostGamesPlayer = liveStandings.length > 0
-        ? [...liveStandings].sort((a, b) => b.games - a.games)[0]
+        ? liveStandings.reduce((max, s) => s.games > max.games ? s : max, liveStandings[0])
         : null;
       const mostGames = mostGamesPlayer ? mostGamesPlayer.games : "--";
       const mostGamesName = mostGamesPlayer ? mostGamesPlayer.name : "";
@@ -489,7 +489,7 @@ export default function PlayersPage() {
       const top = players.length > 0 ? players[0].points.toFixed(0) : "--";
       const topName = players.length > 0 ? players[0].name : "";
       const mostGamesPlayer = players.length > 0
-        ? [...players].sort((a, b) => b.games - a.games)[0]
+        ? players.reduce((max, p) => p.games > max.games ? p : max, players[0])
         : null;
       const mostGames = mostGamesPlayer ? mostGamesPlayer.games : "--";
       const mostGamesName = mostGamesPlayer ? mostGamesPlayer.name : "";
