@@ -338,9 +338,6 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
       }
     }
 
-    // Skip Ko-fi role holders without activity for this month
-    if (source === "kofi" && !kofiActiveIds.has(member.id)) continue;
-
     processedIds.add(member.id);
 
     const accessRec = accessByUser.get(member.id);
@@ -449,9 +446,58 @@ interface PaidMember {
 }
 
 /**
+ * Snapshot current Ko-fi role holders for the given month.
+ * Mirrors the Patreon snapshot pattern — upserts active members,
+ * soft-deletes (cancelled_at) anyone who lost the role since last sync.
+ */
+export async function syncKofiSnapshot(
+  month: string,
+  userId: string,
+  userName: string
+): Promise<{ synced: number; removed: number }> {
+  const { logActivity } = await import("./activity");
+  const db = await getDb();
+  const members = await fetchGuildMembers();
+  const syncStartTime = new Date();
+  const collection = db.collection("dashboard_kofi_snapshots");
+
+  let synced = 0;
+
+  for (const member of members) {
+    if (!roleSetHasAny(member.roles, KOFI_ROLE_IDS)) continue;
+
+    await collection.updateOne(
+      { month, discord_id: member.id },
+      {
+        $set: {
+          month,
+          discord_id: member.id,
+          username: member.username,
+          display_name: member.display_name,
+          synced_at: syncStartTime.toISOString(),
+          cancelled_at: null,
+        },
+      },
+      { upsert: true }
+    );
+    synced++;
+  }
+
+  // Mark stale snapshots as cancelled (role removed since last sync)
+  const staleResult = await collection.updateMany(
+    { month, synced_at: { $lt: syncStartTime.toISOString() }, cancelled_at: null },
+    { $set: { cancelled_at: new Date().toISOString() } }
+  );
+  const removed = staleResult.modifiedCount;
+
+  logActivity("sync", "kofi_sync", month, { synced, removed }, userId, userName);
+
+  return { synced, removed };
+}
+
+/**
  * Detect paid member changes between the given month and the previous month.
- * Uses Patreon snapshots and Ko-fi events directly (not the computed subscriber list)
- * for reliable detection regardless of Discord role state.
+ * Uses Patreon snapshots and Ko-fi snapshots (role-based) for reliable detection.
  */
 export async function detectSubscriberChanges(
   month: string,
@@ -476,13 +522,13 @@ export async function detectSubscriberChanges(
       .toArray(),
   ]);
 
-  // Fetch Ko-fi events for both months (distinct user_ids)
+  // Fetch Ko-fi snapshots for both months (only active — exclude cancelled)
   const [kofiCurrent, kofiPrev] = await Promise.all([
-    db.collection("subs_kofi_events")
-      .find({ purchase_month: month }, { projection: { user_id: 1 } })
+    db.collection("dashboard_kofi_snapshots")
+      .find({ month, cancelled_at: null }, { projection: { discord_id: 1, username: 1, display_name: 1 } })
       .toArray(),
-    db.collection("subs_kofi_events")
-      .find({ purchase_month: prevMonth }, { projection: { user_id: 1 } })
+    db.collection("dashboard_kofi_snapshots")
+      .find({ month: prevMonth, cancelled_at: null }, { projection: { discord_id: 1, username: 1, display_name: 1 } })
       .toArray(),
   ]);
 
@@ -515,20 +561,25 @@ export async function detectSubscriberChanges(
     }
   }
 
-  // Ko-fi: only compare if current month has events
-  const kofiCurrentIds = new Set(kofiCurrent.map((e) => e.user_id?.toString() ?? ""));
-  const kofiPrevIds = new Set(kofiPrev.map((e) => e.user_id?.toString() ?? ""));
-
-  if (kofiCurrentIds.size > 0 || kofiPrevIds.size === 0) {
-    for (const uid of kofiCurrentIds) {
-      if (!uid) continue;
-      const key = `kofi:${uid}`;
-      currentMembers.set(key, { id: uid, name: uid, source: "kofi", tier: "Ko-fi" });
+  // Ko-fi: only compare if current month has been synced
+  if (kofiCurrent.length > 0 || kofiPrev.length === 0) {
+    for (const s of kofiCurrent) {
+      const key = `kofi:${s.discord_id}`;
+      currentMembers.set(key, {
+        id: s.discord_id,
+        name: s.display_name || s.username || s.discord_id,
+        source: "kofi",
+        tier: "Ko-fi",
+      });
     }
-    for (const uid of kofiPrevIds) {
-      if (!uid) continue;
-      const key = `kofi:${uid}`;
-      prevMembers.set(key, { id: uid, name: uid, source: "kofi", tier: "Ko-fi" });
+    for (const s of kofiPrev) {
+      const key = `kofi:${s.discord_id}`;
+      prevMembers.set(key, {
+        id: s.discord_id,
+        name: s.display_name || s.username || s.discord_id,
+        source: "kofi",
+        tier: "Ko-fi",
+      });
     }
   }
 

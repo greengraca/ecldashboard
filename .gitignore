@@ -51,6 +51,9 @@ plans/
 # superpowers brainstorm artifacts
 .superpowers/
 
+# git worktrees
+.worktrees/
+
 # skills.sh agent skills
 .agents/
 skills-lock.json
