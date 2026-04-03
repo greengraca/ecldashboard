@@ -201,10 +201,13 @@ function detectDeadlines(content: string, meetingDate: string): DetectedItem[] {
     const text = match[1].trim();
     if (text.length < 3 || text.length > 200) continue;
 
+    // Try to extract a date from the captured text
+    const inlineDate = extractInlineDate(text, meetingDate);
+
     items.push({
       type: "deadline",
       title: capitalizeFirst(text),
-      metadata: {},
+      metadata: inlineDate ? { date: inlineDate } : {},
       source_quote: match[0].trim(),
       confidence: 0.85,
     });
@@ -273,6 +276,26 @@ function detectPrizes(content: string): DetectedItem[] {
 }
 
 // ─── Helpers ───
+
+/** Try to find a date inside free text (e.g. "submit prizes by April 29" or "on the 15th") */
+function extractInlineDate(text: string, referenceDate: string): string | null {
+  // "Month Day" anywhere in text
+  const monthDayRe = new RegExp(`(${MONTH_NAMES.join("|")})\\s+(\\d{1,2})(?:st|nd|rd|th)?`, "i");
+  const md = monthDayRe.exec(text);
+  if (md) {
+    return resolveMonthDay(md[1], parseInt(md[2], 10), referenceDate);
+  }
+
+  // "the Nth" or bare ordinal with suffix
+  const ordRe = /(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)/i;
+  const od = ordRe.exec(text);
+  if (od) {
+    const day = parseInt(od[1], 10);
+    if (day >= 1 && day <= 31) return resolveDayOnly(day, referenceDate);
+  }
+
+  return null;
+}
 
 function resolveMonthDay(monthName: string, day: number, referenceDate: string): string | null {
   const monthNum = MONTHS[monthName.toLowerCase()];

@@ -461,10 +461,13 @@ export async function acceptItem(
       console.error("Failed to create Taskpad task from meeting item:", err);
     }
   } else if (item.type === "deadline") {
+    // Use the detected date; fall back to the meeting date (not today)
+    const meeting = await db.collection<Meeting>(MEETINGS).findOne({ _id: new ObjectId(item.meeting_id) });
+    const eventDate = meta.date || meta.due_date || meeting?.date || now.substring(0, 10);
     const event = await createEvent(
       {
         title: item.title,
-        date: meta.date || now.substring(0, 10),
+        date: eventDate,
         type: (meta.event_type as "league" | "feature" | "deadline" | "urgent" | "meeting") || "deadline",
         recurring: false,
         source: { type: "meeting", meeting_id: item.meeting_id },
