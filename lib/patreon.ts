@@ -247,13 +247,14 @@ export async function syncPatreonForMonth(
     if (isFormer) formerIncluded++;
   }
 
-  // Remove stale snapshots — patrons no longer in the API response for this month
-  // (e.g. mid-month cancellations). Their synced_at is older than this sync run.
-  const staleResult = await collection.deleteMany({
-    month,
-    synced_at: { $lt: syncStartTime.toISOString() },
-  });
-  const removed = staleResult.deletedCount;
+  // Mark stale snapshots as cancelled — patrons no longer in the API response
+  // for this month (e.g. mid-month cancellations). Keep the snapshot so we
+  // preserve that they were a subscriber for part of the month.
+  const staleResult = await collection.updateMany(
+    { month, synced_at: { $lt: syncStartTime.toISOString() }, cancelled_at: null },
+    { $set: { cancelled_at: new Date().toISOString() } }
+  );
+  const removed = staleResult.modifiedCount;
 
   logActivity(
     "sync",

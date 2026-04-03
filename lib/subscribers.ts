@@ -466,13 +466,13 @@ export async function detectSubscriberChanges(
   const prevDate = new Date(y, m - 2, 1);
   const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
 
-  // Fetch Patreon snapshots for both months
+  // Fetch Patreon snapshots for both months (only active — exclude cancelled)
   const [patreonCurrent, patreonPrev] = await Promise.all([
     db.collection("dashboard_patreon_snapshots")
-      .find({ month }, { projection: { patreon_user_id: 1, discord_id: 1, patreon_name: 1, tier: 1 } })
+      .find({ month, cancelled_at: null }, { projection: { patreon_user_id: 1, discord_id: 1, patreon_name: 1, tier: 1 } })
       .toArray(),
     db.collection("dashboard_patreon_snapshots")
-      .find({ month: prevMonth }, { projection: { patreon_user_id: 1, discord_id: 1, patreon_name: 1, tier: 1 } })
+      .find({ month: prevMonth, cancelled_at: null }, { projection: { patreon_user_id: 1, discord_id: 1, patreon_name: 1, tier: 1 } })
       .toArray(),
   ]);
 
