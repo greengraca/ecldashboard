@@ -7,6 +7,7 @@ import TasksWidget from "@/components/dashboard/TasksWidget";
 import dynamic from "next/dynamic";
 const FinanceOverview = dynamic(() => import("@/components/finance/finance-overview"), { ssr: false });
 const ProfitSplitTable = dynamic(() => import("@/components/finance/profit-split-table"), { ssr: false });
+import SubscriberChangesCard from "@/components/home/SubscriberChangesCard";
 import { CheckCircle, Clock, List, Group } from "lucide-react";
 import type { ActivityEntry, ActivityAction, PendingReimbursement } from "@/lib/types";
 import { Sensitive } from "@/components/dashboard/sensitive";
@@ -114,7 +115,9 @@ export default function HomeContent() {
         <ProfitSplitTable />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <SubscriberChangesCard />
+
         <div
           className="p-4 sm:p-6 rounded-xl"
           style={{

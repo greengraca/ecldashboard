@@ -476,13 +476,6 @@ export async function detectSubscriberChanges(
       .toArray(),
   ]);
 
-  // If neither month has Patreon data, nothing to compare
-  // If current month has no data but previous does, the sync hasn't run yet — skip
-  // to avoid falsely marking everyone as "left"
-  if (patreonCurrent.length === 0 && patreonPrev.length > 0) {
-    return { joined: [], left: [], alreadyLogged: false };
-  }
-
   // Fetch Ko-fi events for both months (distinct user_ids)
   const [kofiCurrent, kofiPrev] = await Promise.all([
     db.collection("subs_kofi_events")
@@ -493,43 +486,50 @@ export async function detectSubscriberChanges(
       .toArray(),
   ]);
 
-  // Build paid member maps keyed by a stable ID
-  // Patreon: use patreon_user_id (stable across months)
+  // Build paid member maps keyed by a stable ID.
+  // Only include a source if the current month has data for it — if the current
+  // month has no data but the previous does, the sync hasn't run yet and we'd
+  // falsely mark everyone from that source as "left".
   const currentMembers = new Map<string, PaidMember>();
   const prevMembers = new Map<string, PaidMember>();
 
-  for (const s of patreonCurrent) {
-    const key = `patreon:${s.patreon_user_id}`;
-    currentMembers.set(key, {
-      id: s.discord_id?.toString() || s.patreon_user_id,
-      name: s.patreon_name || s.discord_id?.toString() || "Unknown",
-      source: "patreon",
-      tier: s.tier || "Patreon",
-    });
-  }
-  for (const s of patreonPrev) {
-    const key = `patreon:${s.patreon_user_id}`;
-    prevMembers.set(key, {
-      id: s.discord_id?.toString() || s.patreon_user_id,
-      name: s.patreon_name || s.discord_id?.toString() || "Unknown",
-      source: "patreon",
-      tier: s.tier || "Patreon",
-    });
+  // Patreon: only compare if current month has been synced
+  if (patreonCurrent.length > 0 || patreonPrev.length === 0) {
+    for (const s of patreonCurrent) {
+      const key = `patreon:${s.patreon_user_id}`;
+      currentMembers.set(key, {
+        id: s.discord_id?.toString() || s.patreon_user_id,
+        name: s.patreon_name || s.discord_id?.toString() || "Unknown",
+        source: "patreon",
+        tier: s.tier || "Patreon",
+      });
+    }
+    for (const s of patreonPrev) {
+      const key = `patreon:${s.patreon_user_id}`;
+      prevMembers.set(key, {
+        id: s.discord_id?.toString() || s.patreon_user_id,
+        name: s.patreon_name || s.discord_id?.toString() || "Unknown",
+        source: "patreon",
+        tier: s.tier || "Patreon",
+      });
+    }
   }
 
-  // Ko-fi: use discord user_id (deduplicated)
+  // Ko-fi: only compare if current month has events
   const kofiCurrentIds = new Set(kofiCurrent.map((e) => e.user_id?.toString() ?? ""));
   const kofiPrevIds = new Set(kofiPrev.map((e) => e.user_id?.toString() ?? ""));
 
-  for (const uid of kofiCurrentIds) {
-    if (!uid) continue;
-    const key = `kofi:${uid}`;
-    currentMembers.set(key, { id: uid, name: uid, source: "kofi", tier: "Ko-fi" });
-  }
-  for (const uid of kofiPrevIds) {
-    if (!uid) continue;
-    const key = `kofi:${uid}`;
-    prevMembers.set(key, { id: uid, name: uid, source: "kofi", tier: "Ko-fi" });
+  if (kofiCurrentIds.size > 0 || kofiPrevIds.size === 0) {
+    for (const uid of kofiCurrentIds) {
+      if (!uid) continue;
+      const key = `kofi:${uid}`;
+      currentMembers.set(key, { id: uid, name: uid, source: "kofi", tier: "Ko-fi" });
+    }
+    for (const uid of kofiPrevIds) {
+      if (!uid) continue;
+      const key = `kofi:${uid}`;
+      prevMembers.set(key, { id: uid, name: uid, source: "kofi", tier: "Ko-fi" });
+    }
   }
 
   // Compare

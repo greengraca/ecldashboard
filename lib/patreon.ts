@@ -65,7 +65,7 @@ export async function syncPatreonForMonth(
   month: string,
   userId: string,
   userName: string
-): Promise<{ synced: number; skipped: number; warnings: string[] }> {
+): Promise<{ synced: number; skipped: number; removed: number; warnings: string[] }> {
   const token = await getAccessToken();
   if (!token) {
     throw new Error("PATREON_CREATOR_TOKEN not configured");
@@ -105,6 +105,7 @@ export async function syncPatreonForMonth(
   // Process members
   const db = await getDb();
   const collection = db.collection<PatreonSnapshot>(COLLECTION);
+  const syncStartTime = new Date();
   let synced = 0;
   let skipped = 0;
   let formerIncluded = 0;
@@ -245,14 +246,22 @@ export async function syncPatreonForMonth(
     if (isFormer) formerIncluded++;
   }
 
+  // Remove stale snapshots — patrons no longer in the API response for this month
+  // (e.g. mid-month cancellations). Their synced_at is older than this sync run.
+  const staleResult = await collection.deleteMany({
+    month,
+    synced_at: { $lt: syncStartTime.toISOString() },
+  });
+  const removed = staleResult.deletedCount;
+
   logActivity(
     "sync",
     "patreon_sync",
     month,
-    { synced, skipped, former_included: formerIncluded, warnings_count: warnings.length },
+    { synced, skipped, removed, former_included: formerIncluded, warnings_count: warnings.length },
     userId,
     userName
   );
 
-  return { synced, skipped, warnings };
+  return { synced, skipped, removed, warnings };
 }
