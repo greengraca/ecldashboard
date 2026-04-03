@@ -9,12 +9,12 @@ import { fetchPublicPData } from "./topdeck-cache";
 import { fetchLiveStandings } from "./topdeck-live";
 import { fetchGuildMembers } from "./discord";
 import {
-  TOPDECK_BRACKET_ID,
   TOP16_MIN_ONLINE_GAMES,
   TOP16_MIN_TOTAL_GAMES,
   TOP16_NO_RECENCY_GAMES,
   TOP16_RECENCY_AFTER_DAY,
 } from "./constants";
+import { getBracketIdForMonth } from "./bracket-ids";
 import type {
   Player,
   PlayerDetail,
@@ -172,20 +172,27 @@ function buildRankedPlayers(
  */
 export async function getPlayers(month?: string): Promise<{ players: Player[]; bracket_id: string }> {
   const months = await getHistoricalMonths();
-  if (months.length === 0) return { players: [], bracket_id: "" };
 
   // Find the target month info
   let targetMonth: string;
   if (month) {
     targetMonth = month;
-  } else {
+  } else if (months.length > 0) {
     // Use the latest month
     targetMonth = months[months.length - 1].month;
+  } else {
+    // No dump data at all — resolve bracket_id dynamically
+    const bracketId = await getBracketIdForMonth(month || getCurrentMonth());
+    return { players: [], bracket_id: bracketId };
   }
 
   // Find all bracket_ids for the target month
   const monthInfos = months.filter((m) => m.month === targetMonth);
-  if (monthInfos.length === 0) return { players: [], bracket_id: "" };
+  if (monthInfos.length === 0) {
+    // No dump for this month — still return the resolved bracket_id
+    const bracketId = await getBracketIdForMonth(targetMonth);
+    return { players: [], bracket_id: bracketId };
+  }
 
   // Use the first bracket_id for name lookups via PublicPData
   const bracketId = monthInfos[0].bracket_id;
@@ -247,7 +254,7 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
 
   const latestBracketId = months.length > 0
     ? months[months.length - 1].bracket_id
-    : TOPDECK_BRACKET_ID;
+    : await getBracketIdForMonth(getCurrentMonth());
   const [subscriberLookup, nameLookup] = await Promise.all([
     getSubscriberLookup(),
     getUidNameLookup(latestBracketId),
@@ -401,7 +408,7 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
   let discordHandle = "";
   try {
     // Try PublicPData first
-    const bracketIdForAvatar = TOPDECK_BRACKET_ID || latestBracketId;
+    const bracketIdForAvatar = latestBracketId;
     try {
       const pdata = await fetchPublicPData(bracketIdForAvatar);
       discordHandle = pdata[uid]?.discord?.toLowerCase().trim() || "";
@@ -572,13 +579,8 @@ export async function getEligibleTop16(month?: string): Promise<{ uid: string; n
   const recencyApplies = year > 2026 || (year === 2026 && monthNum >= 3);
   const currentMonth = getCurrentMonth();
 
-  // Resolve bracket ID: current env var for current month, historical data for past months
-  let bracketId = TOPDECK_BRACKET_ID;
-  if (targetMonth !== currentMonth) {
-    const months = await getHistoricalMonths();
-    const monthInfo = months.find((m) => m.month === targetMonth);
-    if (monthInfo) bracketId = monthInfo.bracket_id;
-  }
+  // Resolve bracket ID dynamically (online_games → dumps → env var)
+  const bracketId = await getBracketIdForMonth(targetMonth);
 
   if (targetMonth === currentMonth) {
     // Current month: use live standings (has dropped status + voided match IDs)

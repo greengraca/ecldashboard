@@ -3,7 +3,9 @@ import { withAuthRead } from "@/lib/api-helpers";
 import { fetchLiveStandings } from "@/lib/topdeck-live";
 import { fetchGuildMembers } from "@/lib/discord";
 import { getDb } from "@/lib/mongodb";
-import { TOPDECK_BRACKET_ID, TOP16_MIN_ONLINE_GAMES, TOP16_MIN_TOTAL_GAMES, TOP16_NO_RECENCY_GAMES, TOP16_RECENCY_AFTER_DAY } from "@/lib/constants";
+import { TOP16_MIN_ONLINE_GAMES, TOP16_MIN_TOTAL_GAMES, TOP16_NO_RECENCY_GAMES, TOP16_RECENCY_AFTER_DAY } from "@/lib/constants";
+import { getBracketIdForMonth } from "@/lib/bracket-ids";
+import { getCurrentMonth } from "@/lib/utils";
 import type { LiveStanding } from "@/lib/types";
 
 const MIN_ONLINE_GAMES = TOP16_MIN_ONLINE_GAMES;
@@ -11,7 +13,7 @@ const MIN_TOTAL_GAMES = TOP16_MIN_TOTAL_GAMES;
 const NO_RECENCY_GAMES = TOP16_NO_RECENCY_GAMES;
 const RECENCY_AFTER_DAY = TOP16_RECENCY_AFTER_DAY;
 
-async function getOnlineGameCounts(voidedMatchIds: { season: number; table: number }[]): Promise<Map<string, number>> {
+async function getOnlineGameCounts(bracketId: string, voidedMatchIds: { season: number; table: number }[]): Promise<Map<string, number>> {
   const db = await getDb();
   const now = new Date();
   const year = now.getFullYear();
@@ -19,7 +21,7 @@ async function getOnlineGameCounts(voidedMatchIds: { season: number; table: numb
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const matchFilter: Record<string, any> = {
-    bracket_id: TOPDECK_BRACKET_ID,
+    bracket_id: bracketId,
     year,
     month,
     online: true,
@@ -45,7 +47,7 @@ async function getOnlineGameCounts(voidedMatchIds: { season: number; table: numb
 }
 
 /** UIDs that have at least one online game on or after RECENCY_AFTER_DAY of the current month */
-async function getRecentGameUids(voidedMatchIds: { season: number; table: number }[]): Promise<Set<string>> {
+async function getRecentGameUids(bracketId: string, voidedMatchIds: { season: number; table: number }[]): Promise<Set<string>> {
   const db = await getDb();
   const now = new Date();
   const year = now.getFullYear();
@@ -55,7 +57,7 @@ async function getRecentGameUids(voidedMatchIds: { season: number; table: number
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const matchFilter: Record<string, any> = {
-    bracket_id: TOPDECK_BRACKET_ID,
+    bracket_id: bracketId,
     year,
     month,
     online: true,
@@ -82,14 +84,16 @@ async function getRecentGameUids(voidedMatchIds: { season: number; table: number
 }
 
 export const GET = withAuthRead(async () => {
+  const bracketId = await getBracketIdForMonth(getCurrentMonth());
+
   const [liveResult, guildMembers] = await Promise.all([
-    fetchLiveStandings(),
+    fetchLiveStandings(bracketId),
     fetchGuildMembers(),
   ]);
 
   const [onlineCounts, recentUids] = await Promise.all([
-    getOnlineGameCounts(liveResult.voidedMatchIds),
-    getRecentGameUids(liveResult.voidedMatchIds),
+    getOnlineGameCounts(bracketId, liveResult.voidedMatchIds),
+    getRecentGameUids(bracketId, liveResult.voidedMatchIds),
   ]);
 
   // Build discord username → avatar_url lookup
@@ -150,7 +154,7 @@ export const GET = withAuthRead(async () => {
       total_matches: liveResult.totalMatches,
       in_progress: liveResult.inProgress,
       voided: liveResult.voided,
-      bracket_id: TOPDECK_BRACKET_ID,
+      bracket_id: bracketId,
     },
   });
 }, "players/standings/live:GET");

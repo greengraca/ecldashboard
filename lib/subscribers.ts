@@ -9,10 +9,10 @@ import {
   ECL_MOD_ROLE_IDS,
   ARENA_VANGUARD_ROLE_IDS,
   DISCORD_GUILD_ID,
-  TOPDECK_BRACKET_ID,
 } from "./constants";
 import { fetchPublicPData } from "./topdeck-cache";
 import { getHistoricalMonths, reassembleMonthDump, computeStandings } from "./topdeck";
+import { getBracketIdForMonth } from "./bracket-ids";
 import { getStandings } from "./players";
 import { getRegisteredDiscordUsernames } from "./bracket-registration";
 import type { Subscriber, SubscriberSummary, SubscriptionSource, DataHealthWarning } from "./types";
@@ -197,15 +197,17 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
       .find({ guild_id: guildIdFilter, month })
       .toArray(),
     // Count games per topdeck_uid (same approach as live standings)
-    db.collection("online_games").aggregate<{ _id: string; count: number }>([
-      { $match: { bracket_id: TOPDECK_BRACKET_ID, year: yearNum, month: monthNum } },
-      { $unwind: "$topdeck_uids" },
-      { $group: { _id: "$topdeck_uids", count: { $sum: 1 } } },
-    ]).toArray(),
+    getBracketIdForMonth(month).then((bid) =>
+      db.collection("online_games").aggregate<{ _id: string; count: number }>([
+        { $match: { bracket_id: bid, year: yearNum, month: monthNum } },
+        { $unwind: "$topdeck_uids" },
+        { $group: { _id: "$topdeck_uids", count: { $sum: 1 } } },
+      ]).toArray()
+    ),
     // Fetch PublicPData to map topdeck_uid → discord username
-    (TOPDECK_BRACKET_ID
-      ? fetchPublicPData(TOPDECK_BRACKET_ID).catch(() => ({}))
-      : Promise.resolve({})) as Promise<Record<string, { name?: string; discord?: string }>>,
+    getBracketIdForMonth(month).then((bid) =>
+      bid ? fetchPublicPData(bid).catch(() => ({})) : {}
+    ) as Promise<Record<string, { name?: string; discord?: string }>>,
   ]);
 
   // Build lookup maps
@@ -473,6 +475,13 @@ export async function detectSubscriberChanges(
       .find({ month: prevMonth }, { projection: { patreon_user_id: 1, discord_id: 1, patreon_name: 1, tier: 1 } })
       .toArray(),
   ]);
+
+  // If neither month has Patreon data, nothing to compare
+  // If current month has no data but previous does, the sync hasn't run yet — skip
+  // to avoid falsely marking everyone as "left"
+  if (patreonCurrent.length === 0 && patreonPrev.length > 0) {
+    return { joined: [], left: [], alreadyLogged: false };
+  }
 
   // Fetch Ko-fi events for both months (distinct user_ids)
   const [kofiCurrent, kofiPrev] = await Promise.all([
