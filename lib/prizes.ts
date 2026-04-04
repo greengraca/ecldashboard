@@ -83,6 +83,7 @@ export async function createPrize(
     delivery_date: null,
     shipping_notes: null,
     transaction_id: transactionId,
+    inventory_card_id: null,
     created_by: userName,
     modified_by: userName,
     created_at: now,
@@ -192,7 +193,13 @@ export async function deletePrize(
     .collection<Prize>(COLLECTION)
     .findOne({ _id: new ObjectId(id) });
 
-  if (doc?.transaction_id) {
+  if (doc?.inventory_card_id) {
+    // Flip inventory card back to in_stock — no finance transaction to touch
+    await db.collection("dashboard_card_inventory").updateOne(
+      { _id: new ObjectId(doc.inventory_card_id) },
+      { $set: { status: "in_stock", assigned_prize_id: null, assigned_month: null, updated_at: new Date().toISOString() } }
+    );
+  } else if (doc?.transaction_id) {
     await deleteTransaction(doc.transaction_id, userId, userName);
   }
 
@@ -363,6 +370,7 @@ export async function autoPopulatePrizes(
       delivery_date: null,
       shipping_notes: null,
       transaction_id: null,
+      inventory_card_id: null,
       status: "planned",
       created_by: userName,
       modified_by: userName,
@@ -398,6 +406,7 @@ export async function autoPopulatePrizes(
       delivery_date: null,
       shipping_notes: null,
       transaction_id: null,
+      inventory_card_id: null,
       status: "planned",
       created_by: userName,
       modified_by: userName,

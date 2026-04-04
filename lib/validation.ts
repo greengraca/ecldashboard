@@ -186,6 +186,44 @@ export const treasurePodConfigSchema = z.object({
   notes: z.string().max(1000).optional().default(""),
 });
 
+// --- Card Inventory schemas ---
+
+const inventoryCardInput = z.object({
+  name: z.string().min(1).max(200),
+  price: z.number().min(0),
+  condition: z.enum(["NM", "EX", "GD", "LP", "PL", "PO"]).nullable().optional(),
+  card_language: z.string().max(10).nullable().optional(),
+  set_name: z.string().max(200).nullable().optional(),
+  image_url: z.string().max(500).nullable().optional(),
+  r2_key: z.string().max(500).nullable().optional(),
+  scryfall_id: z.string().max(100).nullable().optional(),
+});
+
+export const cardOrderCreateSchema = z.object({
+  date: z.string().min(1),
+  seller: z.string().min(1).max(200),
+  shipping_cost: z.number().min(0),
+  notes: z.string().max(1000).nullable().optional(),
+  cards: z.array(inventoryCardInput).min(1).max(50),
+});
+
+export const cardOrderUpdateSchema = z.object({
+  date: z.string().min(1).optional(),
+  seller: z.string().min(1).max(200).optional(),
+  shipping_cost: z.number().min(0).optional(),
+  notes: z.string().max(1000).nullable().optional(),
+});
+
+export const inventoryAssignSchema = z.object({
+  month: z.string().min(1),
+  recipient_type: z.enum(["placement", "most_games", "treasure_pod", "top16", "custom"]),
+  placement: z.number().int().nullable().optional(),
+  recipient_name: z.string().max(200).optional().default(""),
+  recipient_uid: z.string().max(100).nullable().optional(),
+  recipient_discord_id: z.string().max(50).nullable().optional(),
+  status: z.enum(["planned", "confirmed", "awarded"]).optional().default("confirmed"),
+});
+
 /** Whitelist for activity log filter values */
 const ACTIVITY_ACTIONS = [
   "create", "update", "delete", "sync", "backfill",
@@ -200,6 +238,7 @@ const ACTIVITY_ENTITY_TYPES = [
   "treasure_pod", "treasure_pod_config", "reimbursement",
   "calendar_event", "calendar_template", "meeting",
   "meeting_note", "meeting_item", "user_mapping", "taskpad_task",
+  "card_order", "inventory_card",
 ] as const;
 
 const ERROR_LOG_LEVELS = ["error", "warn", "info"] as const;

@@ -1,6 +1,6 @@
 "use client";
 
-import { Image as ImageIcon, ExternalLink, Trash2, Pencil } from "lucide-react";
+import { Image as ImageIcon, ExternalLink, Trash2, Pencil, Package } from "lucide-react";
 import Modal from "@/components/dashboard/modal";
 import type { Prize } from "@/lib/types";
 
@@ -111,13 +111,18 @@ export default function PrizeDetailModal({
           </div>
         )}
 
-        {/* Linked transaction */}
-        {prize.transaction_id && (
+        {/* Source badge */}
+        {prize.inventory_card_id ? (
+          <div className="flex items-center gap-2 text-xs" style={{ color: "#3b82f6" }}>
+            <Package className="w-3 h-3" />
+            <span>From Inventory</span>
+          </div>
+        ) : prize.transaction_id ? (
           <div className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
             <ExternalLink className="w-3 h-3" />
             <span>Linked to finance transaction</span>
           </div>
-        )}
+        ) : null}
 
         {/* Actions */}
         <div className="flex justify-between pt-2 border-t" style={{ borderColor: "var(--border)" }}>
@@ -130,7 +135,7 @@ export default function PrizeDetailModal({
             style={{ color: "var(--error)" }}
           >
             <Trash2 className="w-3.5 h-3.5" />
-            Delete
+            {prize.inventory_card_id ? "Remove from Prizes" : "Delete"}
           </button>
           <button
             onClick={() => {

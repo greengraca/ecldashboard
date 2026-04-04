@@ -13,11 +13,14 @@ import dynamic from "next/dynamic";
 import type { PrizeFormData } from "@/components/prizes/prize-form";
 import type { CardGroup } from "@/components/prizes/card-single-form";
 import ConfirmModal from "@/components/dashboard/confirm-modal";
+import InventorySection from "@/components/prizes/inventory-section";
 const PrizeForm = dynamic(() => import("@/components/prizes/prize-form"), { ssr: false });
 const CardSingleForm = dynamic(() => import("@/components/prizes/card-single-form"), { ssr: false });
 const PrizeDetailModal = dynamic(() => import("@/components/prizes/prize-detail-modal"), { ssr: false });
 const RaffleModal = dynamic(() => import("@/components/prizes/raffle-modal"), { ssr: false });
-import type { Prize, PrizeBudget, PrizeBudgetAllocations, TreasurePodData } from "@/lib/types";
+const OrderForm = dynamic(() => import("@/components/prizes/order-form"), { ssr: false });
+const InventoryPicker = dynamic(() => import("@/components/prizes/inventory-picker"), { ssr: false });
+import type { Prize, PrizeBudget, PrizeBudgetAllocations, TreasurePodData, InventoryCard } from "@/lib/types";
 import { fetcher } from "@/lib/fetcher";
 import { getCurrentMonth, getNextMonth } from "@/lib/utils";
 
@@ -43,6 +46,11 @@ export default function PrizesPage() {
   const [cardFormGroup, setCardFormGroup] = useState<CardGroup | undefined>(undefined);
   const [raffleOpen, setRaffleOpen] = useState(false);
   const [monthHighlight, setMonthHighlight] = useState(false);
+  const [inventoryPickerOpen, setInventoryPickerOpen] = useState(false);
+  const [selectedInventoryCard, setSelectedInventoryCard] = useState<InventoryCard | null>(null);
+  const [inventoryPickerGroup, setInventoryPickerGroup] = useState<CardGroup | undefined>(undefined);
+  const [inventoryRefreshKey, setInventoryRefreshKey] = useState(0);
+  const [orderFormOpen, setOrderFormOpen] = useState(false);
 
   const nextMonth = getNextMonth();
   const isCurrentMonth = month === currentMonth;
@@ -86,6 +94,7 @@ export default function PrizesPage() {
   const refreshAll = useCallback(() => {
     mutatePrizes();
     mutateBudget();
+    setInventoryRefreshKey((k) => k + 1);
     // Refresh planning/distribution status cards
     globalMutate(`/api/prizes/planning-status?month=${currentMonth}`);
   }, [mutatePrizes, mutateBudget, globalMutate, currentMonth]);
@@ -167,6 +176,24 @@ export default function PrizesPage() {
     }
   }
 
+  function handleAssignFromInventory(card: InventoryCard) {
+    setSelectedInventoryCard(card);
+    setInventoryPickerGroup(undefined);
+    setInventoryPickerOpen(true);
+  }
+
+  function handleAddFromInventory(group?: CardGroup) {
+    setSelectedInventoryCard(null);
+    setInventoryPickerGroup(group);
+    setInventoryPickerOpen(true);
+  }
+
+  function handleInventoryAssigned() {
+    setInventoryPickerOpen(false);
+    setSelectedInventoryCard(null);
+    refreshAll();
+  }
+
   async function handleSaveBudget(data: {
     month: string;
     total_budget: number;
@@ -209,6 +236,13 @@ export default function PrizesPage() {
           onOpenRaffle={() => setRaffleOpen(true)}
         />
       )}
+
+      {/* Card Inventory */}
+      <InventorySection
+        onAssignCard={handleAssignFromInventory}
+        onNewOrder={() => setOrderFormOpen(true)}
+        refreshKey={inventoryRefreshKey}
+      />
 
       {/* Tab bar */}
       <div
@@ -261,6 +295,7 @@ export default function PrizesPage() {
           isLoading={prizesLoading}
           onRefreshAll={refreshAll}
           onAddCard={(group) => { setEditingPrize(undefined); setCardFormGroup(group); setCardFormOpen(true); }}
+          onAddFromInventory={handleAddFromInventory}
           onAddPrize={() => { setEditingPrize(undefined); setFormOpen(true); }}
           onPrizeClick={(p) => setDetailPrize(p)}
           onSaveBudget={handleSaveBudget}
@@ -302,9 +337,13 @@ export default function PrizesPage() {
         open={!!deletePrize}
         onClose={() => setDeletePrize(null)}
         onConfirm={confirmDeletePrize}
-        title="Delete Prize"
-        message={deletePrize ? `Delete "${deletePrize.name}" (€${deletePrize.value.toFixed(2)})?` : ""}
-        confirmLabel="Delete"
+        title={deletePrize?.inventory_card_id ? "Remove from Prizes" : "Delete Prize"}
+        message={
+          deletePrize?.inventory_card_id
+            ? `Remove "${deletePrize.name}" from prizes? The card will return to inventory.`
+            : deletePrize ? `Delete "${deletePrize.name}" (€${deletePrize.value.toFixed(2)})?` : ""
+        }
+        confirmLabel={deletePrize?.inventory_card_id ? "Remove" : "Delete"}
         variant="danger"
       />
 
@@ -313,6 +352,21 @@ export default function PrizesPage() {
         month={month}
         onClose={() => setRaffleOpen(false)}
         onComplete={() => { setRaffleOpen(false); refreshAll(); }}
+      />
+
+      <InventoryPicker
+        open={inventoryPickerOpen}
+        onClose={() => { setInventoryPickerOpen(false); setSelectedInventoryCard(null); }}
+        onAssigned={handleInventoryAssigned}
+        card={selectedInventoryCard}
+        month={month}
+        defaultGroup={inventoryPickerGroup}
+      />
+
+      <OrderForm
+        open={orderFormOpen}
+        onClose={() => setOrderFormOpen(false)}
+        onSaved={refreshAll}
       />
     </div>
   );

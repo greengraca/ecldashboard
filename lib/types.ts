@@ -330,6 +330,7 @@ export interface Prize {
   delivery_date: string | null;
   shipping_notes: string | null;
   transaction_id: string | null;
+  inventory_card_id: string | null;
   status: PrizeStatus;
   created_by: string;
   modified_by: string;
@@ -369,6 +370,44 @@ export interface PrizeSummary {
   shipped: number;
   delivered: number;
   budget_remaining: number | null;
+}
+
+// ─── Card Inventory Types ───
+
+export type InventoryCardStatus = "in_stock" | "assigned";
+
+export interface CardOrder {
+  _id?: ObjectId | string;
+  date: string;
+  seller: string;
+  total_cards_cost: number;
+  shipping_cost: number;
+  card_count: number;
+  notes: string | null;
+  transaction_id: string;
+  created_by: string;
+  modified_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InventoryCard {
+  _id?: ObjectId | string;
+  order_id: string;
+  name: string;
+  price: number;
+  computed_cost: number;
+  condition: string | null;
+  card_language: string | null;
+  set_name: string | null;
+  image_url: string | null;
+  r2_key: string | null;
+  scryfall_id: string | null;
+  status: InventoryCardStatus;
+  assigned_prize_id: string | null;
+  assigned_month: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // ─── Activity Types ───

@@ -1,6 +1,7 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Plus, Package, ChevronDown } from "lucide-react";
 import type { Prize, PrizeBudget, PrizeBudgetAllocations } from "@/lib/types";
 import type { CardGroup } from "./card-single-form";
 import { prizeToGroup } from "./card-single-form";
@@ -31,6 +32,7 @@ interface PrizesTabProps {
   isLoading: boolean;
   onRefreshAll: () => void;
   onAddCard: (group?: CardGroup) => void;
+  onAddFromInventory: (group?: CardGroup) => void;
   onAddPrize: () => void;
   onPrizeClick: (prize: Prize) => void;
   onSaveBudget: (data: {
@@ -46,9 +48,24 @@ export default function PrizesTab({
   prizes,
   isLoading,
   onAddCard,
+  onAddFromInventory,
   onAddPrize,
   onPrizeClick,
 }: PrizesTabProps) {
+  const [openDropdown, setOpenDropdown] = useState<CardGroup | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!openDropdown) return;
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [openDropdown]);
   // Group card singles by group
   const cardSingles = prizes.filter((p) => p.category === "mtg_single");
   const cardsByGroup: Record<CardGroup, Prize[]> = { top4: [], most_games: [], custom: [] };
@@ -100,13 +117,45 @@ export default function PrizesTab({
                     </span>
                   )}
                 </div>
-                <button
-                  onClick={() => onAddCard(grp)}
-                  className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors hover:brightness-125"
-                  style={{ color: header.color, background: header.bg, border: `1px solid ${header.border}` }}
-                >
-                  <Plus className="w-3 h-3" /> Add
-                </button>
+                <div className="relative" ref={openDropdown === grp ? dropdownRef : undefined}>
+                  <button
+                    onClick={() => setOpenDropdown(openDropdown === grp ? null : grp)}
+                    className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors hover:brightness-125"
+                    style={{ color: header.color, background: header.bg, border: `1px solid ${header.border}` }}
+                  >
+                    <Plus className="w-3 h-3" /> Add <ChevronDown className="w-2.5 h-2.5" />
+                  </button>
+                  {openDropdown === grp && (
+                    <div
+                      className="absolute right-0 top-full mt-1 z-20 rounded-lg py-1 min-w-[160px] shadow-lg"
+                      style={{
+                        background: "var(--bg-card)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "var(--radius)",
+                        boxShadow: "var(--surface-shadow)",
+                      }}
+                    >
+                      <button
+                        onClick={() => { onAddFromInventory(grp); setOpenDropdown(null); }}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium transition-colors"
+                        style={{ color: "var(--text-secondary)" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <Package className="w-3.5 h-3.5" /> Add from Inventory
+                      </button>
+                      <button
+                        onClick={() => { onAddCard(grp); setOpenDropdown(null); }}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium transition-colors"
+                        style={{ color: "var(--text-secondary)" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add Manually
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Cards grid */}

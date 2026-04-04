@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Upload, Loader2, X, Sparkles, FolderOpen } from "lucide-react";
+import { Upload, Loader2, X, Sparkles, FolderOpen, Package } from "lucide-react";
 import Modal from "@/components/dashboard/modal";
 import Select from "@/components/dashboard/select";
 import CardImage from "@/components/media/shared/CardImage";
@@ -316,7 +316,19 @@ export default function CardSingleForm({
       disableBackdropClose
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* From Inventory banner */}
+        {prize?.inventory_card_id && (
+          <div
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs"
+            style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.25)" }}
+          >
+            <Package className="w-3.5 h-3.5 shrink-0" />
+            From Inventory — card details are read-only
+          </div>
+        )}
+
         {/* Scryfall search */}
+        {!prize?.inventory_card_id && (
         <div>
           <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
             Card Name
@@ -334,11 +346,12 @@ export default function CardSingleForm({
             onEditionChange={handleEditionChange}
           />
         </div>
+        )}
 
         {/* Card image preview + upload */}
         <div
           className="rounded-lg p-4 flex flex-col items-center gap-3"
-          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}
+          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", opacity: prize?.inventory_card_id ? 0.6 : 1, pointerEvents: prize?.inventory_card_id ? "none" : undefined }}
         >
           {displayUrl ? (
             <div className="relative">
@@ -456,7 +469,7 @@ export default function CardSingleForm({
         </div>
 
         {/* Value + Condition */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4" style={{ opacity: prize?.inventory_card_id ? 0.6 : 1, pointerEvents: prize?.inventory_card_id ? "none" : undefined }}>
           <div>
             <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
               Value (EUR)
@@ -470,6 +483,7 @@ export default function CardSingleForm({
               className={inputClass}
               style={inputStyle}
               placeholder="0.00"
+              disabled={!!prize?.inventory_card_id}
             />
           </div>
           <div>
