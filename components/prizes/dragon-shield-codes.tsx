@@ -15,6 +15,7 @@ const TIER_BADGE: Record<string, { label: string; color: string; bg: string }> =
   champion: { label: "Champion", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
   top4: { label: "Top 4", color: "#a855f7", bg: "rgba(168,85,247,0.12)" },
   top16: { label: "Top 16", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+  finals: { label: "Finals", color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
 };
 
 export default function DragonShieldCodes({ data, month, onRefresh }: DragonShieldCodesProps) {

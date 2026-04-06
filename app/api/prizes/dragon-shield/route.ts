@@ -59,6 +59,32 @@ export const GET = withAuthRead(async (request) => {
   const month = searchParams.get("month") || getCurrentMonth();
   const data = await getDragonShield(month);
 
+  if (data && data.codes.length > 0) {
+    // Enrich codes with live tier from bracket results (so tags update without re-loading codes)
+    const bracketResults = await getDb().then((db) =>
+      db.collection("dashboard_bracket_results").findOne({ month })
+    );
+    const top4Order: string[] = bracketResults?.top4_order || [];
+    const top16Winners: string[] = bracketResults?.top16_winners || [];
+
+    if (top4Order.length > 0) {
+      const top4Winner = top4Order[0];
+      const top4Set = new Set(top4Order);
+      for (const code of data.codes) {
+        if (!code.player_uid) continue;
+        if (code.player_uid === top4Winner) code.sleeve_tier = "champion";
+        else if (top4Set.has(code.player_uid)) code.sleeve_tier = "top4";
+        else code.sleeve_tier = "top16";
+      }
+    } else if (top16Winners.length > 0) {
+      const winnerSet = new Set(top16Winners);
+      for (const code of data.codes) {
+        if (!code.player_uid) continue;
+        code.sleeve_tier = winnerSet.has(code.player_uid) ? "finals" : "top16";
+      }
+    }
+  }
+
   if (data) {
     // Resolve presigned preview URLs for all uploaded files
     const [sc, s4, s16, pc, p4] = await Promise.all([

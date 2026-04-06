@@ -53,7 +53,7 @@ export async function loadCodes(
     return {
       code,
       player_uid: player?.uid || null,
-      player_name: player?.name || `#${placement}`,
+      player_name: player?.name || "(No score yet)",
       placement,
       sleeve_tier,
       sent: false,

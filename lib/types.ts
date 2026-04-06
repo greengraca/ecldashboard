@@ -543,7 +543,7 @@ export interface DragonShieldCode {
   player_uid: string | null;
   player_name: string;
   placement: number; // 1-16
-  sleeve_tier: "champion" | "top4" | "top16";
+  sleeve_tier: "champion" | "top4" | "top16" | "finals";
   sent: boolean;
   sent_at: string | null;
 }
