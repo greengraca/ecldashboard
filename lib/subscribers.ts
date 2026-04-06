@@ -742,9 +742,22 @@ export async function getSubscriberSummary(
   }
 
   // Check Patreon subscribers without a snapshot tier (still showing generic "Patreon Member")
-  const missingTierSubs = subscribers.filter(
+  let missingTierSubs = subscribers.filter(
     (s) => s.source === "patreon" && s.tier === "Patreon Member"
   );
+  // Exclude subscribers who joined after the viewed month (they correctly have no tier for this month)
+  if (missingTierSubs.length > 0) {
+    const missingTierIds = missingTierSubs.map((s) => s.discord_id);
+    const laterTierSnapshots = await db
+      .collection("dashboard_patreon_snapshots")
+      .find(
+        { discord_id: { $in: missingTierIds }, month: { $gt: month } },
+        { projection: { discord_id: 1 } }
+      )
+      .toArray();
+    const joinedLaterTier = new Set(laterTierSnapshots.map((s) => s.discord_id?.toString()));
+    missingTierSubs = missingTierSubs.filter((s) => !joinedLaterTier.has(s.discord_id));
+  }
   if (missingTierSubs.length > 0) {
     warnings.push({
       source: "patreon",
