@@ -766,12 +766,14 @@ export async function getSubscriberSummary(
     });
   }
 
-  // Check Ko-fi role holders vs snapshots/events
+  // Check Ko-fi role holders vs all three data sources
   if (kofi > 0) {
-    const kofiSnapshotCount = await db
-      .collection("dashboard_kofi_snapshots")
-      .countDocuments({ month, cancelled_at: null });
-    if (kofiSnapshotCount === 0) {
+    const [kofiSnapshotCount, kofiEventCount, kofiBackfillCount] = await Promise.all([
+      db.collection("dashboard_kofi_snapshots").countDocuments({ month, cancelled_at: null }),
+      db.collection("subs_kofi_events").countDocuments({ purchase_month: month }),
+      db.collection("dashboard_kofi_backfill").countDocuments({ month }),
+    ]);
+    if (kofiSnapshotCount === 0 && kofiEventCount === 0 && kofiBackfillCount === 0) {
       warnings.push({
         source: "kofi",
         message: `${kofi} Ko-fi role holders but no Ko-fi snapshot, events, or backfill for this month — run a sync`,
