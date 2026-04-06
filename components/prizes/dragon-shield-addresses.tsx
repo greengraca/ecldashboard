@@ -31,7 +31,7 @@ interface AddressForm {
 }
 
 const EMPTY_ADDRESS: AddressForm = { full_name: "", street: "", city: "", postal_code: "", country: "" };
-const PLACEMENT_LABELS = ["1st — Champion", "2nd", "3rd", "4th"];
+const PLACEMENT_LABELS = ["1st", "2nd", "3rd", "4th"];
 
 export default function DragonShieldAddresses({ data, month, onRefresh }: DragonShieldAddressesProps) {
   const { data: bracketData } = useSWR<{ data: BracketResults | null }>(
