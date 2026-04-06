@@ -67,12 +67,13 @@ export const GET = withAuthRead(async (request) => {
     const top4Order: string[] = bracketResults?.top4_order || [];
     const top16Winners: string[] = bracketResults?.top16_winners || [];
 
+    const top4Winner: string | null = bracketResults?.top4_winner || null;
+
     if (top4Order.length > 0) {
-      const top4Winner = top4Order[0];
       const top4Set = new Set(top4Order);
       for (const code of data.codes) {
         if (!code.player_uid) continue;
-        if (code.player_uid === top4Winner) code.sleeve_tier = "champion";
+        if (top4Winner && code.player_uid === top4Winner) code.sleeve_tier = "champion";
         else if (top4Set.has(code.player_uid)) code.sleeve_tier = "top4";
         else code.sleeve_tier = "top16";
       }
