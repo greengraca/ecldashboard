@@ -71,6 +71,24 @@ export async function loadCodes(
   return result!;
 }
 
+export async function deleteCodes(
+  month: string,
+  userId: string,
+  userName: string
+): Promise<DragonShieldMonth | null> {
+  const db = await getDb();
+  const now = new Date().toISOString();
+  const result = await db.collection<DragonShieldMonth>(COLLECTION).findOneAndUpdate(
+    { month },
+    { $set: { codes: [], modified_by: userId, updated_at: now } },
+    { returnDocument: "after" }
+  );
+  if (result) {
+    logActivity("delete", "dragon_shield_codes", month, { action: "delete_all_codes" }, userId, userName);
+  }
+  return result;
+}
+
 export async function markCodeSent(
   month: string,
   index: number,

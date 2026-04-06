@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-helpers";
 import { getUserName } from "@/lib/auth";
-import { loadCodes } from "@/lib/dragon-shield";
+import { loadCodes, deleteCodes } from "@/lib/dragon-shield";
 import { getEligibleTop16 } from "@/lib/players";
 import { getCurrentMonth } from "@/lib/utils";
 
@@ -22,3 +22,13 @@ export const POST = withAuth(async (session, request) => {
   const result = await loadCodes(month, codes, top16, userId, userName);
   return NextResponse.json({ data: result });
 }, "prizes/dragon-shield/codes:POST");
+
+export const DELETE = withAuth(async (session, request) => {
+  const { searchParams } = new URL(request.url);
+  const month = searchParams.get("month") || getCurrentMonth();
+
+  const userId = session!.user!.id!;
+  const userName = getUserName(session!);
+  const result = await deleteCodes(month, userId, userName);
+  return NextResponse.json({ data: result });
+}, "prizes/dragon-shield/codes:DELETE");

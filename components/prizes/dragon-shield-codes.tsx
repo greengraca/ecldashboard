@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Circle, Send, Loader2, X, Copy, MessageSquare } from "lucide-react";
+import { Check, Circle, Send, Loader2, X, Copy, MessageSquare, Trash2 } from "lucide-react";
 import { useSensitiveData } from "@/contexts/SensitiveDataContext";
 import type { DragonShieldMonth } from "@/lib/types";
 
@@ -25,6 +25,10 @@ export default function DragonShieldCodes({ data, month, onRefresh }: DragonShie
   const [copiedMsg, setCopiedMsg] = useState<number | null>(null);
   const { hidden: sensitiveHidden } = useSensitiveData();
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const [showDelete, setShowDelete] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const codes = data?.codes || [];
   const hasLoadedCodes = codes.length > 0;
@@ -89,6 +93,24 @@ export default function DragonShieldCodes({ data, month, onRefresh }: DragonShie
       showMsg("error", String(e));
     } finally {
       setSending(null);
+    }
+  }
+
+  async function handleDeleteCodes() {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/prizes/dragon-shield/codes?month=${month}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      showMsg("success", "Codes deleted");
+      setConfirmDelete(false);
+      setShowDelete(false);
+      onRefresh();
+    } catch (e) {
+      showMsg("error", String(e));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -250,6 +272,63 @@ export default function DragonShieldCodes({ data, month, onRefresh }: DragonShie
                 </button>
               </div>
             ))}
+          </div>
+
+          {/* Hidden delete — click muted text to reveal */}
+          <div className="mt-3 flex items-center justify-end gap-2">
+            {!showDelete ? (
+              <button
+                onClick={() => setShowDelete(true)}
+                className="text-[10px] opacity-30 hover:opacity-60 transition-opacity"
+                style={{ color: "var(--text-muted)" }}
+              >
+                •••
+              </button>
+            ) : !confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors"
+                style={{
+                  background: "rgba(239, 68, 68, 0.10)",
+                  color: "var(--error)",
+                  border: "1px solid rgba(239, 68, 68, 0.25)",
+                }}
+              >
+                <Trash2 className="w-3 h-3" />
+                Delete All Codes
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-[10px]" style={{ color: "var(--error)" }}>
+                  Are you sure?
+                </span>
+                <button
+                  onClick={handleDeleteCodes}
+                  disabled={deleting}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors"
+                  style={{
+                    background: "rgba(239, 68, 68, 0.20)",
+                    color: "#fff",
+                    border: "1px solid rgba(239, 68, 68, 0.5)",
+                    opacity: deleting ? 0.5 : 1,
+                  }}
+                >
+                  {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                  Confirm
+                </button>
+                <button
+                  onClick={() => { setConfirmDelete(false); setShowDelete(false); }}
+                  className="px-2 py-1 rounded text-[10px] font-medium transition-colors"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    color: "var(--text-muted)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

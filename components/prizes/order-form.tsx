@@ -29,7 +29,7 @@ interface CardRow {
 
 function emptyCard(): CardRow {
   return {
-    id: crypto.randomUUID(),
+    id: Math.random().toString(36).slice(2) + Date.now().toString(36),
     name: "",
     price: "",
     condition: "NM",
