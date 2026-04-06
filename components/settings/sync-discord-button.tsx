@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useSWRConfig } from "swr";
 import { RefreshCw } from "lucide-react";
 
 export default function SyncDiscordButton() {
+  const { mutate: globalMutate } = useSWRConfig();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
@@ -27,6 +29,12 @@ export default function SyncDiscordButton() {
         }
       }
       setResult(msg);
+      // Invalidate pages that depend on Discord member / subscriber data
+      globalMutate((key: string) =>
+        typeof key === "string" &&
+        (/^\/api\/(subscribers|players|discord|finance\/su)/.test(key)),
+        undefined, { revalidate: true }
+      );
     } catch (err) {
       console.error("Sync error:", err);
       setResult("Sync failed");

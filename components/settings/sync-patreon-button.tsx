@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSWRConfig } from "swr";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 import MonthPicker from "@/components/dashboard/month-picker";
 import { getCurrentMonth } from "@/lib/utils";
@@ -27,6 +28,7 @@ interface SnapshotStatus {
 }
 
 export default function SyncPatreonButton() {
+  const { mutate: globalMutate } = useSWRConfig();
   const [month, setMonth] = useState(getCurrentMonth);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -72,6 +74,12 @@ export default function SyncPatreonButton() {
       setResult(count != null ? `Synced ${count} members` : "Sync complete");
       // Re-fetch staleness for previous month in case this sync resolved it
       fetchStaleness(getPreviousMonth());
+      // Invalidate pages that depend on subscriber / finance data
+      globalMutate((key: string) =>
+        typeof key === "string" &&
+        (/^\/api\/(subscribers|finance\/su)/.test(key)),
+        undefined, { revalidate: true }
+      );
     } catch {
       setResult("Sync failed");
     } finally {
