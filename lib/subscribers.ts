@@ -704,8 +704,21 @@ export async function getSubscriberSummary(
     }
   }
 
-  const roleHoldersNoSnapshot = [...patreonRoleHolderIds].filter((id) => !snapshotDiscordIds.has(id));
+  let roleHoldersNoSnapshot = [...patreonRoleHolderIds].filter((id) => !snapshotDiscordIds.has(id));
   const snapshotsNoRoleHolder = [...snapshotDiscordIds].filter((id) => !patreonRoleHolderIds.has(id));
+
+  // Exclude role holders who joined after the viewed month (they correctly have no snapshot for this month)
+  if (roleHoldersNoSnapshot.length > 0) {
+    const laterSnapshots = await db
+      .collection("dashboard_patreon_snapshots")
+      .find(
+        { discord_id: { $in: roleHoldersNoSnapshot }, month: { $gt: month } },
+        { projection: { discord_id: 1 } }
+      )
+      .toArray();
+    const joinedLater = new Set(laterSnapshots.map((s) => s.discord_id?.toString()));
+    roleHoldersNoSnapshot = roleHoldersNoSnapshot.filter((id) => !joinedLater.has(id));
+  }
 
   if (patreon > 0 && snapshotDiscordIds.size === 0) {
     warnings.push({
