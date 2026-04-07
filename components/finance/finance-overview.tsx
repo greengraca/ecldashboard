@@ -311,7 +311,7 @@ export default function FinanceOverview() {
                   tickLine={false}
                   tickFormatter={(v: number) => `\u20AC${v}`}
                 />
-                <Tooltip content={<ChartTooltip />} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
                 <Legend
                   wrapperStyle={{ fontSize: 11, color: "var(--text-muted)" }}
                 />
