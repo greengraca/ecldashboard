@@ -635,6 +635,29 @@ export interface PlanningStatus {
   distribution_month: string;
 }
 
+// ─── League Monthly Config Types ───
+
+export type FlipStatus = "pending" | "completed" | "failed";
+
+export interface EclMonthlyConfig {
+  _id?: ObjectId | string;
+  guild_id: string;
+  month: string;
+  bracket_id: string;
+  bracket_id_set_by: string;
+  bracket_id_set_at: string;
+  join_channel_id: string;
+  mostgames_prize_image_url: string | null;
+  flip_status: FlipStatus;
+  flip_completed_at: string | null;
+  flip_steps_completed: string[];
+  flip_error: string | null;
+  created_by: string;
+  modified_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Error Log Types ───
 
 export type ErrorLogLevel = "error" | "warn" | "info";

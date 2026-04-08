@@ -1,6 +1,6 @@
 import { getDb } from "./mongodb";
 import { getHistoricalMonths } from "./topdeck";
-import { TOPDECK_BRACKET_ID } from "./constants";
+import { TOPDECK_BRACKET_ID, DISCORD_GUILD_ID } from "./constants";
 
 // In-memory cache (bracket_id per month rarely changes)
 const cache = new Map<string, { bracket_id: string; expires: number }>();
@@ -10,10 +10,11 @@ const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
  * Resolve the bracket_id for a given month ("YYYY-MM").
  *
  * Priority:
- *  1. online_games collection — the bot writes games with the correct bracket_id
+ *  1. ecl_monthly_config — set via dashboard UI or bot config.
+ *  2. online_games collection — the bot writes games with the correct bracket_id
  *     as they happen, so this works even for the current month before any dump.
- *  2. topdeck_month_dump_runs / chunks — historical dumps.
- *  3. TOPDECK_BRACKET_ID env var — last resort fallback.
+ *  3. topdeck_month_dump_runs / chunks — historical dumps.
+ *  4. TOPDECK_BRACKET_ID env var — last resort fallback.
  */
 export async function getBracketIdForMonth(month: string): Promise<string> {
   const cached = cache.get(month);
@@ -25,7 +26,21 @@ export async function getBracketIdForMonth(month: string): Promise<string> {
 
   const db = await getDb();
 
-  // 1. Check online_games — pick the bracket_id with the most games this month
+  // 1. Check ecl_monthly_config — authoritative source set via dashboard/bot
+  try {
+    const config = await db
+      .collection("ecl_monthly_config")
+      .findOne({ guild_id: DISCORD_GUILD_ID, month });
+    if (config?.bracket_id) {
+      const bracketId = config.bracket_id as string;
+      cache.set(month, { bracket_id: bracketId, expires: Date.now() + CACHE_TTL });
+      return bracketId;
+    }
+  } catch {
+    // collection may not exist yet
+  }
+
+  // 2. Check online_games — pick the bracket_id with the most games this month
   try {
     const results = await db
       .collection("online_games")
@@ -46,7 +61,7 @@ export async function getBracketIdForMonth(month: string): Promise<string> {
     // collection may not exist
   }
 
-  // 2. Check dump runs
+  // 3. Check dump runs
   const months = await getHistoricalMonths();
   const monthInfo = months.find((m) => m.month === month);
   if (monthInfo) {
@@ -54,6 +69,6 @@ export async function getBracketIdForMonth(month: string): Promise<string> {
     return monthInfo.bracket_id;
   }
 
-  // 3. Fall back to env var
+  // 4. Fall back to env var
   return TOPDECK_BRACKET_ID;
 }

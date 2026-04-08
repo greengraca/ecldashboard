@@ -8,6 +8,7 @@ import SyncDiscordButton from "@/components/settings/sync-discord-button";
 import SyncPatreonButton from "@/components/settings/sync-patreon-button";
 import SubscriptionRatesManager from "./SubscriptionRatesManager";
 import TeamMemberManager from "./TeamMemberManager";
+import MonthlyConfigManager from "./MonthlyConfigManager";
 
 function mask(value: string, showChars = 4): string {
   if (!value) return "Not set";
@@ -296,6 +297,11 @@ export default function SettingsContent({
               }
             />
           </Section>
+        </div>
+
+        {/* League Monthly Config */}
+        <div className="lg:col-span-2">
+          <MonthlyConfigManager />
         </div>
 
         {/* Team Members */}
