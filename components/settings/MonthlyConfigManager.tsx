@@ -88,8 +88,9 @@ export default function MonthlyConfigManager() {
     if (!nextBracketId.trim()) return;
     setValidating(true);
     try {
-      const res = await fetch(`https://topdeck.gg/PublicPData/${nextBracketId.trim()}`);
-      setValidationResult(res.ok ? "valid" : "invalid");
+      const res = await fetch(`/api/league/validate-bracket?id=${nextBracketId.trim()}`);
+      const json = await res.json();
+      setValidationResult(json.data?.valid ? "valid" : "invalid");
     } catch {
       setValidationResult("invalid");
     } finally {
