@@ -14,6 +14,29 @@ import type {
   TransactionCategory,
 } from "./types";
 
+// ─── Helpers ───
+
+/**
+ * Resolve the effective amount for a fixed cost in a given month.
+ * Uses amount_history if present, otherwise falls back to fc.amount.
+ */
+export function getEffectiveAmount(fc: FixedCost, month: string): number {
+  if (!fc.amount_history || fc.amount_history.length === 0) {
+    return fc.amount;
+  }
+  // amount_history is sorted by effective_from ascending
+  // Find the latest entry where effective_from <= month
+  let effective = fc.amount;
+  for (const entry of fc.amount_history) {
+    if (entry.effective_from <= month) {
+      effective = entry.amount;
+    } else {
+      break;
+    }
+  }
+  return effective;
+}
+
 // ─── Indexes (flag-based, idempotent) ───
 
 let indexesEnsured = false;
@@ -288,11 +311,12 @@ export async function getMonthlySummary(
 
   let fixedCostTotal = 0;
   for (const fc of fixedCosts) {
-    fixedCostTotal += fc.amount;
+    const amt = getEffectiveAmount(fc, month);
+    fixedCostTotal += amt;
     if (fc.category === "prize") {
-      breakdown.prize -= fc.amount;
+      breakdown.prize -= amt;
     } else {
-      breakdown.operational -= fc.amount;
+      breakdown.operational -= amt;
     }
   }
 
@@ -474,6 +498,7 @@ export async function ensureFixedCostPayments(month: string): Promise<void> {
   const now = new Date().toISOString();
   for (const fc of fixedCosts) {
     const fcId = String(fc._id);
+    const amt = getEffectiveAmount(fc, month);
     await db.collection("dashboard_fixed_cost_payments").updateOne(
       { fixed_cost_id: fcId, month },
       {
@@ -481,7 +506,7 @@ export async function ensureFixedCostPayments(month: string): Promise<void> {
           fixed_cost_id: fcId,
           month,
           paid_by: fc.paid_by,
-          amount: fc.amount,
+          amount: amt,
           reimbursed: false,
           reimbursed_at: null,
           created_at: now,
