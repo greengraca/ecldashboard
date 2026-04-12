@@ -7,6 +7,7 @@ import Select from "@/components/dashboard/select";
 import ConfirmModal from "@/components/dashboard/confirm-modal";
 import { TEAM_MEMBERS } from "@/lib/constants";
 import { Sensitive } from "@/components/dashboard/sensitive";
+import { getEffectiveAmount } from "@/lib/utils";
 
 function appliesToMonth(fc: FixedCost, month: string): boolean {
   if (fc.start_month > month) return false;
@@ -68,7 +69,7 @@ export default function FixedCostManager({
 
   const monthlyTotal = fixedCosts
     .filter((fc) => fc.active && appliesToMonth(fc, month))
-    .reduce((sum, fc) => sum + fc.amount, 0);
+    .reduce((sum, fc) => sum + getEffectiveAmount(fc, month), 0);
 
   function handleAddClick() {
     if (!form.name || !form.amount) return;
@@ -93,7 +94,7 @@ export default function FixedCostManager({
     setEditingId(String(fc._id));
     setEditForm({
       name: fc.name,
-      amount: fc.amount.toString(),
+      amount: getEffectiveAmount(fc, month).toString(),
       category: fc.category,
       start_month: fc.start_month,
       paid_by: fc.paid_by || "",
@@ -412,7 +413,7 @@ export default function FixedCostManager({
                           : "var(--text-muted)",
                       }}
                     >
-                      <Sensitive placeholder="€•••••">&euro;{fc.amount.toFixed(2)}</Sensitive>
+                      <Sensitive placeholder="€•••••">&euro;{getEffectiveAmount(fc, month).toFixed(2)}</Sensitive>
                     </span>
                     <button
                       onClick={() => startEdit(fc)}

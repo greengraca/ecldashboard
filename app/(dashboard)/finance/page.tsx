@@ -173,7 +173,7 @@ export default function FinancePage() {
     await fetch(`/api/finance/fixed-costs/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...data, effective_month: month }),
     });
     refreshAll();
   }

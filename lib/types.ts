@@ -86,6 +86,7 @@ export interface FixedCost {
   _id?: ObjectId | string;
   name: string;
   amount: number;
+  amount_history?: { amount: number; effective_from: string }[];
   category: "prize" | "operational";
   active: boolean;
   start_month: string;

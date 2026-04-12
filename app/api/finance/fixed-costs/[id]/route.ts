@@ -8,7 +8,8 @@ export const PATCH = withAuthParams<{ id: string }>(async (session, request, { i
   const userId = session.user!.id!;
   const userName = getUserName(session);
 
-  await updateFixedCost(id, body, userId, userName);
+  const { effective_month, ...data } = body;
+  await updateFixedCost(id, data, userId, userName, effective_month);
   return NextResponse.json({ data: { success: true } });
 }, "finance/fixed-costs/[id]:PATCH");
 

@@ -16,26 +16,8 @@ import type {
 
 // ─── Helpers ───
 
-/**
- * Resolve the effective amount for a fixed cost in a given month.
- * Uses amount_history if present, otherwise falls back to fc.amount.
- */
-export function getEffectiveAmount(fc: FixedCost, month: string): number {
-  if (!fc.amount_history || fc.amount_history.length === 0) {
-    return fc.amount;
-  }
-  // amount_history is sorted by effective_from ascending
-  // Find the latest entry where effective_from <= month
-  let effective = fc.amount;
-  for (const entry of fc.amount_history) {
-    if (entry.effective_from <= month) {
-      effective = entry.amount;
-    } else {
-      break;
-    }
-  }
-  return effective;
-}
+import { getEffectiveAmount } from "./utils";
+export { getEffectiveAmount };
 
 // ─── Indexes (flag-based, idempotent) ───
 
@@ -220,13 +202,60 @@ export async function updateFixedCost(
     paid_by: string | null;
   }>,
   userId: string,
-  userName: string
+  userName: string,
+  effectiveMonth?: string
 ): Promise<void> {
   const db = await getDb();
+  const now = new Date().toISOString();
+
+  // If amount is changing and we have a month context, manage history
+  if (data.amount != null && effectiveMonth) {
+    const existing = await db
+      .collection<FixedCost>("dashboard_fixed_costs")
+      .findOne({ _id: new ObjectId(id) });
+
+    if (existing) {
+      const history = existing.amount_history || [
+        { amount: existing.amount, effective_from: existing.start_month },
+      ];
+
+      // Remove any existing entry for this exact month
+      const filtered = history.filter(
+        (h) => h.effective_from !== effectiveMonth
+      );
+
+      // Add the new entry and sort
+      filtered.push({ amount: data.amount, effective_from: effectiveMonth });
+      filtered.sort((a, b) => a.effective_from.localeCompare(b.effective_from));
+
+      // Update amount to the latest value in history
+      const latestAmount = filtered[filtered.length - 1].amount;
+
+      const updateData = {
+        ...data,
+        amount: latestAmount,
+        amount_history: filtered,
+        modified_by: userName,
+        updated_at: now,
+      };
+
+      await db
+        .collection("dashboard_fixed_costs")
+        .updateOne({ _id: new ObjectId(id) }, { $set: updateData });
+
+      logActivity("update", "fixed_cost", id, {
+        updated_fields: Object.keys(data),
+        effective_month: effectiveMonth,
+      }, userId, userName);
+      return;
+    }
+  }
+
+  // Non-amount updates or no month context — simple update
   const updateData = {
     ...data,
     modified_by: userName,
-    updated_at: new Date().toISOString(),
+    updated_at: now,
   };
 
   await db
