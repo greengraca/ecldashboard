@@ -421,23 +421,27 @@ export async function getAllPendingReimbursements(): Promise<PendingReimbursemen
     });
   }
 
-  // Batch-load fixed cost names
+  // Batch-load fixed cost docs (need amount_history for effective-amount recompute)
   const fcIds = [...new Set(fixedCostPayments.map((p) => p.fixed_cost_id))];
   const fcDocs = fcIds.length > 0
     ? await db.collection<FixedCost>("dashboard_fixed_costs")
         .find({ _id: { $in: fcIds.map((id) => new ObjectId(id)) } })
         .toArray()
     : [];
-  const fcNameMap = new Map(fcDocs.map((fc) => [String(fc._id), fc.name]));
+  const fcMap = new Map(fcDocs.map((fc) => [String(fc._id), fc]));
 
   for (const fcp of fixedCostPayments) {
     // Skip orphaned payments from deleted fixed costs
-    if (!fcNameMap.has(fcp.fixed_cost_id)) continue;
+    const fc = fcMap.get(fcp.fixed_cost_id);
+    if (!fc) continue;
+    // Recompute against amount_history so retroactive edits show up even
+    // before the month's ensureFixedCostPayments has re-run.
+    const amount = getEffectiveAmount(fc, fcp.month);
     pending.push({
       id: String(fcp._id),
       source: "fixed_cost",
-      description: fcNameMap.get(fcp.fixed_cost_id)!,
-      amount: fcp.amount,
+      description: fc.name,
+      amount,
       paid_by: fcp.paid_by,
       paid_by_name: getMemberName(fcp.paid_by),
       date: `${fcp.month}-01`,
@@ -528,6 +532,13 @@ export async function ensureFixedCostPayments(month: string): Promise<void> {
   for (const fc of fixedCosts) {
     const fcId = String(fc._id);
     const amt = getEffectiveAmount(fc, month);
+    // Refresh amount on existing non-reimbursed payments so retroactive
+    // amount_history edits propagate. Reimbursed payments stay frozen.
+    await db.collection("dashboard_fixed_cost_payments").updateOne(
+      { fixed_cost_id: fcId, month, reimbursed: { $ne: true } },
+      { $set: { amount: amt, paid_by: fc.paid_by, updated_at: now } }
+    );
+    // Create if missing.
     await db.collection("dashboard_fixed_cost_payments").updateOne(
       { fixed_cost_id: fcId, month },
       {
