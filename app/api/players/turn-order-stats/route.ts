@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuthRead } from "@/lib/api-helpers";
-import { TOPDECK_BRACKET_ID, FIRESTORE_DOC_URL_TEMPLATE } from "@/lib/constants";
+import { FIRESTORE_DOC_URL_TEMPLATE } from "@/lib/constants";
 import { fetchPublicPData } from "@/lib/topdeck-cache";
 import { getHistoricalMonths, reassembleMonthDump } from "@/lib/topdeck";
 import { computeTurnOrderStats } from "@/lib/turn-order-stats";
+import { getBracketIdForMonth } from "@/lib/bracket-ids";
 import { getCurrentMonth } from "@/lib/utils";
 
 export const GET = withAuthRead(async (request: NextRequest) => {
@@ -19,10 +20,10 @@ export const GET = withAuthRead(async (request: NextRequest) => {
 }, "players/turn-order-stats:GET");
 
 async function handleCurrentMonth() {
-  const bid = TOPDECK_BRACKET_ID;
+  const bid = await getBracketIdForMonth(getCurrentMonth());
   if (!bid || !FIRESTORE_DOC_URL_TEMPLATE) {
     return NextResponse.json(
-      { error: "TOPDECK_BRACKET_ID or FIRESTORE_DOC_URL_TEMPLATE not configured" },
+      { error: "Bracket ID could not be resolved or FIRESTORE_DOC_URL_TEMPLATE not configured" },
       { status: 500 }
     );
   }

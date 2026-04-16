@@ -3,7 +3,7 @@ import { withAuthRead } from "@/lib/api-helpers";
 import { fetchLiveStandings, type GamePod } from "@/lib/topdeck-live";
 import { reassembleMonthDump, getHistoricalMonths } from "@/lib/topdeck";
 import { fetchPublicPData } from "@/lib/topdeck-cache";
-import { TOPDECK_BRACKET_ID } from "@/lib/constants";
+import { getBracketIdForMonth } from "@/lib/bracket-ids";
 import { getCurrentMonth } from "@/lib/utils";
 
 export const GET = withAuthRead(async (request: NextRequest) => {
@@ -12,12 +12,13 @@ export const GET = withAuthRead(async (request: NextRequest) => {
   const isCurrentMonth = month === getCurrentMonth();
 
   if (isCurrentMonth) {
-    const result = await fetchLiveStandings();
+    const bid = await getBracketIdForMonth(getCurrentMonth());
+    const result = await fetchLiveStandings(bid);
     return NextResponse.json({ data: result.gamePods });
   }
 
   // Past month — use dump data
-  const months = await getHistoricalMonths(TOPDECK_BRACKET_ID);
+  const months = await getHistoricalMonths();
   const monthInfo = months.find((m) => m.month === month);
   if (!monthInfo) {
     return NextResponse.json({ data: [] });
