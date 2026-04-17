@@ -9,6 +9,7 @@ export async function proxy(request: NextRequest) {
     pathname === "/login" ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/cron") ||
+    pathname.startsWith("/api/prizes/most-games/image") ||
     pathname.startsWith("/media-capture");
 
   if (!isPublic) {
