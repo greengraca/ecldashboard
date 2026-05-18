@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { ChevronLeft, ChevronRight, ScrollText, Terminal, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Terminal, AlertTriangle } from "lucide-react";
 import ActivityTable from "@/components/activity/activity-table";
 import ActivityFilters, {
   ActivityFilterValues,
 } from "@/components/activity/activity-filters";
-import Accordion from "@/components/dashboard/accordion";
+import PageHeader from "@/components/dashboard/page-header";
+import CollapsibleCard from "@/components/dashboard/collapsible-card";
 import dynamic from "next/dynamic";
 const HerokuLogViewer = dynamic(() => import("@/components/activity/heroku-log-viewer"), { ssr: false });
 const ErrorLogViewer = dynamic(() => import("@/components/activity/error-log-viewer"), { ssr: false });
@@ -53,33 +54,10 @@ export default function ActivityPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-1">
-          <div
-            className="p-2 rounded-lg"
-            style={{ background: "var(--accent-light)" }}
-          >
-            <ScrollText
-              className="w-5 h-5"
-              style={{ color: "var(--accent)" }}
-            />
-          </div>
-          <div>
-            <h1
-              className="text-2xl font-bold"
-              style={{ color: "var(--text-primary)" }}
-            >
-              Activity Log
-            </h1>
-            <p
-              className="text-sm mt-0.5"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              Track all changes made through the dashboard
-            </p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Activity Log"
+        subtitle="Track all changes made through the dashboard"
+      />
 
       <div
         className="rounded-xl overflow-hidden"
@@ -145,24 +123,24 @@ export default function ActivityPage() {
 
       {/* Heroku Logs Accordion */}
       <div className="mt-6">
-        <Accordion
+        <CollapsibleCard
           title="Heroku Logs (eclBot)"
           icon={<Terminal className="w-4 h-4" />}
           onToggle={setHerokuOpen}
         >
           <HerokuLogViewer active={herokuOpen} />
-        </Accordion>
+        </CollapsibleCard>
       </div>
 
       {/* Dashboard Error Log Accordion */}
       <div className="mt-4">
-        <Accordion
+        <CollapsibleCard
           title="Dashboard Error Log"
           icon={<AlertTriangle className="w-4 h-4" />}
           onToggle={setErrorLogOpen}
         >
           <ErrorLogViewer active={errorLogOpen} />
-        </Accordion>
+        </CollapsibleCard>
       </div>
     </div>
   );
