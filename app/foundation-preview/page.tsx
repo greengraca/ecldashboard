@@ -1,14 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import PageHeader from "@/components/dashboard/page-header";
 import StatusCard from "@/components/dashboard/status-card";
 import ContentCard from "@/components/dashboard/content-card";
 import SectionHeader from "@/components/dashboard/section-header";
 import LoadingSurface from "@/components/dashboard/loading-surface";
 import EmptyState from "@/components/dashboard/empty-state";
-import { Plus, Inbox } from "lucide-react";
+import Tabs from "@/components/dashboard/tabs";
+import { Plus, Inbox, Trophy, Gem, Shield, Dices } from "lucide-react";
 
 export default function FoundationPreview() {
+  const [tab, setTab] = useState("prizes");
   return (
     <div className="min-h-screen p-8" style={{ background: "var(--bg-page)" }}>
       <div className="max-w-6xl mx-auto space-y-12">
@@ -148,6 +151,41 @@ export default function FoundationPreview() {
               subtitle="Add your first transaction to get started."
               action={{ label: "Add transaction", onClick: () => alert("add") }}
             />
+          </ContentCard>
+        </section>
+
+        <section>
+          <h2
+            className="text-xs font-mono uppercase tracking-wider mb-4"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Tabs
+          </h2>
+          <ContentCard padding="none">
+            <Tabs
+              items={[
+                { key: "prizes", label: "Prizes", icon: Trophy },
+                { key: "pods", label: "Treasure Pods", icon: Gem },
+                { key: "shield", label: "Dragon Shield", icon: Shield },
+              ]}
+              active={tab}
+              onChange={setTab}
+              action={
+                <button
+                  className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  <Dices className="w-3.5 h-3.5" />
+                  Most Games Raffle
+                </button>
+              }
+            />
+            <div
+              className="p-4"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Active tab: <strong>{tab}</strong>
+            </div>
           </ContentCard>
         </section>
       </div>
