@@ -9,7 +9,8 @@ import LoadingSurface from "@/components/dashboard/loading-surface";
 import EmptyState from "@/components/dashboard/empty-state";
 import Tabs from "@/components/dashboard/tabs";
 import FilterBar from "@/components/dashboard/filter-bar";
-import { Plus, Inbox, Trophy, Gem, Shield, Dices } from "lucide-react";
+import CollapsibleCard from "@/components/dashboard/collapsible-card";
+import { Plus, Inbox, Trophy, Gem, Shield, Dices, Terminal } from "lucide-react";
 
 export default function FoundationPreview() {
   const [tab, setTab] = useState("prizes");
@@ -217,6 +218,30 @@ export default function FoundationPreview() {
               Active filter: <strong>{filter}</strong>
             </p>
           </ContentCard>
+        </section>
+
+        <section>
+          <h2
+            className="text-xs font-mono uppercase tracking-wider mb-4"
+            style={{ color: "var(--text-muted)" }}
+          >
+            CollapsibleCard
+          </h2>
+          <div className="space-y-3">
+            <CollapsibleCard
+              title="Heroku Logs (eclBot)"
+              icon={<Terminal className="w-4 h-4" />}
+            >
+              <div className="p-4" style={{ color: "var(--text-secondary)" }}>
+                Body content shows when expanded.
+              </div>
+            </CollapsibleCard>
+            <CollapsibleCard title="Dashboard Error Log" defaultOpen>
+              <div className="p-4" style={{ color: "var(--text-secondary)" }}>
+                Open by default.
+              </div>
+            </CollapsibleCard>
+          </div>
         </section>
       </div>
     </div>
