@@ -3,6 +3,8 @@
 import PageHeader from "@/components/dashboard/page-header";
 import StatusCard from "@/components/dashboard/status-card";
 import ContentCard from "@/components/dashboard/content-card";
+import SectionHeader from "@/components/dashboard/section-header";
+import { Plus } from "lucide-react";
 
 export default function FoundationPreview() {
   return (
@@ -86,6 +88,35 @@ export default function FoundationPreview() {
               </div>
             </ContentCard>
           </div>
+        </section>
+
+        <section>
+          <h2
+            className="text-xs font-mono uppercase tracking-wider mb-4"
+            style={{ color: "var(--text-muted)" }}
+          >
+            SectionHeader
+          </h2>
+          <ContentCard>
+            <SectionHeader
+              title="Transactions"
+              action={
+                <button
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                  style={{
+                    background: "var(--accent-light)",
+                    color: "var(--accent)",
+                  }}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add
+                </button>
+              }
+            />
+            <p style={{ color: "var(--text-secondary)" }}>
+              (table or list body would go here)
+            </p>
+          </ContentCard>
         </section>
       </div>
     </div>
