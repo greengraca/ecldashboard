@@ -83,6 +83,7 @@ export const TEAM_MEMBERS: TeamMember[] = [
   { id: "graca",    name: "Graça",    group: "ca" },
   { id: "rodrigo",  name: "Rodrigo",  group: "ca" },
   { id: "ruka",     name: "Ruka",     group: "ca" },
+  { id: "tiago",    name: "Tiago",    group: "ca" },
   { id: "bezugas",  name: "Bezugas",  group: "ca" },
 ];
 
@@ -90,5 +91,5 @@ export const TREASURER_ID = "kakah";
 
 export const GROUPS = {
   cedhpt: { label: "cedhpt", members: ["kakah"] },
-  ca:     { label: "CommanderArena", members: ["graca", "rodrigo", "ruka", "bezugas"] },
+  ca:     { label: "CommanderArena", members: ["graca", "rodrigo", "ruka", "tiago", "bezugas"] },
 } as const;
