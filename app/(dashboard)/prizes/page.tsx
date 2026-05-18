@@ -4,6 +4,9 @@ import { useState, useCallback, useTransition, useEffect } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { Trophy, Shield, Gem, Dices } from "lucide-react";
 import MonthPicker from "@/components/dashboard/month-picker";
+import PageHeader from "@/components/dashboard/page-header";
+import ContentCard from "@/components/dashboard/content-card";
+import DashboardTabs from "@/components/dashboard/tabs";
 import PlanningCard from "@/components/prizes/planning-card";
 import DistributionCard from "@/components/prizes/distribution-card";
 import TreasurePodsTab from "@/components/prizes/treasure-pods-tab";
@@ -210,107 +213,105 @@ export default function PrizesPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-            Prizes
-          </h1>
-          <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-            Treasure pods, prizes, and Dragon Shield
-          </p>
-        </div>
-        <MonthPicker value={month} onChange={handleMonthChange} minMonth="2025-11" highlight={monthHighlight || isPlanningMonth} />
-      </div>
-
-      {/* Planning card: visible on current month and planning (next) month */}
-      {showPlanningCard && (
-        <PlanningCard month={currentMonth} onNavigate={handleNavigate} />
-      )}
-
-      {/* Distribution card: current month only */}
-      {showDistributionCard && (
-        <DistributionCard
-          month={month}
-          onNavigate={handleNavigate}
-          onOpenRaffle={() => setRaffleOpen(true)}
-        />
-      )}
-
-      {/* Card Inventory */}
-      <InventorySection
-        onAssignCard={handleAssignFromInventory}
-        onNewOrder={() => setOrderFormOpen(true)}
-        refreshKey={inventoryRefreshKey}
+      <PageHeader
+        title="Prizes"
+        subtitle="Treasure pods, prizes, and Dragon Shield"
+        action={
+          <MonthPicker
+            value={month}
+            onChange={handleMonthChange}
+            minMonth="2025-11"
+            highlight={monthHighlight || isPlanningMonth}
+          />
+        }
       />
 
-      {/* Tab bar */}
-      <div
-        className="flex items-center gap-1 mb-6 border-b overflow-x-auto"
-        style={{ borderColor: "var(--border)" }}
-      >
-        {TAB_CONFIG.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => { setActiveTab(tab.key); setTabSection(undefined); }}
-              className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors relative whitespace-nowrap"
-              style={{
-                color: activeTab === tab.key ? "var(--accent)" : "var(--text-muted)",
-              }}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              {tab.label}
-              {activeTab === tab.key && (
-                <div
-                  className="absolute bottom-0 left-0 right-0 h-0.5"
-                  style={{ background: "var(--accent)" }}
-                />
-              )}
-            </button>
-          );
-        })}
-        <div className="flex-1" />
-        <button
-          onClick={() => setRaffleOpen(true)}
-          className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap hover:brightness-125"
-          style={{ color: "var(--text-muted)" }}
-        >
-          <Dices className="w-3.5 h-3.5" />
-          Most Games Raffle
-        </button>
+      {/* Status row: Planning · Distribution · Inventory */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6 items-start">
+        {showPlanningCard ? (
+          <PlanningCard month={currentMonth} onNavigate={handleNavigate} />
+        ) : (
+          <div />
+        )}
+        {showDistributionCard ? (
+          <DistributionCard
+            month={month}
+            onNavigate={handleNavigate}
+            onOpenRaffle={() => setRaffleOpen(true)}
+          />
+        ) : (
+          <div />
+        )}
+        <InventorySection
+          onAssignCard={handleAssignFromInventory}
+          onNewOrder={() => setOrderFormOpen(true)}
+          refreshKey={inventoryRefreshKey}
+        />
       </div>
 
-      {/* Tab content */}
-      {activeTab === "pods" && (
-        <TreasurePodsTab month={month} showConfig={tabSection === "config"} />
-      )}
-
-      {activeTab === "prizes" && (
-        <PrizesTab
-          prizes={prizes}
-          budget={budget}
-          month={month}
-          isLoading={prizesLoading}
-          onRefreshAll={refreshAll}
-          onAddCard={(group) => { setEditingPrize(undefined); setCardFormGroup(group); setCardFormOpen(true); }}
-          onAddFromInventory={handleAddFromInventory}
-          onAddPrize={() => { setEditingPrize(undefined); setFormOpen(true); }}
-          onPrizeClick={(p) => setDetailPrize(p)}
-          onSaveBudget={handleSaveBudget}
-          initialFilter={tabSection}
+      {/* Main content card: tabs + content */}
+      <ContentCard padding="none">
+        <DashboardTabs
+          items={TAB_CONFIG.map((t) => ({ key: t.key, label: t.label, icon: t.icon }))}
+          active={activeTab}
+          onChange={(key) => {
+            setActiveTab(key as Tab);
+            setTabSection(undefined);
+          }}
+          action={
+            <button
+              onClick={() => setRaffleOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap hover:brightness-125"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <Dices className="w-3.5 h-3.5" />
+              Most Games Raffle
+            </button>
+          }
         />
-      )}
 
-      {activeTab === "dragon_shield" && (
-        <DragonShieldTab month={month} initialSection={tabSection} />
-      )}
+        <div className="p-6">
+          {activeTab === "pods" && (
+            <TreasurePodsTab month={month} showConfig={tabSection === "config"} />
+          )}
+
+          {activeTab === "prizes" && (
+            <PrizesTab
+              prizes={prizes}
+              budget={budget}
+              month={month}
+              isLoading={prizesLoading}
+              onRefreshAll={refreshAll}
+              onAddCard={(group) => {
+                setEditingPrize(undefined);
+                setCardFormGroup(group);
+                setCardFormOpen(true);
+              }}
+              onAddFromInventory={handleAddFromInventory}
+              onAddPrize={() => {
+                setEditingPrize(undefined);
+                setFormOpen(true);
+              }}
+              onPrizeClick={(p) => setDetailPrize(p)}
+              onSaveBudget={handleSaveBudget}
+              initialFilter={tabSection}
+            />
+          )}
+
+          {activeTab === "dragon_shield" && (
+            <DragonShieldTab month={month} initialSection={tabSection} />
+          )}
+        </div>
+      </ContentCard>
 
       {/* Modals */}
       <CardSingleForm
         open={cardFormOpen}
-        onClose={() => { setCardFormOpen(false); setEditingPrize(undefined); setCardFormGroup(undefined); }}
+        onClose={() => {
+          setCardFormOpen(false);
+          setEditingPrize(undefined);
+          setCardFormGroup(undefined);
+        }}
         onSubmit={handleSubmitPrize}
         prize={editingPrize}
         defaultMonth={month}
@@ -319,7 +320,10 @@ export default function PrizesPage() {
 
       <PrizeForm
         open={formOpen}
-        onClose={() => { setFormOpen(false); setEditingPrize(undefined); }}
+        onClose={() => {
+          setFormOpen(false);
+          setEditingPrize(undefined);
+        }}
         onSubmit={handleSubmitPrize}
         prize={editingPrize}
         defaultMonth={month}
@@ -351,12 +355,18 @@ export default function PrizesPage() {
         open={raffleOpen}
         month={month}
         onClose={() => setRaffleOpen(false)}
-        onComplete={() => { setRaffleOpen(false); refreshAll(); }}
+        onComplete={() => {
+          setRaffleOpen(false);
+          refreshAll();
+        }}
       />
 
       <InventoryPicker
         open={inventoryPickerOpen}
-        onClose={() => { setInventoryPickerOpen(false); setSelectedInventoryCard(null); }}
+        onClose={() => {
+          setInventoryPickerOpen(false);
+          setSelectedInventoryCard(null);
+        }}
         onAssigned={handleInventoryAssigned}
         card={selectedInventoryCard}
         month={month}
