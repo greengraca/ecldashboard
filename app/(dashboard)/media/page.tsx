@@ -2,7 +2,12 @@
 
 import { useState, useCallback, useEffect, useTransition } from "react";
 import useSWR from "swr";
+import { Image as ImageIcon } from "lucide-react";
 import MonthPicker from "@/components/dashboard/month-picker";
+import PageHeader from "@/components/dashboard/page-header";
+import ContentCard from "@/components/dashboard/content-card";
+import LoadingSurface from "@/components/dashboard/loading-surface";
+import EmptyState from "@/components/dashboard/empty-state";
 import TemplateSelector from "@/components/media/TemplateSelector";
 import TemplatePreview from "@/components/media/TemplatePreview";
 import TemplateEditor from "@/components/media/TemplateEditor";
@@ -126,24 +131,17 @@ export default function MediaPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1
-            className="text-2xl font-bold"
-            style={{ color: "var(--text-primary)" }}
-          >
-            Media
-          </h1>
-          <p
-            className="text-sm mt-1"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            Generate branded ECL visuals
-          </p>
-        </div>
-        <MonthPicker value={month} onChange={(m) => startTransition(() => setMonth(m))} minMonth="2025-11" />
-      </div>
+      <PageHeader
+        title="Media"
+        subtitle="Generate branded ECL visuals"
+        action={
+          <MonthPicker
+            value={month}
+            onChange={(m) => startTransition(() => setMonth(m))}
+            minMonth="2025-11"
+          />
+        }
+      />
 
       {/* Asset Drive */}
       <div className="mb-6">
@@ -170,18 +168,7 @@ export default function MediaPage() {
               Preview
             </h3>
             {isAutoFilling ? (
-              <div
-                className="flex flex-col items-center justify-center rounded-xl h-96"
-                style={{ background: "var(--surface-gradient)", backdropFilter: "var(--surface-blur)", border: "1.5px solid rgba(255, 255, 255, 0.10)", boxShadow: "var(--surface-shadow)" }}
-              >
-                <div
-                  className="w-6 h-6 border-2 rounded-full animate-spin mb-3"
-                  style={{ borderColor: "var(--border)", borderTopColor: "var(--accent)" }}
-                />
-                <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                  Loading data...
-                </p>
-              </div>
+              <LoadingSurface message="Loading data..." />
             ) : (
               <TemplatePreview
                 templateId={selectedTemplate}
@@ -192,15 +179,7 @@ export default function MediaPage() {
           </div>
 
           {/* Editor */}
-          <div
-            className="p-5 rounded-xl"
-            style={{
-              background: "var(--surface-gradient)",
-              backdropFilter: "var(--surface-blur)",
-              border: "1.5px solid rgba(255, 255, 255, 0.10)",
-              boxShadow: "var(--surface-shadow)",
-            }}
-          >
+          <ContentCard>
             <TemplateEditor
               templateId={selectedTemplate}
               data={templateData}
@@ -243,25 +222,18 @@ export default function MediaPage() {
                 </p>
               </div>
             )}
-          </div>
+          </ContentCard>
         </div>
       )}
 
       {/* Empty state */}
       {!selectedTemplate && (
-        <div
-          className="flex items-center justify-center rounded-xl h-64"
-          style={{
-            background: "var(--surface-gradient)",
-            backdropFilter: "var(--surface-blur)",
-            border: "1.5px solid rgba(255, 255, 255, 0.10)",
-            boxShadow: "var(--surface-shadow)",
-          }}
-        >
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Select a template above to get started
-          </p>
-        </div>
+        <ContentCard padding="none">
+          <EmptyState
+            icon={ImageIcon}
+            title="Select a template above to get started"
+          />
+        </ContentCard>
       )}
     </div>
   );
