@@ -10,6 +10,7 @@ import EmptyState from "@/components/dashboard/empty-state";
 import Tabs from "@/components/dashboard/tabs";
 import FilterBar from "@/components/dashboard/filter-bar";
 import CollapsibleCard from "@/components/dashboard/collapsible-card";
+import Banner from "@/components/dashboard/banner";
 import { Plus, Inbox, Trophy, Gem, Shield, Dices, Terminal } from "lucide-react";
 
 export default function FoundationPreview() {
@@ -241,6 +242,48 @@ export default function FoundationPreview() {
                 Open by default.
               </div>
             </CollapsibleCard>
+          </div>
+        </section>
+
+        <section>
+          <h2
+            className="text-xs font-mono uppercase tracking-wider mb-4"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Banner
+          </h2>
+          <div className="space-y-2">
+            <Banner
+              variant="info"
+              message="Heads-up: month rolls over on the 1st."
+            />
+            <Banner
+              variant="warning"
+              message="PATREON: 2 players have tier mismatches."
+              details={
+                <div className="flex flex-wrap gap-1.5">
+                  <span
+                    className="px-2 py-0.5 rounded text-xs"
+                    style={{ background: "rgba(251,191,36,0.12)" }}
+                  >
+                    Alice
+                  </span>
+                  <span
+                    className="px-2 py-0.5 rounded text-xs"
+                    style={{ background: "rgba(251,191,36,0.12)" }}
+                  >
+                    Bob
+                  </span>
+                </div>
+              }
+            />
+            <Banner
+              variant="error"
+              message="Failed to load subscribers."
+              dismissible
+              onDismiss={() => alert("dismissed")}
+            />
+            <Banner variant="success" message="Snapshot saved." />
           </div>
         </section>
       </div>
