@@ -2,6 +2,7 @@
 
 import PageHeader from "@/components/dashboard/page-header";
 import StatusCard from "@/components/dashboard/status-card";
+import ContentCard from "@/components/dashboard/content-card";
 
 export default function FoundationPreview() {
   return (
@@ -57,6 +58,33 @@ export default function FoundationPreview() {
               subtitle="€312 stock value"
               action={{ label: "Add order", onClick: () => alert("order") }}
             />
+          </div>
+        </section>
+
+        <section>
+          <h2
+            className="text-xs font-mono uppercase tracking-wider mb-4"
+            style={{ color: "var(--text-muted)" }}
+          >
+            ContentCard
+          </h2>
+          <div className="space-y-4">
+            <ContentCard>
+              <p style={{ color: "var(--text-primary)" }}>
+                Default padded ContentCard. Use this for forms, paragraphs, or content that should breathe.
+              </p>
+            </ContentCard>
+            <ContentCard padding="none">
+              <div
+                className="p-4 border-b"
+                style={{ borderColor: "var(--border)" }}
+              >
+                Tightly-fitted header (padding=&quot;none&quot;)
+              </div>
+              <div className="p-4" style={{ color: "var(--text-secondary)" }}>
+                Body content. Useful when child needs to render edge-to-edge (tables, tab strips).
+              </div>
+            </ContentCard>
           </div>
         </section>
       </div>
