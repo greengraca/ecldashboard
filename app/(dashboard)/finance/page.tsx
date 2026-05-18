@@ -2,8 +2,12 @@
 
 import { useState, useCallback, useTransition } from "react";
 import useSWR, { useSWRConfig } from "swr";
-import { Plus } from "lucide-react";
+import { Plus, Receipt, Landmark, Users } from "lucide-react";
 import MonthPicker from "@/components/dashboard/month-picker";
+import PageHeader from "@/components/dashboard/page-header";
+import ContentCard from "@/components/dashboard/content-card";
+import DashboardTabs from "@/components/dashboard/tabs";
+import LoadingSurface from "@/components/dashboard/loading-surface";
 import Modal from "@/components/dashboard/modal";
 import ConfirmModal from "@/components/dashboard/confirm-modal";
 import BalanceCard from "@/components/finance/balance-card";
@@ -25,16 +29,18 @@ import type {
 import { fetcher } from "@/lib/fetcher";
 import { getCurrentMonth } from "@/lib/utils";
 
+type FinanceTab = "transactions" | "fixed_costs" | "team_split";
+
 export default function FinancePage() {
   const { mutate: globalMutate } = useSWRConfig();
   const [month, setMonth] = useState(getCurrentMonth);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
+  const [activeTab, setActiveTab] = useState<FinanceTab>("transactions");
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingTx, setEditingTx] = useState<Transaction | undefined>(
-    undefined
-  );
+  const [editingTx, setEditingTx] = useState<Transaction | undefined>(undefined);
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
   const [deleteFcId, setDeleteFcId] = useState<string | null>(null);
+
   const {
     data: txData,
     isLoading: txLoading,
@@ -72,6 +78,7 @@ export default function FinancePage() {
   const summary = summaryData?.data || null;
   const fixedCosts = fcData?.data || [];
   const groupSummary = groupData?.data || null;
+  const hasSubscriptionIncome = !!(summary?.subscription_income && summary.subscription_income.total > 0);
 
   const refreshAll = useCallback(() => {
     mutateTx();
@@ -204,157 +211,99 @@ export default function FinancePage() {
     handleReimburse(String(tx._id), "transaction", !!tx.reimbursed);
   }
 
-  const isLoading = txLoading || summaryLoading || fcLoading;
-
   return (
     <div>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1
-            className="text-2xl font-bold"
-            style={{ color: "var(--text-primary)" }}
-          >
-            Finance
-          </h1>
-          <p
-            className="text-sm mt-1"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            Track income, expenses, and monthly P&amp;L
-          </p>
-        </div>
-        <MonthPicker value={month} onChange={(m) => startTransition(() => setMonth(m))} minMonth="2025-11" maxMonth={getCurrentMonth()} />
-      </div>
+      <PageHeader
+        title="Finance"
+        subtitle="Track income, expenses, and monthly P&L"
+        action={
+          <MonthPicker
+            value={month}
+            onChange={(m) => startTransition(() => setMonth(m))}
+            minMonth="2025-11"
+            maxMonth={getCurrentMonth()}
+          />
+        }
+      />
 
-      {/* Category Breakdown + Subscription Income */}
-      {(() => {
-        const hasSubscriptionIncome = summary?.subscription_income && summary.subscription_income.total > 0;
-        return (
-          <div className={`grid grid-cols-1 ${hasSubscriptionIncome ? "lg:grid-cols-2" : ""} gap-4 mb-8`}>
-            <MonthlyBreakdownChart month={month} summary={summary} isLoading={summaryLoading} />
-            {hasSubscriptionIncome && (
-              <SubscriptionIncomeCard
-                income={summary?.subscription_income ?? null}
-                isLoading={summaryLoading}
-                month={month}
-              />
-            )}
-          </div>
-        );
-      })()}
-
-      {/* Balance Cards */}
-      <div className="mb-8">
+      {/* Status row — 4 KPI cards */}
+      <div className="mb-6">
         <BalanceCard summary={summary} isLoading={summaryLoading} />
       </div>
 
-      {/* Transaction Table */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2
-            className="text-sm font-semibold uppercase tracking-wider"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Transactions
-          </h2>
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-            style={{
-              background: "var(--accent-light)",
-              color: "var(--accent)",
-            }}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add
-          </button>
-        </div>
-        {isLoading ? (
-          <div
-            className="rounded-xl p-12 text-center"
-            style={{
-              background: "var(--surface-gradient)",
-              backdropFilter: "var(--surface-blur)",
-              border: "1.5px solid rgba(255, 255, 255, 0.10)",
-              boxShadow: "var(--surface-shadow)",
-            }}
-          >
-            <div
-              className="inline-block w-6 h-6 border-2 rounded-full animate-spin"
-              style={{
-                borderColor: "var(--border)",
-                borderTopColor: "var(--accent)",
-              }}
-            />
-            <p
-              className="text-sm mt-3"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Loading transactions...
-            </p>
-          </div>
-        ) : (
-          <TransactionTable
-            transactions={transactions}
-            onEdit={openEdit}
-            onDelete={handleDeleteTransaction}
-            onReimburse={handleReimburseTx}
-          />
-        )}
-      </div>
-
-      {/* Fixed Cost Manager */}
-      <div className="mb-8">
-        <h2
-          className="text-sm font-semibold uppercase tracking-wider mb-4"
-          style={{ color: "var(--text-muted)" }}
-        >
-          Fixed Costs
-        </h2>
-        {fcLoading ? (
-          <div
-            className="rounded-xl p-12 text-center"
-            style={{
-              background: "var(--surface-gradient)",
-              backdropFilter: "var(--surface-blur)",
-              border: "1.5px solid rgba(255, 255, 255, 0.10)",
-              boxShadow: "var(--surface-shadow)",
-            }}
-          >
-            <div
-              className="inline-block w-6 h-6 border-2 rounded-full animate-spin"
-              style={{
-                borderColor: "var(--border)",
-                borderTopColor: "var(--accent)",
-              }}
-            />
-          </div>
-        ) : (
-          <FixedCostManager
-            fixedCosts={fixedCosts}
+      {/* Aux row: breakdown chart + subscription income */}
+      <div className={`grid grid-cols-1 ${hasSubscriptionIncome ? "lg:grid-cols-2" : ""} gap-4 mb-6`}>
+        <MonthlyBreakdownChart month={month} summary={summary} isLoading={summaryLoading} />
+        {hasSubscriptionIncome && (
+          <SubscriptionIncomeCard
+            income={summary?.subscription_income ?? null}
+            isLoading={summaryLoading}
             month={month}
-            onAdd={handleAddFixedCost}
-            onUpdate={handleUpdateFixedCost}
-            onDelete={handleDeleteFixedCost}
           />
         )}
       </div>
 
-      {/* Group Profit Split */}
-      <div className="mb-8">
-        <h2
-          className="text-sm font-semibold uppercase tracking-wider mb-4"
-          style={{ color: "var(--text-muted)" }}
-        >
-          Team Split
-        </h2>
-        <GroupSummaryCard
-          summary={groupSummary}
-          isLoading={groupLoading}
-          onReimburse={handleReimburse}
+      {/* Main content card — tabs */}
+      <ContentCard padding="none">
+        <DashboardTabs
+          items={[
+            { key: "transactions", label: "Transactions", icon: Receipt },
+            { key: "fixed_costs", label: "Fixed Costs", icon: Landmark },
+            { key: "team_split", label: "Team Split", icon: Users },
+          ]}
+          active={activeTab}
+          onChange={(key) => setActiveTab(key as FinanceTab)}
+          action={
+            activeTab === "transactions" ? (
+              <button
+                onClick={openAdd}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                style={{ background: "var(--accent-light)", color: "var(--accent)" }}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add
+              </button>
+            ) : undefined
+          }
         />
-      </div>
+
+        <div className="p-6">
+          {activeTab === "transactions" && (
+            txLoading || summaryLoading ? (
+              <LoadingSurface message="Loading transactions..." />
+            ) : (
+              <TransactionTable
+                transactions={transactions}
+                onEdit={openEdit}
+                onDelete={handleDeleteTransaction}
+                onReimburse={handleReimburseTx}
+              />
+            )
+          )}
+
+          {activeTab === "fixed_costs" && (
+            fcLoading ? (
+              <LoadingSurface />
+            ) : (
+              <FixedCostManager
+                fixedCosts={fixedCosts}
+                month={month}
+                onAdd={handleAddFixedCost}
+                onUpdate={handleUpdateFixedCost}
+                onDelete={handleDeleteFixedCost}
+              />
+            )
+          )}
+
+          {activeTab === "team_split" && (
+            <GroupSummaryCard
+              summary={groupSummary}
+              isLoading={groupLoading}
+              onReimburse={handleReimburse}
+            />
+          )}
+        </div>
+      </ContentCard>
 
       {/* Transaction Modal */}
       <Modal
@@ -376,7 +325,6 @@ export default function FinancePage() {
         />
       </Modal>
 
-      {/* Delete Transaction Confirm */}
       <ConfirmModal
         open={!!deleteTx}
         onClose={() => setDeleteTx(null)}
@@ -387,7 +335,6 @@ export default function FinancePage() {
         variant="danger"
       />
 
-      {/* Delete Fixed Cost Confirm */}
       <ConfirmModal
         open={!!deleteFcId}
         onClose={() => setDeleteFcId(null)}
