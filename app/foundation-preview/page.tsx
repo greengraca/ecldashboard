@@ -8,10 +8,12 @@ import SectionHeader from "@/components/dashboard/section-header";
 import LoadingSurface from "@/components/dashboard/loading-surface";
 import EmptyState from "@/components/dashboard/empty-state";
 import Tabs from "@/components/dashboard/tabs";
+import FilterBar from "@/components/dashboard/filter-bar";
 import { Plus, Inbox, Trophy, Gem, Shield, Dices } from "lucide-react";
 
 export default function FoundationPreview() {
   const [tab, setTab] = useState("prizes");
+  const [filter, setFilter] = useState("all");
   return (
     <div className="min-h-screen p-8" style={{ background: "var(--bg-page)" }}>
       <div className="max-w-6xl mx-auto space-y-12">
@@ -186,6 +188,34 @@ export default function FoundationPreview() {
             >
               Active tab: <strong>{tab}</strong>
             </div>
+          </ContentCard>
+        </section>
+
+        <section>
+          <h2
+            className="text-xs font-mono uppercase tracking-wider mb-4"
+            style={{ color: "var(--text-muted)" }}
+          >
+            FilterBar
+          </h2>
+          <ContentCard>
+            <FilterBar
+              chips={[
+                { key: "patreon", label: "Patreon", count: 18 },
+                { key: "kofi", label: "Ko-fi", count: 12 },
+                { key: "free", label: "Free", count: 8 },
+                { key: "manual", label: "Manual", count: 5 },
+                { key: "not_playing", label: "Paying not playing", count: 4 },
+              ]}
+              active={filter}
+              onChange={setFilter}
+            />
+            <p
+              className="mt-3 text-sm"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Active filter: <strong>{filter}</strong>
+            </p>
           </ContentCard>
         </section>
       </div>
