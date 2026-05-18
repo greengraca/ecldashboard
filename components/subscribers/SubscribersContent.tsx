@@ -4,9 +4,21 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { Users, Crown, Coffee, Gift, AlertTriangle, HandCoins, Gamepad2, Info, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Users,
+  Crown,
+  Coffee,
+  Gift,
+  AlertTriangle,
+  HandCoins,
+  Gamepad2,
+} from "lucide-react";
 import StatCard from "@/components/dashboard/stat-card";
 import MonthPicker from "@/components/dashboard/month-picker";
+import PageHeader from "@/components/dashboard/page-header";
+import Banner from "@/components/dashboard/banner";
+import FilterBar from "@/components/dashboard/filter-bar";
+import LoadingSurface from "@/components/dashboard/loading-surface";
 import SubscriberTable from "@/components/subscribers/subscriber-table";
 import type { Subscriber, SubscriberSummary } from "@/lib/types";
 import { Sensitive } from "@/components/dashboard/sensitive";
@@ -25,10 +37,9 @@ export default function SubscribersContent() {
   const router = useRouter();
   const [month, setMonth] = useState(getCurrentMonth);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
-  const [expandedWarnings, setExpandedWarnings] = useState<Set<number>>(new Set());
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
-  const { data, error, isLoading, mutate } = useSWR<{ data: SubscriberData }>(
+  const { data, error, isLoading } = useSWR<{ data: SubscriberData }>(
     `/api/subscribers?month=${month}`,
     fetcher
   );
@@ -55,6 +66,7 @@ export default function SubscribersContent() {
 
   const manualPaidCount = subscribers.filter((s) => s.source === "free" && manualPaidIds.has(s.discord_id)).length;
   const freeCount = (summary?.free ?? 0) - manualPaidCount;
+  const payingNotPlayingCount = subscribers.filter((s) => isPaying(s) && !s.is_playing).length;
 
   const filteredSubscribers = subscribers.filter((s) => {
     if (sourceFilter === "all") return true;
@@ -63,8 +75,6 @@ export default function SubscribersContent() {
     if (sourceFilter === "free") return s.source === "free" && !manualPaidIds.has(s.discord_id);
     return s.source === sourceFilter;
   });
-
-  const toggleFilter = (f: SourceFilter) => setSourceFilter((prev) => (prev === f ? "all" : f));
 
   const handleToggleManualPaid = async (
     discordId: string,
@@ -77,233 +87,153 @@ export default function SubscribersContent() {
     mutateManual();
   };
 
+  // FilterBar chips. "Manual" only appears when there's at least one.
+  const filterChips = [
+    { key: "patreon", label: "Patreon", count: summary?.patreon ?? 0 },
+    { key: "kofi", label: "Ko-fi", count: summary?.kofi ?? 0 },
+    { key: "free", label: "Free", count: freeCount },
+    ...(manualPaidCount > 0
+      ? [{ key: "manual", label: "Manual", count: manualPaidCount }]
+      : []),
+    { key: "paying_not_playing", label: "Paying not playing", count: payingNotPlayingCount },
+  ];
+
   return (
     <div>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1
-            className="text-2xl font-bold"
-            style={{ color: "var(--text-primary)" }}
-          >
-            Subscribers
-          </h1>
-          <p
-            className="text-sm mt-1"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            Manage and monitor subscription status
-          </p>
-        </div>
-        <MonthPicker value={month} onChange={(m) => { setExpandedWarnings(new Set()); startTransition(() => setMonth(m)); }} minMonth="2025-12" maxMonth={getCurrentMonth()} />
-      </div>
+      <PageHeader
+        title="Subscribers"
+        subtitle="Manage and monitor subscription status"
+        action={
+          <MonthPicker
+            value={month}
+            onChange={(m) => startTransition(() => setMonth(m))}
+            minMonth="2025-12"
+            maxMonth={getCurrentMonth()}
+          />
+        }
+      />
 
       {/* Error state */}
       {error && (
-        <div
-          className="mb-6 p-4 rounded-xl border text-sm"
-          style={{
-            background: "var(--error-light)",
-            borderColor: "var(--error-border)",
-            color: "var(--error)",
-          }}
-        >
-          Failed to load subscriber data. Please try again.
+        <div className="mb-6">
+          <Banner
+            variant="error"
+            message="Failed to load subscriber data. Please try again."
+          />
         </div>
       )}
 
-      {/* Summary Cards */}
-      <div className={`grid grid-cols-2 sm:grid-cols-3 ${manualPaidCount > 0 ? "lg:grid-cols-7" : "lg:grid-cols-6"} gap-3 sm:gap-4 mb-4`}>
-        <div className="cursor-pointer" onClick={() => toggleFilter("all")}>
-          <StatCard
-            title="Total Subscribers"
-            value={isLoading ? "--" : <Sensitive>{summary?.total ?? 0}</Sensitive>}
-            active={sourceFilter === "all"}
-            icon={
-              <Users
-                className="w-4 h-4"
-                style={{ color: "var(--accent)" }}
-              />
-            }
-          />
-        </div>
-        <StatCard
-          title="In Bracket"
-          value={isLoading ? "--" : <Sensitive>{summary?.registered_players ?? "--"}</Sensitive>}
-          subtitle={!isLoading && summary?.registered_players != null && summary.total > 0
-            ? `${summary.total - (summary.registered_players ?? 0)} not registered`
-            : undefined}
-          icon={
-            <Gamepad2
-              className="w-4 h-4"
-              style={{ color: "var(--accent)" }}
-            />
-          }
-        />
-        <div className="cursor-pointer" onClick={() => toggleFilter("patreon")}>
-          <StatCard
-            title="Patreon"
-            value={isLoading ? "--" : <Sensitive>{summary?.patreon ?? 0}</Sensitive>}
-            active={sourceFilter === "patreon"}
-            icon={
-              <Crown
-                className="w-4 h-4"
-                style={{ color: "var(--status-patreon)" }}
-              />
-            }
-          />
-        </div>
-        <div className="cursor-pointer" onClick={() => toggleFilter("kofi")}>
-          <StatCard
-            title="Ko-fi"
-            value={isLoading ? "--" : <Sensitive>{summary?.kofi ?? 0}</Sensitive>}
-            active={sourceFilter === "kofi"}
-            icon={
-              <Coffee
-                className="w-4 h-4"
-                style={{ color: "var(--status-kofi)" }}
-              />
-            }
-          />
-        </div>
-        {manualPaidCount > 0 && (
-          <div className="cursor-pointer" onClick={() => toggleFilter("manual")}>
-            <StatCard
-              title="Manually Paid"
-              value={isLoading ? "--" : <Sensitive>{manualPaidCount}</Sensitive>}
-              active={sourceFilter === "manual"}
-              icon={
-                <HandCoins
-                  className="w-4 h-4"
-                  style={{ color: "var(--success)" }}
-                />
-              }
-            />
-          </div>
-        )}
-        <div className="cursor-pointer" onClick={() => toggleFilter("free")}>
-          <StatCard
-            title="Free Entry"
-            value={isLoading ? "--" : <Sensitive>{freeCount}</Sensitive>}
-            active={sourceFilter === "free"}
-            icon={
-              <Gift
-                className="w-4 h-4"
-                style={{ color: "var(--status-free)" }}
-              />
-            }
-          />
-        </div>
-        <div className="cursor-pointer" onClick={() => toggleFilter("paying_not_playing")}>
-          <StatCard
-            title="Paying Not Playing"
-            value={isLoading ? "--" : <Sensitive>{subscribers.filter((s) => isPaying(s) && !s.is_playing).length}</Sensitive>}
-            active={sourceFilter === "paying_not_playing"}
-            icon={
-              <AlertTriangle
-                className="w-4 h-4"
-                style={{ color: "var(--warning)" }}
-              />
-            }
-          />
-        </div>
-      </div>
-
-      {/* Data Health Warnings */}
+      {/* Data-health warnings */}
       {!isLoading && summary?.data_warnings && summary.data_warnings.length > 0 && (
-        <div className="mb-8 space-y-2">
+        <div className="mb-6 space-y-2">
           {summary.data_warnings.map((w, i) => {
             const hasDetails = w.details && w.details.length > 0;
-            const isExpanded = expandedWarnings.has(i);
             return (
-              <div
+              <Banner
                 key={i}
-                className={`rounded-lg border text-xs${hasDetails ? " cursor-pointer" : ""}`}
-                style={{
-                  background: "rgba(251, 191, 36, 0.08)",
-                  borderColor: "var(--warning)",
-                  color: "var(--warning)",
-                }}
-                onClick={hasDetails ? () => setExpandedWarnings((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(i)) next.delete(i); else next.add(i);
-                  return next;
-                }) : undefined}
-              >
-                <div className="flex items-center gap-2 px-4 py-2.5">
-                  <Info className="w-3.5 h-3.5 shrink-0" />
-                  <span className="flex-1">
+                variant="warning"
+                message={
+                  <>
                     <strong className="uppercase">{w.source}:</strong> {w.message}
-                  </span>
-                  {hasDetails && (
-                    isExpanded
-                      ? <ChevronUp className="w-3.5 h-3.5 shrink-0" />
-                      : <ChevronDown className="w-3.5 h-3.5 shrink-0" />
-                  )}
-                </div>
-                {hasDetails && isExpanded && (
-                  <div
-                    className="px-4 pb-2.5 pt-2 flex flex-wrap gap-1.5"
-                    style={{ borderTop: "1px solid rgba(251, 191, 36, 0.15)" }}
-                  >
-                    {w.details!.map((d, j) => {
-                      const uid = identityMap[d.discord_id];
-                      const badge = (
-                        <span
-                          className={`px-2 py-0.5 rounded text-xs inline-block${uid ? " hover:underline" : ""}`}
-                          style={{
-                            background: "rgba(251, 191, 36, 0.12)",
-                            color: "var(--warning)",
-                          }}
-                        >
-                          {d.name}
-                        </span>
-                      );
-                      return uid ? (
-                        <Link key={j} href={`/league/${uid}`} onClick={(e) => e.stopPropagation()}>
-                          {badge}
-                        </Link>
-                      ) : (
-                        <span key={j}>{badge}</span>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                  </>
+                }
+                details={
+                  hasDetails ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {w.details!.map((d, j) => {
+                        const uid = identityMap[d.discord_id];
+                        const badge = (
+                          <span
+                            className={`px-2 py-0.5 rounded text-xs inline-block${uid ? " hover:underline" : ""}`}
+                            style={{
+                              background: "rgba(251, 191, 36, 0.12)",
+                              color: "var(--warning)",
+                            }}
+                          >
+                            {d.name}
+                          </span>
+                        );
+                        return uid ? (
+                          <Link
+                            key={j}
+                            href={`/league/${uid}`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {badge}
+                          </Link>
+                        ) : (
+                          <span key={j}>{badge}</span>
+                        );
+                      })}
+                    </div>
+                  ) : undefined
+                }
+              />
             );
           })}
         </div>
       )}
 
-      {!isLoading && (!summary?.data_warnings || summary.data_warnings.length === 0) && (
-        <div className="mb-8" />
-      )}
+      {/* Status row — display-only KPIs */}
+      <div
+        className={`grid grid-cols-2 sm:grid-cols-3 ${manualPaidCount > 0 ? "lg:grid-cols-7" : "lg:grid-cols-6"} gap-3 sm:gap-4 mb-6`}
+      >
+        <StatCard
+          title="Total Subscribers"
+          value={isLoading ? "--" : <Sensitive>{summary?.total ?? 0}</Sensitive>}
+          icon={<Users className="w-4 h-4" style={{ color: "var(--accent)" }} />}
+        />
+        <StatCard
+          title="In Bracket"
+          value={isLoading ? "--" : <Sensitive>{summary?.registered_players ?? "--"}</Sensitive>}
+          subtitle={
+            !isLoading && summary?.registered_players != null && summary.total > 0
+              ? `${summary.total - (summary.registered_players ?? 0)} not registered`
+              : undefined
+          }
+          icon={<Gamepad2 className="w-4 h-4" style={{ color: "var(--accent)" }} />}
+        />
+        <StatCard
+          title="Patreon"
+          value={isLoading ? "--" : <Sensitive>{summary?.patreon ?? 0}</Sensitive>}
+          icon={<Crown className="w-4 h-4" style={{ color: "var(--status-patreon)" }} />}
+        />
+        <StatCard
+          title="Ko-fi"
+          value={isLoading ? "--" : <Sensitive>{summary?.kofi ?? 0}</Sensitive>}
+          icon={<Coffee className="w-4 h-4" style={{ color: "var(--status-kofi)" }} />}
+        />
+        {manualPaidCount > 0 && (
+          <StatCard
+            title="Manually Paid"
+            value={isLoading ? "--" : <Sensitive>{manualPaidCount}</Sensitive>}
+            icon={<HandCoins className="w-4 h-4" style={{ color: "var(--success)" }} />}
+          />
+        )}
+        <StatCard
+          title="Free Entry"
+          value={isLoading ? "--" : <Sensitive>{freeCount}</Sensitive>}
+          icon={<Gift className="w-4 h-4" style={{ color: "var(--status-free)" }} />}
+        />
+        <StatCard
+          title="Paying Not Playing"
+          value={isLoading ? "--" : <Sensitive>{payingNotPlayingCount}</Sensitive>}
+          icon={<AlertTriangle className="w-4 h-4" style={{ color: "var(--warning)" }} />}
+        />
+      </div>
+
+      {/* FilterBar — single canonical filter pattern */}
+      <div className="mb-4">
+        <FilterBar
+          chips={filterChips}
+          active={sourceFilter}
+          onChange={(key) => setSourceFilter(key as SourceFilter)}
+        />
+      </div>
 
       {/* Subscriber Table */}
       {isLoading ? (
-        <div
-          className="rounded-xl p-12 text-center"
-          style={{
-            background: "var(--surface-gradient)",
-            backdropFilter: "var(--surface-blur)",
-            border: "1.5px solid rgba(255, 255, 255, 0.10)",
-            boxShadow: "var(--surface-shadow)",
-          }}
-        >
-          <div
-            className="inline-block w-6 h-6 border-2 rounded-full animate-spin"
-            style={{
-              borderColor: "var(--border)",
-              borderTopColor: "var(--accent)",
-            }}
-          />
-          <p
-            className="text-sm mt-3"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Loading subscribers...
-          </p>
-        </div>
+        <LoadingSurface message="Loading subscribers..." />
       ) : (
         <SubscriberTable
           subscribers={filteredSubscribers}
