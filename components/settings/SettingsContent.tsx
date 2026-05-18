@@ -1,7 +1,8 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { User, Database, Shield, Globe, DollarSign, EyeOff } from "lucide-react";
+import useSWR from "swr";
+import { User, Database, Shield, Globe, DollarSign, EyeOff, ToggleLeft } from "lucide-react";
 import { useSensitiveData } from "@/contexts/SensitiveDataContext";
 import PageHeader from "@/components/dashboard/page-header";
 import TopDeckRefreshButton from "@/components/settings/topdeck-refresh-button";
@@ -10,6 +11,8 @@ import SyncPatreonButton from "@/components/settings/sync-patreon-button";
 import SubscriptionRatesManager from "./SubscriptionRatesManager";
 import TeamMemberManager from "./TeamMemberManager";
 import MonthlyConfigManager from "./MonthlyConfigManager";
+import { fetcher } from "@/lib/fetcher";
+import type { FeatureFlags } from "@/lib/feature-flags";
 
 function mask(value: string, showChars = 4): string {
   if (!value) return "Not set";
@@ -86,6 +89,30 @@ export default function SettingsContent({
 }) {
   const { data: session } = useSession();
   const { hidden, setHidden } = useSensitiveData();
+
+  const { data: flagsData, mutate: mutateFlags } = useSWR<{ data: FeatureFlags }>(
+    "/api/feature-flags",
+    fetcher
+  );
+  const lfgeloEnabled = flagsData?.data?.lfgelo_enabled ?? false;
+
+  async function toggleLfgelo() {
+    const next = !lfgeloEnabled;
+    // Optimistic update
+    mutateFlags(
+      flagsData ? { data: { ...flagsData.data, lfgelo_enabled: next } } : undefined,
+      false
+    );
+    try {
+      await fetch("/api/feature-flags", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "lfgelo_enabled", value: next }),
+      });
+    } finally {
+      mutateFlags();
+    }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const user = session?.user as any;
@@ -170,6 +197,43 @@ export default function SettingsContent({
                   style={{
                     background: hidden ? "var(--accent-text, #fff)" : "var(--text-muted)",
                     transform: hidden ? "translateX(24px)" : "translateX(4px)",
+                  }}
+                />
+              </button>
+            </div>
+          </Section>
+
+          {/* Features */}
+          <Section
+            icon={<ToggleLeft className="w-4 h-4" style={{ color: "var(--accent)" }} />}
+            title="Features"
+          >
+            <div className="flex items-center justify-between py-3">
+              <div>
+                <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                  Allow /lfgelo
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                  When off, the /lfgelo Discord command is hidden and unavailable. Requires bot restart for command list to update.
+                </p>
+              </div>
+              <button
+                role="switch"
+                aria-checked={lfgeloEnabled}
+                onClick={toggleLfgelo}
+                disabled={!flagsData}
+                className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
+                style={{
+                  background: lfgeloEnabled ? "var(--accent)" : "var(--border)",
+                  opacity: flagsData ? 1 : 0.5,
+                  cursor: flagsData ? "pointer" : "wait",
+                }}
+              >
+                <span
+                  className="inline-block h-4 w-4 rounded-full transition-transform duration-200"
+                  style={{
+                    background: lfgeloEnabled ? "var(--accent-text, #fff)" : "var(--text-muted)",
+                    transform: lfgeloEnabled ? "translateX(24px)" : "translateX(4px)",
                   }}
                 />
               </button>
