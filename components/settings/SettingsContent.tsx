@@ -1,8 +1,9 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { Settings, User, Database, Shield, Globe, DollarSign, EyeOff } from "lucide-react";
+import { User, Database, Shield, Globe, DollarSign, EyeOff } from "lucide-react";
 import { useSensitiveData } from "@/contexts/SensitiveDataContext";
+import PageHeader from "@/components/dashboard/page-header";
 import TopDeckRefreshButton from "@/components/settings/topdeck-refresh-button";
 import SyncDiscordButton from "@/components/settings/sync-discord-button";
 import SyncPatreonButton from "@/components/settings/sync-patreon-button";
@@ -94,30 +95,10 @@ export default function SettingsContent({
 
   return (
     <div>
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-1">
-          <div
-            className="p-2 rounded-lg"
-            style={{ background: "var(--accent-light)" }}
-          >
-            <Settings className="w-5 h-5" style={{ color: "var(--accent)" }} />
-          </div>
-          <div>
-            <h1
-              className="text-2xl font-bold"
-              style={{ color: "var(--text-primary)" }}
-            >
-              Settings
-            </h1>
-            <p
-              className="text-sm mt-0.5"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              Dashboard configuration and account info
-            </p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Settings"
+        subtitle="Dashboard configuration and account info"
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left column */}
