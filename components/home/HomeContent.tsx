@@ -4,6 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import CalendarWidget from "@/components/dashboard/CalendarWidget";
 import TasksWidget from "@/components/dashboard/TasksWidget";
+import PageHeader from "@/components/dashboard/page-header";
 import dynamic from "next/dynamic";
 const FinanceOverview = dynamic(() => import("@/components/finance/finance-overview"), { ssr: false });
 const ProfitSplitTable = dynamic(() => import("@/components/finance/profit-split-table"), { ssr: false });
@@ -78,20 +79,7 @@ export default function HomeContent() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1
-          className="text-2xl font-bold"
-          style={{ color: "var(--text-primary)" }}
-        >
-          Dashboard
-        </h1>
-        <p
-          className="text-sm mt-1"
-          style={{ color: "var(--text-secondary)" }}
-        >
-          European cEDH League overview
-        </p>
-      </div>
+      <PageHeader title="Dashboard" subtitle="European cEDH League overview" />
 
       {/* Calendar + Tasks — calendar drives row height, tasks scroll within */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
