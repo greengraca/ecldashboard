@@ -59,9 +59,10 @@ export interface LiveStandingsResult {
 }
 
 // ─── Cache ───
-
-let cachedResult: LiveStandingsResult | null = null;
-let cacheExpires = 0;
+// Keyed by bracket_id — a single global slot used to cause cross-bracket
+// pollution where a stale lib/* caller (using TOPDECK_BRACKET_ID env var)
+// would poison the slot for the current-month /standings/live caller.
+const cachedResults = new Map<string, { result: LiveStandingsResult; expires: number }>();
 
 // ─── Firestore value parsing ───
 
@@ -310,13 +311,14 @@ function computeStandings(matches: RawMatch[], entrantIds: Set<number>) {
 // ─── Main fetch ───
 
 export async function fetchLiveStandings(bracketId?: string): Promise<LiveStandingsResult> {
-  // Check cache
-  if (cachedResult && Date.now() < cacheExpires) {
-    return cachedResult;
-  }
-
   const bid = bracketId || TOPDECK_BRACKET_ID;
   if (!bid) throw new Error("TOPDECK_BRACKET_ID not configured");
+
+  // Check cache for this specific bracket
+  const cached = cachedResults.get(bid);
+  if (cached && Date.now() < cached.expires) {
+    return cached.result;
+  }
 
   if (!FIRESTORE_DOC_URL_TEMPLATE) {
     throw new Error("FIRESTORE_DOC_URL_TEMPLATE not configured");
@@ -426,18 +428,16 @@ export async function fetchLiveStandings(bracketId?: string): Promise<LiveStandi
       };
     });
 
-  // Cache
+  // Cache under this bracket's key
   const result: LiveStandingsResult = { rows, totalMatches, inProgress, voided, voidedMatchIds, gamePods };
-  cachedResult = result;
-  cacheExpires = Date.now() + CACHE_TTL_MS;
+  cachedResults.set(bid, { result, expires: Date.now() + CACHE_TTL_MS });
 
   return result;
 }
 
-/** Clear the in-memory cache (e.g. after a manual refresh). */
+/** Clear the in-memory cache for all brackets (e.g. after a manual refresh). */
 export function clearLiveCache(): void {
-  cachedResult = null;
-  cacheExpires = 0;
+  cachedResults.clear();
 }
 
 // ─── Elimination pods (Top 16 / Top 4) ───
