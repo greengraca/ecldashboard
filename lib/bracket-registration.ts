@@ -1,7 +1,9 @@
 import { getHistoricalMonths, reassembleMonthDump } from "./topdeck";
 import { fetchPublicPData } from "./topdeck-cache";
 import { fetchLiveStandings } from "./topdeck-live";
+import { getBracketIdForMonth } from "./bracket-ids";
 import { fetchGuildMembers } from "./discord";
+import { getCurrentMonth } from "./utils";
 
 // ─── Cache with 5-min TTL ───
 
@@ -80,7 +82,8 @@ export async function getRegisteredDiscordUsernames(
 
     // 2. Fallback: try live standings (current month)
     try {
-      const live = await fetchLiveStandings();
+      const liveBracketId = await getBracketIdForMonth(getCurrentMonth());
+      const live = await fetchLiveStandings(liveBracketId);
       for (const row of live.rows) {
         if (row.discord) {
           usernames.add(row.discord.toLowerCase().trim());

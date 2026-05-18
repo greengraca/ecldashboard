@@ -336,7 +336,8 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
   let livePlayerDiscord = "";
   let liveOwPct = 0;
   try {
-    const liveResult = await fetchLiveStandings();
+    const liveBracketId = await getBracketIdForMonth(getCurrentMonth());
+    const liveResult = await fetchLiveStandings(liveBracketId);
     const livePlayer = liveResult.rows.find(
       (r) => r.uid === uid || r.entrant_id.toString() === uid
     );
@@ -584,7 +585,7 @@ export async function getEligibleTop16(month?: string): Promise<{ uid: string; n
 
   if (targetMonth === currentMonth) {
     // Current month: use live standings (has dropped status + voided match IDs)
-    const liveResult = await fetchLiveStandings();
+    const liveResult = await fetchLiveStandings(bracketId);
     const [onlineCounts, recentUids] = await Promise.all([
       getOnlineGameCountsForMonth(bracketId, year, monthNum, liveResult.voidedMatchIds),
       getRecentGameUidsForMonth(bracketId, year, monthNum, liveResult.voidedMatchIds),

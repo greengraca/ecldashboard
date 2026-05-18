@@ -1,6 +1,7 @@
 import { getDb } from "./mongodb";
 import { getPlayers } from "./players";
 import { fetchLiveStandings } from "./topdeck-live";
+import { getBracketIdForMonth } from "./bracket-ids";
 import { getCurrentMonth } from "./utils";
 import { logActivity } from "./activity";
 import type { RaffleResult, RaffleCandidate } from "./types";
@@ -16,7 +17,8 @@ export async function getRaffleCandidates(
   // Current month uses live data, past months use dumps
   let allPlayers: { uid: string; name: string; games: number }[];
   if (month === getCurrentMonth()) {
-    const live = await fetchLiveStandings();
+    const bracketId = await getBracketIdForMonth(month);
+    const live = await fetchLiveStandings(bracketId);
     allPlayers = live.rows
       .filter((r) => r.uid && !r.dropped)
       .map((r) => ({ uid: r.uid!, name: r.name, games: r.games }));

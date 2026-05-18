@@ -6,7 +6,9 @@
 
 import { fetchLiveStandings, START_POINTS } from "./topdeck-live";
 import type { GamePod } from "./topdeck-live";
+import { getBracketIdForMonth } from "./bracket-ids";
 import { WAGER_RATE } from "./constants";
+import { getCurrentMonth } from "./utils";
 import type { DailyActivity, DailyProgression, PlayerMatchStats } from "./types";
 
 // ─── Helpers ───
@@ -160,7 +162,8 @@ function buildDailyProgression(
 export async function getPlayerMatchStats(
   uid: string
 ): Promise<PlayerMatchStats | null> {
-  const { rows, gamePods } = await fetchLiveStandings();
+  const bracketId = await getBracketIdForMonth(getCurrentMonth());
+  const { rows, gamePods } = await fetchLiveStandings(bracketId);
 
   // Check player exists in current bracket
   const playerRow = rows.find((r) => r.uid === uid);
