@@ -5,9 +5,9 @@ import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import ConfirmModal from "@/components/dashboard/confirm-modal";
 import { Sensitive } from "@/components/dashboard/sensitive";
+import PageHeader from "@/components/dashboard/page-header";
 import dynamic from "next/dynamic";
 import {
-  Users2,
   ArrowLeft,
   Radio,
   Square,
@@ -366,34 +366,10 @@ export default function MeetingsPage() {
 
   return (
     <div>
-      {/* Page header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 mb-1">
-            <div
-              className="p-2 rounded-lg"
-              style={{ background: "var(--accent-light)" }}
-            >
-              <Users2
-                className="w-5 h-5"
-                style={{ color: "var(--accent)" }}
-              />
-            </div>
-            <div>
-              <h1
-                className="text-2xl font-bold"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Meeting Room
-              </h1>
-              <p
-                className="text-sm mt-0.5"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                Live team meetings with note-taking
-              </p>
-            </div>
-          </div>
+      <PageHeader
+        title="Meeting Room"
+        subtitle="Live team meetings with note-taking"
+        action={
           <button
             onClick={() => setPlannerOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
@@ -406,8 +382,8 @@ export default function MeetingsPage() {
             <Trophy className="w-4 h-4" />
             Prize Planner
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* "Session ended" banner */}
       {endedBanner && (
