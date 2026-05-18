@@ -4,6 +4,7 @@ import PageHeader from "@/components/dashboard/page-header";
 import StatusCard from "@/components/dashboard/status-card";
 import ContentCard from "@/components/dashboard/content-card";
 import SectionHeader from "@/components/dashboard/section-header";
+import LoadingSurface from "@/components/dashboard/loading-surface";
 import { Plus } from "lucide-react";
 
 export default function FoundationPreview() {
@@ -117,6 +118,19 @@ export default function FoundationPreview() {
               (table or list body would go here)
             </p>
           </ContentCard>
+        </section>
+
+        <section>
+          <h2
+            className="text-xs font-mono uppercase tracking-wider mb-4"
+            style={{ color: "var(--text-muted)" }}
+          >
+            LoadingSurface
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <LoadingSurface />
+            <LoadingSurface message="Loading transactions..." />
+          </div>
         </section>
       </div>
     </div>
