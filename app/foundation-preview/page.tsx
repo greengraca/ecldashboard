@@ -5,7 +5,8 @@ import StatusCard from "@/components/dashboard/status-card";
 import ContentCard from "@/components/dashboard/content-card";
 import SectionHeader from "@/components/dashboard/section-header";
 import LoadingSurface from "@/components/dashboard/loading-surface";
-import { Plus } from "lucide-react";
+import EmptyState from "@/components/dashboard/empty-state";
+import { Plus, Inbox } from "lucide-react";
 
 export default function FoundationPreview() {
   return (
@@ -131,6 +132,23 @@ export default function FoundationPreview() {
             <LoadingSurface />
             <LoadingSurface message="Loading transactions..." />
           </div>
+        </section>
+
+        <section>
+          <h2
+            className="text-xs font-mono uppercase tracking-wider mb-4"
+            style={{ color: "var(--text-muted)" }}
+          >
+            EmptyState
+          </h2>
+          <ContentCard padding="none">
+            <EmptyState
+              icon={Inbox}
+              title="No transactions yet"
+              subtitle="Add your first transaction to get started."
+              action={{ label: "Add transaction", onClick: () => alert("add") }}
+            />
+          </ContentCard>
         </section>
       </div>
     </div>
