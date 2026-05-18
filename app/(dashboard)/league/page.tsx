@@ -6,6 +6,12 @@ import useSWR from "swr";
 import { Users, Gamepad2, Trophy, TrendingUp, Save, Check, GripVertical, Hash } from "lucide-react";
 import StatCard from "@/components/dashboard/stat-card";
 import MonthPicker from "@/components/dashboard/month-picker";
+import PageHeader from "@/components/dashboard/page-header";
+import ContentCard from "@/components/dashboard/content-card";
+import DashboardTabs from "@/components/dashboard/tabs";
+import FilterBar from "@/components/dashboard/filter-bar";
+import LoadingSurface from "@/components/dashboard/loading-surface";
+import Banner from "@/components/dashboard/banner";
 import StandingsTable from "@/components/players/standings-table";
 import LiveStandingsTable from "@/components/players/live-standings-table";
 import TurnOrderSection from "@/components/players/turn-order-section";
@@ -400,12 +406,14 @@ function SaveButton({ saving, onSave }: { saving: boolean; onSave: () => void })
   );
 }
 
+type FilterValue = "none" | "eligible" | "top16" | "inactive" | "most_games" | "top16_pods" | "top4_pods";
+
 export default function PlayersPage() {
   const router = useRouter();
   const [month, setMonth] = useState(getCurrentMonth);
-  const [filter, setFilter] = useState<"none" | "eligible" | "top16" | "inactive" | "most_games" | "top16_pods" | "top4_pods">("none");
+  const [filter, setFilter] = useState<FilterValue>("none");
   const [viewMode, setViewMode] = useState<"standings" | "pods">("standings");
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const handleMonthChange = (newMonth: string) => {
     startTransition(() => {
@@ -500,509 +508,256 @@ export default function PlayersPage() {
     }
   }, [isCurrentMonth, liveStandings, players, liveTotalMatches]);
 
+  // Build FilterBar chips with counts (different sets for current vs past month)
+  const filterChips = useMemo(() => {
+    if (isCurrentMonth) {
+      const inactiveCount = liveStandings.filter((s) => s.games === 0).length;
+      return [
+        { key: "eligible", label: "Top 16 Eligible" },
+        { key: "most_games", label: "Most Games" },
+        { key: "inactive", label: "Inactive", count: inactiveCount > 0 ? inactiveCount : undefined },
+      ];
+    }
+    const inactiveCount = players.filter((p) => p.games === 0).length;
+    return [
+      { key: "top16", label: "Top 16 Cut" },
+      { key: "most_games", label: "Most Games" },
+      { key: "inactive", label: "Inactive", count: inactiveCount > 0 ? inactiveCount : undefined },
+      { key: "top16_pods", label: "Top 16 Pods" },
+      { key: "top4_pods", label: "Top 4 Pods" },
+    ];
+  }, [isCurrentMonth, liveStandings, players]);
+
+  // FilterBar uses "all" as the default sentinel; internal state uses "none"
+  const activeChip = filter === "none" ? "all" : filter;
+  const handleFilterChange = (key: string) => {
+    setFilter(key === "all" ? "none" : (key as FilterValue));
+  };
+
+  const showBracketEditor = filter === "top16_pods" || filter === "top4_pods";
+
   return (
     <div>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1
-            className="text-2xl font-bold"
-            style={{ color: "var(--text-primary)" }}
-          >
-            League
-          </h1>
-          <p
-            className="text-sm mt-1"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            League standings and game statistics
-          </p>
-        </div>
-        <div className="flex flex-col items-center gap-1">
-          <MonthPicker value={month} onChange={handleMonthChange} minMonth="2025-12" maxMonth={getCurrentMonth()} />
-          <a
-            href={bracketId ? `https://topdeck.gg/bracket/${bracketId}` : undefined}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] transition-colors hover:underline h-4"
-            style={{
-              color: "var(--text-muted)",
-              visibility: bracketId ? "visible" : "hidden",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
-          >
-            ({bracketId})
-          </a>
-        </div>
-      </div>
+      <PageHeader
+        title="League"
+        subtitle="League standings and game statistics"
+        action={
+          <div className="flex flex-col items-center gap-1">
+            <MonthPicker
+              value={month}
+              onChange={handleMonthChange}
+              minMonth="2025-12"
+              maxMonth={getCurrentMonth()}
+            />
+            <a
+              href={bracketId ? `https://topdeck.gg/bracket/${bracketId}` : undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] transition-colors hover:underline h-4"
+              style={{
+                color: "var(--text-muted)",
+                visibility: bracketId ? "visible" : "hidden",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+            >
+              ({bracketId})
+            </a>
+          </div>
+        }
+      />
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-8">
+      {/* Summary Cards — display-only */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
         <StatCard
           title="Total Games"
           value={dataLoading ? "--" : stats.totalGames}
           subtitle={!dataLoading && isCurrentMonth && liveVoided > 0 ? `${liveVoided} voided` : undefined}
-          icon={
-            <Hash
-              className="w-4 h-4"
-              style={{ color: "var(--accent)" }}
-            />
-          }
+          icon={<Hash className="w-4 h-4" style={{ color: "var(--accent)" }} />}
         />
         <StatCard
           title="Total Players"
           value={dataLoading ? "--" : stats.total}
-          icon={
-            <Users
-              className="w-4 h-4"
-              style={{ color: "var(--accent)" }}
-            />
-          }
+          icon={<Users className="w-4 h-4" style={{ color: "var(--accent)" }} />}
         />
         <StatCard
           title="Active"
           value={dataLoading ? "--" : stats.active}
           subtitle="Players with games"
-          icon={
-            <Gamepad2
-              className="w-4 h-4"
-              style={{ color: "var(--accent)" }}
-            />
-          }
+          icon={<Gamepad2 className="w-4 h-4" style={{ color: "var(--accent)" }} />}
         />
         <StatCard
           title="Avg Games"
           value={dataLoading ? "--" : stats.avg}
           subtitle="Per active player"
-          icon={
-            <TrendingUp
-              className="w-4 h-4"
-              style={{ color: "var(--warning)" }}
-            />
-          }
+          icon={<TrendingUp className="w-4 h-4" style={{ color: "var(--warning)" }} />}
         />
         <StatCard
           title="Top Points"
           value={dataLoading ? "--" : stats.top}
           subtitle={stats.topName}
-          icon={
-            <Trophy
-              className="w-4 h-4"
-              style={{ color: "#fbbf24" }}
-            />
-          }
+          icon={<Trophy className="w-4 h-4" style={{ color: "#fbbf24" }} />}
         />
         <StatCard
           title="Most Games"
           value={dataLoading ? "--" : stats.mostGames}
           subtitle={stats.mostGamesName}
-          icon={
-            <Gamepad2
-              className="w-4 h-4"
-              style={{ color: "var(--success)" }}
-            />
-          }
+          icon={<Gamepad2 className="w-4 h-4" style={{ color: "var(--success)" }} />}
         />
       </div>
 
-      {/* Turn Order Stats */}
+      {/* Turn order section (aux content) */}
       <TurnOrderSection month={month} />
 
-      {/* View Mode Toggle */}
-      <div
-        className="inline-flex items-center p-0.5 rounded-lg mb-6"
-        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)" }}
-      >
-        <button
-          onClick={() => setViewMode("standings")}
-          className="px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all"
-          style={{
-            background: viewMode === "standings" ? "rgba(251,191,36,0.15)" : "transparent",
-            color: viewMode === "standings" ? "var(--accent)" : "var(--text-muted)",
-            boxShadow: viewMode === "standings" ? "0 1px 4px rgba(0,0,0,0.2)" : "none",
-            borderRight: "1px solid transparent",
-          }}
-        >
-          Standings
-        </button>
-        <button
-          onClick={() => setViewMode("pods")}
-          className="px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all"
-          style={{
-            background: viewMode === "pods" ? "rgba(251,191,36,0.15)" : "transparent",
-            color: viewMode === "pods" ? "var(--accent)" : "var(--text-muted)",
-            boxShadow: viewMode === "pods" ? "0 1px 4px rgba(0,0,0,0.2)" : "none",
-          }}
-        >
-          Games
-        </button>
-      </div>
+      {/* Main content card: Standings/Games tabs */}
+      <ContentCard padding="none">
+        <DashboardTabs
+          items={[
+            { key: "standings", label: "Standings" },
+            { key: "pods", label: "Games" },
+          ]}
+          active={viewMode}
+          onChange={(key) => setViewMode(key as "standings" | "pods")}
+        />
 
-      {/* ═══ Games View ═══ */}
-      {viewMode === "pods" && <GamePodsGrid month={month} />}
+        <div className="p-6">
+          {viewMode === "pods" && <GamePodsGrid month={month} />}
 
-      {/* ═══ Current Month — Live Standings ═══ */}
-      {viewMode === "standings" && isCurrentMonth && (
-        <>
-          {liveError && (
-            <div
-              className="mb-6 p-4 rounded-xl border text-sm"
-              style={{
-                background: "var(--error-light)",
-                borderColor: "var(--error-border)",
-                color: "var(--error)",
-              }}
-            >
-              Failed to load live standings. Please try again.
-            </div>
-          )}
-
-          {/* Filters */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-6">
-            <button
-              onClick={() => setFilter(filter === "eligible" ? "none" : "eligible")}
-              className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
-              style={{
-                background: filter === "eligible"
-                  ? "var(--success-light)"
-                  : "var(--bg-card)",
-                color: filter === "eligible"
-                  ? "var(--success)"
-                  : "var(--text-secondary)",
-                border: `1px solid ${filter === "eligible" ? "var(--success)" : "var(--border)"}`,
-              }}
-            >
-              <span
-                className="w-3 h-3 rounded-sm border flex items-center justify-center text-[10px]"
-                style={{
-                  borderColor: filter === "eligible"
-                    ? "var(--success)"
-                    : "var(--text-muted)",
-                  background: filter === "eligible" ? "var(--success)" : "transparent",
-                  color: filter === "eligible" ? "var(--bg-page)" : "transparent",
-                }}
-              >
-                {filter === "eligible" ? "\u2713" : ""}
-              </span>
-              Top 16 Eligible
-            </button>
-            <button
-              onClick={() => setFilter(filter === "most_games" ? "none" : "most_games")}
-              className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
-              style={{
-                background: filter === "most_games"
-                  ? "var(--success-light)"
-                  : "var(--bg-card)",
-                color: filter === "most_games"
-                  ? "var(--success)"
-                  : "var(--text-secondary)",
-                border: `1px solid ${filter === "most_games" ? "var(--success)" : "var(--border)"}`,
-              }}
-            >
-              <span
-                className="w-3 h-3 rounded-sm border flex items-center justify-center text-[10px]"
-                style={{
-                  borderColor: filter === "most_games"
-                    ? "var(--success)"
-                    : "var(--text-muted)",
-                  background: filter === "most_games" ? "var(--success)" : "transparent",
-                  color: filter === "most_games" ? "var(--bg-page)" : "transparent",
-                }}
-              >
-                {filter === "most_games" ? "\u2713" : ""}
-              </span>
-              Most Games
-            </button>
-            <button
-              onClick={() => setFilter(filter === "inactive" ? "none" : "inactive")}
-              className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
-              style={{
-                background: filter === "inactive"
-                  ? "var(--error-light)"
-                  : "var(--bg-card)",
-                color: filter === "inactive"
-                  ? "var(--error)"
-                  : "var(--text-secondary)",
-                border: `1px solid ${filter === "inactive" ? "var(--error)" : "var(--border)"}`,
-              }}
-            >
-              <span
-                className="w-3 h-3 rounded-sm border flex items-center justify-center text-[10px]"
-                style={{
-                  borderColor: filter === "inactive"
-                    ? "var(--error)"
-                    : "var(--text-muted)",
-                  background: filter === "inactive" ? "var(--error)" : "transparent",
-                  color: filter === "inactive" ? "var(--bg-page)" : "transparent",
-                }}
-              >
-                {filter === "inactive" ? "\u2713" : ""}
-              </span>
-              Inactive{filter === "inactive" && ` (${liveStandings.filter((s) => s.games === 0).length})`}
-            </button>
-          </div>
-
-          {/* Match summary */}
-          {!liveLoading && liveTotalMatches > 0 && (
-            <div
-              className="flex items-center gap-3 mb-4 text-xs"
-              style={{ color: "var(--text-muted)" }}
-            >
-              <span>{liveTotalMatches} completed games</span>
-              {liveInProgress > 0 && (
-                <span
-                  className="px-1.5 py-0.5 rounded"
-                  style={{ background: "var(--warning-light)", color: "var(--warning)" }}
-                >
-                  {liveInProgress} in progress
-                </span>
+          {viewMode === "standings" && (
+            <>
+              {liveError && (
+                <div className="mb-4">
+                  <Banner
+                    variant="error"
+                    message="Failed to load live standings. Please try again."
+                  />
+                </div>
               )}
-              {liveVoided > 0 && (
-                <span
-                  className="px-1.5 py-0.5 rounded text-[10px]"
-                  style={{ background: "var(--error-light)", color: "var(--error)" }}
+
+              {/* Champion banner — past months only */}
+              {!isCurrentMonth && champion && (
+                <div
+                  className="rounded-xl border p-4 text-center mb-4"
+                  style={{ background: "var(--accent-light)", borderColor: "var(--accent-border)" }}
                 >
-                  {liveVoided} voided
-                </span>
+                  <Trophy className="w-6 h-6 mx-auto mb-1" style={{ color: "var(--accent)" }} />
+                  <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Champion</p>
+                  <p
+                    className="text-lg font-bold cursor-pointer transition-opacity hover:opacity-80"
+                    style={{ color: "var(--accent)" }}
+                    onClick={() => router.push(`/league/${champion.uid}`)}
+                  >
+                    {champion.name}
+                  </p>
+                </div>
               )}
-            </div>
+
+              {/* Filters */}
+              <div className="mb-4">
+                <FilterBar
+                  chips={filterChips}
+                  active={activeChip}
+                  onChange={handleFilterChange}
+                />
+              </div>
+
+              {/* Match summary — current month only */}
+              {isCurrentMonth && !liveLoading && liveTotalMatches > 0 && (
+                <div
+                  className="flex items-center gap-3 mb-4 text-xs"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  <span>{liveTotalMatches} completed games</span>
+                  {liveInProgress > 0 && (
+                    <span
+                      className="px-1.5 py-0.5 rounded"
+                      style={{ background: "var(--warning-light)", color: "var(--warning)" }}
+                    >
+                      {liveInProgress} in progress
+                    </span>
+                  )}
+                  {liveVoided > 0 && (
+                    <span
+                      className="px-1.5 py-0.5 rounded text-[10px]"
+                      style={{ background: "var(--error-light)", color: "var(--error)" }}
+                    >
+                      {liveVoided} voided
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Body: loading / live standings / bracket editor / dump standings */}
+              {dataLoading ? (
+                <LoadingSurface
+                  message={
+                    isCurrentMonth
+                      ? "Fetching live standings from TopDeck..."
+                      : "Loading standings..."
+                  }
+                />
+              ) : isCurrentMonth ? (
+                <LiveStandingsTable
+                  standings={
+                    filter === "inactive"
+                      ? liveStandings.filter((s) => s.games === 0)
+                      : filter === "most_games"
+                      ? [...liveStandings].sort((a, b) => b.games - a.games).slice(0, 5)
+                      : liveStandings
+                  }
+                  showEligibleOnly={filter === "eligible"}
+                  onRowClick={(uid) => router.push(`/league/${uid}`)}
+                />
+              ) : showBracketEditor ? (
+                <BracketEditor
+                  eligible={players
+                    .filter((p) => p.games >= 10)
+                    .slice(0, 16)
+                    .map((p, i) => ({
+                      rank: i + 1,
+                      uid: p.uid,
+                      name: p.name,
+                      points: p.points,
+                      games: p.games,
+                      wins: p.wins,
+                      losses: p.losses,
+                      draws: p.draws,
+                      win_pct: p.win_pct,
+                    }))}
+                  month={month}
+                  mode={filter === "top16_pods" ? "top16" : "top4"}
+                />
+              ) : (
+                <StandingsTable
+                  key={filter}
+                  onRowClick={(uid) => router.push(`/league/${uid}`)}
+                  standings={(() => {
+                    const allStandings = players.map((p) => ({
+                      rank: p.rank!,
+                      uid: p.uid,
+                      name: p.name,
+                      points: p.points,
+                      games: p.games,
+                      wins: p.wins,
+                      losses: p.losses,
+                      draws: p.draws,
+                      win_pct: p.win_pct,
+                    }));
+                    if (filter === "top16") {
+                      const eligible = allStandings.filter((s) => s.games >= 10);
+                      return eligible.slice(0, 16).map((s, i) => ({ ...s, rank: i + 1 }));
+                    }
+                    if (filter === "inactive") return allStandings.filter((s) => s.games === 0);
+                    if (filter === "most_games") return [...allStandings].sort((a, b) => b.games - a.games).slice(0, 5);
+                    return allStandings;
+                  })()}
+                  defaultSort={filter === "most_games" ? { key: "games", dir: "desc" } : undefined}
+                />
+              )}
+            </>
           )}
-
-          {liveLoading ? (
-            <div
-              className="rounded-xl p-12 text-center"
-              style={{
-                background: "var(--surface-gradient)",
-                backdropFilter: "var(--surface-blur)",
-                border: "1.5px solid rgba(255, 255, 255, 0.10)",
-                boxShadow: "var(--surface-shadow)",
-              }}
-            >
-              <div
-                className="inline-block w-6 h-6 border-2 rounded-full animate-spin"
-                style={{
-                  borderColor: "var(--border)",
-                  borderTopColor: "var(--accent)",
-                }}
-              />
-              <p
-                className="text-sm mt-3"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Fetching live standings from TopDeck...
-              </p>
-            </div>
-          ) : (
-            <LiveStandingsTable
-              standings={filter === "inactive" ? liveStandings.filter((s) => s.games === 0) : filter === "most_games" ? [...liveStandings].sort((a, b) => b.games - a.games).slice(0, 5) : liveStandings}
-              showEligibleOnly={filter === "eligible"}
-              onRowClick={(uid) => router.push(`/league/${uid}`)}
-            />
-          )}
-        </>
-      )}
-
-      {/* ═══ Past Months — Dump Standings ═══ */}
-      {viewMode === "standings" && !isCurrentMonth && (
-        <>
-          {/* Champion banner — always visible */}
-          {champion && (
-            <div
-              className="rounded-xl border p-4 text-center mb-6"
-              style={{ background: "var(--accent-light)", borderColor: "var(--accent-border)" }}
-            >
-              <Trophy className="w-6 h-6 mx-auto mb-1" style={{ color: "var(--accent)" }} />
-              <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Champion</p>
-              <p
-                className="text-lg font-bold cursor-pointer transition-opacity hover:opacity-80"
-                style={{ color: "var(--accent)" }}
-                onClick={() => router.push(`/league/${champion.uid}`)}
-              >
-                {champion.name}
-              </p>
-            </div>
-          )}
-
-          {/* Filters */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-6">
-            <button
-              onClick={() => setFilter(filter === "top16" ? "none" : "top16")}
-              className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
-              style={{
-                background: filter === "top16"
-                  ? "var(--success-light)"
-                  : "var(--bg-card)",
-                color: filter === "top16"
-                  ? "var(--success)"
-                  : "var(--text-secondary)",
-                border: `1px solid ${filter === "top16" ? "var(--success)" : "var(--border)"}`,
-              }}
-            >
-              <span
-                className="w-3 h-3 rounded-sm border flex items-center justify-center text-[10px]"
-                style={{
-                  borderColor: filter === "top16"
-                    ? "var(--success)"
-                    : "var(--text-muted)",
-                  background: filter === "top16" ? "var(--success)" : "transparent",
-                  color: filter === "top16" ? "var(--bg-page)" : "transparent",
-                }}
-              >
-                {filter === "top16" ? "\u2713" : ""}
-              </span>
-              Top 16 Cut
-            </button>
-            <button
-              onClick={() => setFilter(filter === "most_games" ? "none" : "most_games")}
-              className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
-              style={{
-                background: filter === "most_games"
-                  ? "var(--success-light)"
-                  : "var(--bg-card)",
-                color: filter === "most_games"
-                  ? "var(--success)"
-                  : "var(--text-secondary)",
-                border: `1px solid ${filter === "most_games" ? "var(--success)" : "var(--border)"}`,
-              }}
-            >
-              <span
-                className="w-3 h-3 rounded-sm border flex items-center justify-center text-[10px]"
-                style={{
-                  borderColor: filter === "most_games"
-                    ? "var(--success)"
-                    : "var(--text-muted)",
-                  background: filter === "most_games" ? "var(--success)" : "transparent",
-                  color: filter === "most_games" ? "var(--bg-page)" : "transparent",
-                }}
-              >
-                {filter === "most_games" ? "\u2713" : ""}
-              </span>
-              Most Games
-            </button>
-            <button
-              onClick={() => setFilter(filter === "inactive" ? "none" : "inactive")}
-              className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
-              style={{
-                background: filter === "inactive"
-                  ? "var(--error-light)"
-                  : "var(--bg-card)",
-                color: filter === "inactive"
-                  ? "var(--error)"
-                  : "var(--text-secondary)",
-                border: `1px solid ${filter === "inactive" ? "var(--error)" : "var(--border)"}`,
-              }}
-            >
-              <span
-                className="w-3 h-3 rounded-sm border flex items-center justify-center text-[10px]"
-                style={{
-                  borderColor: filter === "inactive"
-                    ? "var(--error)"
-                    : "var(--text-muted)",
-                  background: filter === "inactive" ? "var(--error)" : "transparent",
-                  color: filter === "inactive" ? "var(--bg-page)" : "transparent",
-                }}
-              >
-                {filter === "inactive" ? "\u2713" : ""}
-              </span>
-              Inactive{filter === "inactive" && ` (${players.filter((p) => p.games === 0).length})`}
-            </button>
-
-            <div className="hidden sm:block flex-1" />
-
-            {/* Top 16 / Top 4 — separate row on mobile, inline on desktop */}
-            <div className="w-full sm:w-auto flex items-center gap-2 sm:gap-3 mt-3 sm:mt-0">
-              <button
-                onClick={() => setFilter(filter === "top16_pods" ? "none" : "top16_pods")}
-                className="flex items-center justify-center gap-1.5 sm:gap-2 min-w-22 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
-                style={{
-                  background: filter === "top16_pods"
-                    ? "var(--accent-light)"
-                    : "var(--bg-card)",
-                  color: filter === "top16_pods"
-                    ? "var(--accent)"
-                    : "var(--text-secondary)",
-                  border: `1px solid ${filter === "top16_pods" ? "var(--accent)" : "var(--border)"}`,
-                }}
-              >
-                <span className="w-3 h-3 flex items-center justify-center">
-                  <Trophy className="w-3.5 h-3.5" />
-                </span>
-                Top 16
-              </button>
-              <button
-                onClick={() => setFilter(filter === "top4_pods" ? "none" : "top4_pods")}
-                className="flex items-center justify-center gap-1.5 sm:gap-2 min-w-22 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors"
-                style={{
-                  background: filter === "top4_pods"
-                    ? "var(--accent-light)"
-                    : "var(--bg-card)",
-                  color: filter === "top4_pods"
-                    ? "var(--accent)"
-                    : "var(--text-secondary)",
-                  border: `1px solid ${filter === "top4_pods" ? "var(--accent)" : "var(--border)"}`,
-                }}
-              >
-                <span className="w-3 h-3 flex items-center justify-center">
-                  <Trophy className="w-3.5 h-3.5" />
-                </span>
-                Top 4
-              </button>
-            </div>
-          </div>
-
-          {playersLoading ? (
-            <div
-              className="rounded-xl p-12 text-center"
-              style={{
-                background: "var(--surface-gradient)",
-                backdropFilter: "var(--surface-blur)",
-                border: "1.5px solid rgba(255, 255, 255, 0.10)",
-                boxShadow: "var(--surface-shadow)",
-              }}
-            >
-              <div
-                className="inline-block w-6 h-6 border-2 rounded-full animate-spin"
-                style={{
-                  borderColor: "var(--border)",
-                  borderTopColor: "var(--accent)",
-                }}
-              />
-              <p
-                className="text-sm mt-3"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Loading standings...
-              </p>
-            </div>
-          ) : (filter === "top16_pods" || filter === "top4_pods") ? (
-            <BracketEditor
-              eligible={players
-                .filter((p) => p.games >= 10)
-                .slice(0, 16)
-                .map((p, i) => ({ rank: i + 1, uid: p.uid, name: p.name, points: p.points, games: p.games, wins: p.wins, losses: p.losses, draws: p.draws, win_pct: p.win_pct }))}
-              month={month}
-              mode={filter === "top16_pods" ? "top16" : "top4"}
-            />
-          ) : (
-            <StandingsTable
-              key={filter}
-              onRowClick={(uid) => router.push(`/league/${uid}`)}
-              standings={(() => {
-                const allStandings = players.map((p) => ({ rank: p.rank!, uid: p.uid, name: p.name, points: p.points, games: p.games, wins: p.wins, losses: p.losses, draws: p.draws, win_pct: p.win_pct }));
-                if (filter === "top16") {
-                  const eligible = allStandings.filter((s) => s.games >= 10);
-                  return eligible.slice(0, 16).map((s, i) => ({ ...s, rank: i + 1 }));
-                }
-                if (filter === "inactive") return allStandings.filter((s) => s.games === 0);
-                if (filter === "most_games") return [...allStandings].sort((a, b) => b.games - a.games).slice(0, 5);
-                return allStandings;
-              })()}
-              defaultSort={filter === "most_games" ? { key: "games", dir: "desc" } : undefined}
-            />
-          )}
-        </>
-      )}
+        </div>
+      </ContentCard>
     </div>
   );
 }
