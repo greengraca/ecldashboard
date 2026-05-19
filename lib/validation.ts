@@ -160,7 +160,7 @@ const teamMemberColor = z.enum(["amber", "blue", "green", "purple", "red"]);
 export const userMappingCreateSchema = z.object({
   discord_id: z.string().min(1).max(50),
   discord_username: z.string().min(1).max(100),
-  firebase_uid: z.string().min(1).max(200),
+  firebase_uid: z.string().max(200).optional().default(""),
   display_name: z.string().min(1).max(100),
   color: teamMemberColor,
 });

@@ -2,11 +2,20 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { Users, Check, Link2 } from "lucide-react";
+import { Users, Check, Link2, UserPlus, X, AlertTriangle } from "lucide-react";
 import { SensitiveBlock } from "@/components/dashboard/sensitive";
 import { useSensitiveData } from "@/contexts/SensitiveDataContext";
+import Select from "@/components/dashboard/select";
 import { fetcher } from "@/lib/fetcher";
-import type { UserMapping } from "@/lib/types";
+import type { UserMapping, TeamMemberColor, DiscordMember } from "@/lib/types";
+
+interface DriftEntry {
+  id: string;
+  name: string;
+  group: "cedhpt" | "ca";
+}
+
+const COLOR_OPTIONS: TeamMemberColor[] = ["amber", "blue", "green", "purple", "red"];
 
 const COLORS: Record<string, string> = {
   amber: "#fbbf24",
@@ -28,12 +37,80 @@ export default function TeamMemberManager() {
     "/api/user-mapping",
     fetcher
   );
+  const { data: driftData, mutate: mutateDrift } = useSWR<{ data: DriftEntry[] }>(
+    "/api/team-members/drift",
+    fetcher
+  );
+  const { data: membersData } = useSWR<{ data: DiscordMember[] }>(
+    "/api/discord/members",
+    fetcher
+  );
   const { hidden } = useSensitiveData();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [uidValue, setUidValue] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Inline add-mapping form state (one form open at a time)
+  const [addingFor, setAddingFor] = useState<DriftEntry | null>(null);
+  const [addDiscordId, setAddDiscordId] = useState("");
+  const [addColor, setAddColor] = useState<TeamMemberColor>("amber");
+  const [addDisplayName, setAddDisplayName] = useState("");
+  const [addFirebaseUid, setAddFirebaseUid] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
   const mappings = data?.data || [];
+  const drift = driftData?.data || [];
+  const guildMembers = membersData?.data || [];
+
+  function startAdd(entry: DriftEntry) {
+    setAddingFor(entry);
+    setAddDiscordId("");
+    setAddColor("amber");
+    setAddDisplayName(entry.name);
+    setAddFirebaseUid("");
+    setCreateError(null);
+  }
+
+  function cancelAdd() {
+    setAddingFor(null);
+    setCreateError(null);
+  }
+
+  async function submitAdd() {
+    if (!addingFor || !addDiscordId.trim() || !addDisplayName.trim()) return;
+    const picked = guildMembers.find((m) => m.id === addDiscordId);
+    if (!picked) {
+      setCreateError("Pick a Discord user from the list");
+      return;
+    }
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const res = await fetch("/api/user-mapping", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          discord_id: picked.id,
+          discord_username: picked.username,
+          firebase_uid: addFirebaseUid.trim(),
+          display_name: addDisplayName.trim(),
+          color: addColor,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setCreateError(body?.error || `Create failed (${res.status})`);
+        return;
+      }
+      await Promise.all([mutate(), mutateDrift()]);
+      cancelAdd();
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Create failed");
+    } finally {
+      setCreating(false);
+    }
+  }
 
   const startEdit = (m: UserMapping) => {
     setEditingId(String(m._id));
@@ -99,6 +176,232 @@ export default function TeamMemberManager() {
         <SensitiveBlock message="Team members hidden in privacy mode" height={120} />
       ) : (
       <div className="px-5 py-4">
+        {/* Drift detection: finance team members missing user mappings */}
+        {drift.length > 0 && (
+          <div
+            className="mb-4 rounded-lg p-3"
+            style={{
+              background: "rgba(251, 191, 36, 0.06)",
+              border: "1px solid var(--accent-border)",
+            }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-3.5 h-3.5" style={{ color: "var(--accent)" }} />
+              <span className="text-xs font-semibold" style={{ color: "var(--accent)" }}>
+                Missing user mappings
+              </span>
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                — {drift.length} finance member{drift.length === 1 ? "" : "s"} not linked to a Discord account yet
+              </span>
+            </div>
+            <div className="space-y-2">
+              {drift.map((entry) => {
+                const isAdding = addingFor?.id === entry.id;
+                return (
+                  <div
+                    key={entry.id}
+                    className="rounded-md"
+                    style={{
+                      background: "rgba(0,0,0,0.15)",
+                      border: isAdding ? "1px solid var(--accent-border)" : "1px solid transparent",
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-2 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="text-xs font-medium"
+                          style={{ color: "var(--text-primary)" }}
+                        >
+                          {entry.name}
+                        </span>
+                        <span
+                          className="text-[10px] px-1.5 py-0.5 rounded uppercase"
+                          style={{
+                            background: "rgba(255,255,255,0.04)",
+                            color: "var(--text-muted)",
+                            fontFamily: "var(--font-mono)",
+                          }}
+                        >
+                          {entry.group}
+                        </span>
+                      </div>
+                      {!isAdding && (
+                        <button
+                          onClick={() => startAdd(entry)}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
+                          style={{
+                            background: "rgba(251,191,36,0.12)",
+                            color: "var(--accent)",
+                            border: "1px solid var(--accent-border)",
+                          }}
+                        >
+                          <UserPlus className="w-3 h-3" />
+                          Add mapping
+                        </button>
+                      )}
+                    </div>
+
+                    {isAdding && (
+                      <div
+                        className="px-3 pb-3 pt-1 space-y-2"
+                        style={{ borderTop: "1px solid var(--border-subtle)" }}
+                      >
+                        {/* Discord user */}
+                        <div>
+                          <label
+                            className="text-[10px] uppercase tracking-wider"
+                            style={{
+                              color: "var(--text-muted)",
+                              fontFamily: "var(--font-mono)",
+                            }}
+                          >
+                            Discord user
+                          </label>
+                          <Select
+                            value={addDiscordId}
+                            onChange={setAddDiscordId}
+                            options={guildMembers.map((m) => ({
+                              value: m.id,
+                              label: `${m.display_name} (@${m.username})`,
+                            }))}
+                            placeholder={
+                              guildMembers.length === 0
+                                ? "Loading Discord members..."
+                                : "Pick a Discord user"
+                            }
+                            size="sm"
+                          />
+                        </div>
+
+                        {/* Display name */}
+                        <div>
+                          <label
+                            className="text-[10px] uppercase tracking-wider"
+                            style={{
+                              color: "var(--text-muted)",
+                              fontFamily: "var(--font-mono)",
+                            }}
+                          >
+                            Display name
+                          </label>
+                          <input
+                            type="text"
+                            value={addDisplayName}
+                            onChange={(e) => setAddDisplayName(e.target.value)}
+                            className="w-full px-2.5 py-1.5 rounded-md text-xs outline-none"
+                            style={{
+                              background: "var(--card-inner-bg)",
+                              border: "1px solid var(--border)",
+                              color: "var(--text-primary)",
+                            }}
+                          />
+                        </div>
+
+                        {/* Color */}
+                        <div>
+                          <label
+                            className="text-[10px] uppercase tracking-wider block mb-1"
+                            style={{
+                              color: "var(--text-muted)",
+                              fontFamily: "var(--font-mono)",
+                            }}
+                          >
+                            Color
+                          </label>
+                          <div className="flex gap-1.5">
+                            {COLOR_OPTIONS.map((c) => {
+                              const hex = COLORS[c];
+                              const isSelected = addColor === c;
+                              return (
+                                <button
+                                  key={c}
+                                  type="button"
+                                  onClick={() => setAddColor(c)}
+                                  className="w-6 h-6 rounded-full transition-transform"
+                                  style={{
+                                    background: `rgba(${hexToRgb(hex)}, 0.4)`,
+                                    border: `2px solid ${isSelected ? hex : "transparent"}`,
+                                    transform: isSelected ? "scale(1.1)" : "scale(1)",
+                                  }}
+                                  aria-label={c}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Firebase UID (optional) */}
+                        <div>
+                          <label
+                            className="text-[10px] uppercase tracking-wider"
+                            style={{
+                              color: "var(--text-muted)",
+                              fontFamily: "var(--font-mono)",
+                            }}
+                          >
+                            Firebase UID <span style={{ opacity: 0.6 }}>(optional — can link later)</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={addFirebaseUid}
+                            onChange={(e) => setAddFirebaseUid(e.target.value)}
+                            placeholder="Leave empty to link later"
+                            className="w-full px-2.5 py-1.5 rounded-md text-xs outline-none"
+                            style={{
+                              background: "var(--card-inner-bg)",
+                              border: "1px solid var(--border)",
+                              color: "var(--text-primary)",
+                              fontFamily: "var(--font-mono)",
+                            }}
+                          />
+                        </div>
+
+                        {createError && (
+                          <p
+                            className="text-xs"
+                            style={{ color: "var(--error)" }}
+                          >
+                            {createError}
+                          </p>
+                        )}
+
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            onClick={submitAdd}
+                            disabled={creating || !addDiscordId || !addDisplayName.trim()}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium"
+                            style={{
+                              background: "rgba(52,211,153,0.12)",
+                              color: "var(--success)",
+                              border: "1px solid rgba(52,211,153,0.2)",
+                              opacity: creating || !addDiscordId || !addDisplayName.trim() ? 0.5 : 1,
+                            }}
+                          >
+                            <Check className="w-3 h-3" />
+                            {creating ? "Creating..." : "Create mapping"}
+                          </button>
+                          <button
+                            onClick={cancelAdd}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs"
+                            style={{
+                              color: "var(--text-muted)",
+                              background: "transparent",
+                              border: "1px solid var(--border)",
+                            }}
+                          >
+                            <X className="w-3 h-3" />
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {mappings.length === 0 && (
           <p
             className="text-center py-4"
