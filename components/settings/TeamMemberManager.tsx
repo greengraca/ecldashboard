@@ -267,9 +267,10 @@ export default function TeamMemberManager() {
                             placeholder={
                               guildMembers.length === 0
                                 ? "Loading Discord members..."
-                                : "Pick a Discord user"
+                                : "Type to search Discord users"
                             }
                             size="sm"
+                            searchable
                           />
                         </div>
 

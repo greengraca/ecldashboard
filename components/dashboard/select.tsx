@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 
 export interface SelectOption {
   value: string;
@@ -16,6 +16,8 @@ interface SelectProps {
   className?: string;
   placeholder?: string;
   size?: "sm" | "md";
+  /** Show a filter input at the top of the dropdown for long lists. */
+  searchable?: boolean;
 }
 
 export default function Select({
@@ -25,15 +27,24 @@ export default function Select({
   className = "",
   placeholder,
   size = "md",
+  searchable = false,
 }: SelectProps) {
   const [open, setOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [query, setQuery] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
 
   const selectedOption = options.find((o) => o.value === value);
   const label = selectedOption?.label ?? placeholder ?? "";
+
+  const filteredOptions = useMemo(() => {
+    if (!searchable || !query.trim()) return options;
+    const q = query.toLowerCase().trim();
+    return options.filter((o) => o.label.toLowerCase().includes(q));
+  }, [options, query, searchable]);
 
   const updatePosition = useCallback(() => {
     if (!triggerRef.current) return;
@@ -48,13 +59,19 @@ export default function Select({
   function openDropdown() {
     updatePosition();
     setOpen(true);
+    setQuery("");
     const idx = options.findIndex((o) => o.value === value);
     setFocusedIndex(idx >= 0 ? idx : 0);
+    if (searchable) {
+      // Focus the search input on next tick (after portal mounts)
+      requestAnimationFrame(() => searchRef.current?.focus());
+    }
   }
 
   function close() {
     setOpen(false);
     setFocusedIndex(-1);
+    setQuery("");
   }
 
   function select(val: string) {
@@ -96,6 +113,13 @@ export default function Select({
     items[focusedIndex]?.scrollIntoView({ block: "nearest" });
   }, [focusedIndex, open]);
 
+  // Reset focused index when query changes
+  useEffect(() => {
+    if (open && searchable) {
+      setFocusedIndex(filteredOptions.length > 0 ? 0 : -1);
+    }
+  }, [query, open, searchable, filteredOptions.length]);
+
   function handleKeyDown(e: React.KeyboardEvent) {
     if (!open) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ") {
@@ -108,16 +132,32 @@ export default function Select({
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
-        setFocusedIndex((i) => (i + 1) % options.length);
+        setFocusedIndex((i) => {
+          if (filteredOptions.length === 0) return -1;
+          return (i + 1) % filteredOptions.length;
+        });
         break;
       case "ArrowUp":
         e.preventDefault();
-        setFocusedIndex((i) => (i - 1 + options.length) % options.length);
+        setFocusedIndex((i) => {
+          if (filteredOptions.length === 0) return -1;
+          return (i - 1 + filteredOptions.length) % filteredOptions.length;
+        });
         break;
       case "Enter":
-      case " ":
         e.preventDefault();
-        if (focusedIndex >= 0) select(options[focusedIndex].value);
+        if (focusedIndex >= 0 && filteredOptions[focusedIndex]) {
+          select(filteredOptions[focusedIndex].value);
+        }
+        break;
+      case " ":
+        // Space inside search input should type a space, not select
+        if (!searchable) {
+          e.preventDefault();
+          if (focusedIndex >= 0 && filteredOptions[focusedIndex]) {
+            select(filteredOptions[focusedIndex].value);
+          }
+        }
         break;
       case "Escape":
         e.preventDefault();
@@ -164,12 +204,12 @@ export default function Select({
             ref={listRef}
             role="listbox"
             onKeyDown={handleKeyDown}
-            className="fixed rounded-lg border overflow-y-auto"
+            className="fixed rounded-lg border overflow-hidden flex flex-col"
             style={{
               top: pos.top,
               left: pos.left,
               width: pos.width,
-              maxHeight: 240,
+              maxHeight: 280,
               zIndex: 9999,
               background: "linear-gradient(135deg, rgba(15, 20, 25, 0.95), rgba(26, 32, 48, 0.95))",
               borderColor: "rgba(255, 255, 255, 0.10)",
@@ -178,29 +218,58 @@ export default function Select({
               animation: "menuSlideIn 0.15s ease",
             }}
           >
-            {options.map((opt, i) => (
+            {searchable && (
               <div
-                key={opt.value}
-                data-option
-                role="option"
-                aria-selected={opt.value === value}
-                onClick={() => select(opt.value)}
-                onMouseEnter={() => setFocusedIndex(i)}
-                className="px-3 py-2 text-sm cursor-pointer transition-colors"
-                style={{
-                  background:
-                    i === focusedIndex
-                      ? "var(--bg-hover)"
-                      : "transparent",
-                  color:
-                    opt.value === value
-                      ? "var(--accent)"
-                      : "var(--text-primary)",
-                }}
+                className="flex items-center gap-2 px-2.5 py-2 border-b shrink-0"
+                style={{ borderColor: "rgba(255,255,255,0.08)" }}
               >
-                {opt.label}
+                <Search className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--text-muted)" }} />
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type to filter..."
+                  className="flex-1 bg-transparent outline-none text-sm"
+                  style={{ color: "var(--text-primary)" }}
+                />
               </div>
-            ))}
+            )}
+            <div className="overflow-y-auto">
+              {filteredOptions.length === 0 ? (
+                <div
+                  className="px-3 py-3 text-xs text-center"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  No matches
+                </div>
+              ) : (
+                filteredOptions.map((opt, i) => (
+                  <div
+                    key={opt.value}
+                    data-option
+                    role="option"
+                    aria-selected={opt.value === value}
+                    onClick={() => select(opt.value)}
+                    onMouseEnter={() => setFocusedIndex(i)}
+                    className="px-3 py-2 text-sm cursor-pointer transition-colors"
+                    style={{
+                      background:
+                        i === focusedIndex
+                          ? "var(--bg-hover)"
+                          : "transparent",
+                      color:
+                        opt.value === value
+                          ? "var(--accent)"
+                          : "var(--text-primary)",
+                    }}
+                  >
+                    {opt.label}
+                  </div>
+                ))
+              )}
+            </div>
           </div>,
           document.body
         )}
