@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { Users, Check, Link2, UserPlus, X, AlertTriangle } from "lucide-react";
+import { Users, Check, Link2, UserPlus, X, AlertTriangle, Pencil } from "lucide-react";
 import { SensitiveBlock } from "@/components/dashboard/sensitive";
 import { useSensitiveData } from "@/contexts/SensitiveDataContext";
 import Select from "@/components/dashboard/select";
@@ -48,6 +48,7 @@ export default function TeamMemberManager() {
   const { hidden } = useSensitiveData();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [uidValue, setUidValue] = useState("");
+  const [nameValue, setNameValue] = useState("");
   const [saving, setSaving] = useState(false);
 
   // Inline add-mapping form state (one form open at a time)
@@ -115,26 +116,31 @@ export default function TeamMemberManager() {
   const startEdit = (m: UserMapping) => {
     setEditingId(String(m._id));
     setUidValue(m.firebase_uid || "");
+    setNameValue(m.display_name || "");
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setUidValue("");
+    setNameValue("");
   };
 
-  const saveUid = async () => {
-    if (!editingId || !uidValue.trim()) return;
+  const saveEdit = async () => {
+    if (!editingId || !nameValue.trim()) return;
     setSaving(true);
     try {
       await fetch(`/api/user-mapping/${editingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firebase_uid: uidValue.trim() }),
+        body: JSON.stringify({
+          display_name: nameValue.trim(),
+          firebase_uid: uidValue.trim(),
+        }),
       });
-      await mutate();
+      await Promise.all([mutate(), mutateDrift()]);
       cancelEdit();
     } catch (err) {
-      console.error("Failed to save Firebase UID:", err);
+      console.error("Failed to save mapping:", err);
     } finally {
       setSaving(false);
     }
@@ -479,8 +485,8 @@ export default function TeamMemberManager() {
                     >
                       {hasUid ? (
                         <>
-                          <Link2 className="w-3 h-3" />
-                          Linked
+                          <Pencil className="w-3 h-3" />
+                          Edit
                         </>
                       ) : (
                         <>
@@ -492,61 +498,95 @@ export default function TeamMemberManager() {
                   )}
                 </div>
 
-                {/* Edit Firebase UID inline */}
+                {/* Edit inline — display name + Firebase UID */}
                 {isEditing && (
-                  <div className="px-3 pb-3 flex items-center gap-2">
-                    <label
-                      className="text-xs flex-shrink-0"
-                      style={{
-                        color: "var(--text-muted)",
-                        fontFamily: "var(--font-mono)",
-                      }}
-                    >
-                      Firebase UID
-                    </label>
-                    <input
-                      type="text"
-                      value={uidValue}
-                      onChange={(e) => setUidValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") saveUid();
-                        if (e.key === "Escape") cancelEdit();
-                      }}
-                      autoFocus
-                      className="flex-1 px-3 py-1.5 rounded-lg text-xs outline-none"
-                      style={{
-                        background: "var(--card-inner-bg)",
-                        border: "1px solid var(--border)",
-                        color: "var(--text-primary)",
-                        fontFamily: "var(--font-mono)",
-                      }}
-                      placeholder="Paste Firebase UID here..."
-                    />
-                    <button
-                      onClick={saveUid}
-                      disabled={saving || !uidValue.trim()}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium"
-                      style={{
-                        background: "rgba(52,211,153,0.12)",
-                        color: "var(--success)",
-                        border: "1px solid rgba(52,211,153,0.2)",
-                        opacity: saving || !uidValue.trim() ? 0.5 : 1,
-                      }}
-                    >
-                      <Check className="w-3 h-3" />
-                      Save
-                    </button>
-                    <button
-                      onClick={cancelEdit}
-                      className="px-2.5 py-1.5 rounded-lg text-xs"
-                      style={{
-                        color: "var(--text-muted)",
-                        background: "transparent",
-                        border: "1px solid var(--border)",
-                      }}
-                    >
-                      Cancel
-                    </button>
+                  <div className="px-3 pb-3 space-y-2">
+                    {/* Display name */}
+                    <div className="flex items-center gap-2">
+                      <label
+                        className="text-xs flex-shrink-0"
+                        style={{
+                          color: "var(--text-muted)",
+                          fontFamily: "var(--font-mono)",
+                          minWidth: "88px",
+                        }}
+                      >
+                        Display name
+                      </label>
+                      <input
+                        type="text"
+                        value={nameValue}
+                        onChange={(e) => setNameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEdit();
+                          if (e.key === "Escape") cancelEdit();
+                        }}
+                        autoFocus
+                        className="flex-1 px-3 py-1.5 rounded-lg text-xs outline-none"
+                        style={{
+                          background: "var(--card-inner-bg)",
+                          border: "1px solid var(--border)",
+                          color: "var(--text-primary)",
+                        }}
+                      />
+                    </div>
+                    {/* Firebase UID */}
+                    <div className="flex items-center gap-2">
+                      <label
+                        className="text-xs flex-shrink-0"
+                        style={{
+                          color: "var(--text-muted)",
+                          fontFamily: "var(--font-mono)",
+                          minWidth: "88px",
+                        }}
+                      >
+                        Firebase UID
+                      </label>
+                      <input
+                        type="text"
+                        value={uidValue}
+                        onChange={(e) => setUidValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEdit();
+                          if (e.key === "Escape") cancelEdit();
+                        }}
+                        className="flex-1 px-3 py-1.5 rounded-lg text-xs outline-none"
+                        style={{
+                          background: "var(--card-inner-bg)",
+                          border: "1px solid var(--border)",
+                          color: "var(--text-primary)",
+                          fontFamily: "var(--font-mono)",
+                        }}
+                        placeholder="Optional — Firebase UID for Taskpad sync"
+                      />
+                    </div>
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        onClick={cancelEdit}
+                        className="px-2.5 py-1.5 rounded-lg text-xs"
+                        style={{
+                          color: "var(--text-muted)",
+                          background: "transparent",
+                          border: "1px solid var(--border)",
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={saveEdit}
+                        disabled={saving || !nameValue.trim()}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium"
+                        style={{
+                          background: "rgba(52,211,153,0.12)",
+                          color: "var(--success)",
+                          border: "1px solid rgba(52,211,153,0.2)",
+                          opacity: saving || !nameValue.trim() ? 0.5 : 1,
+                        }}
+                      >
+                        <Check className="w-3 h-3" />
+                        {saving ? "Saving..." : "Save"}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
