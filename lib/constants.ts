@@ -42,6 +42,9 @@ export const TOP16_MIN_ONLINE_GAMES = parseInt(process.env.TOP16_MIN_ONLINE_GAME
 export const TOP16_MIN_TOTAL_GAMES = parseInt(process.env.TOP16_MIN_TOTAL_GAMES || "10", 10);
 export const TOP16_NO_RECENCY_GAMES = parseInt(process.env.TOP16_NO_RECENCY_GAMES || "20", 10);
 export const TOP16_RECENCY_AFTER_DAY = parseInt(process.env.TOP16_RECENCY_AFTER_DAY || "20", 10);
+// Month (YYYY-MM) from which Top 16 eligibility uses TOTAL games (online + in-person).
+// Earlier months stay frozen on the old online-games rule. Must match eclBot's effective month.
+export const TOP16_TOTAL_GAMES_FROM = process.env.TOP16_TOTAL_GAMES_FROM || "2026-05";
 
 // ─── Subscription Income ───
 
