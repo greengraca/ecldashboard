@@ -295,7 +295,6 @@ export interface LiveStanding {
   draws: number;
   win_pct: number;
   ow_pct: number;
-  online_games: number;
   dropped: boolean;
   eligible: boolean;
   meets_recency: boolean;

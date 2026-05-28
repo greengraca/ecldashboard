@@ -10,7 +10,7 @@ interface LiveStandingsTableProps {
   onRowClick?: (uid: string) => void;
 }
 
-type SortKey = "rank" | "points" | "wins" | "losses" | "draws" | "games" | "win_pct" | "ow_pct" | "online_games";
+type SortKey = "rank" | "points" | "wins" | "losses" | "draws" | "games" | "win_pct" | "ow_pct";
 type SortDir = "asc" | "desc";
 
 function getRankStyle(rank: number): { color: string; bg: string } {
@@ -65,7 +65,6 @@ const COLUMNS: { key: SortKey | null; label: string; align: "left" | "right" }[]
   { key: "games", label: "Games", align: "right" },
   { key: "win_pct", label: "Win%", align: "right" },
   { key: "ow_pct", label: "OW%", align: "right" },
-  { key: "online_games", label: "Online", align: "right" },
   { key: null, label: "", align: "right" },
 ];
 
@@ -259,8 +258,6 @@ export default function LiveStandingsTable({
                 </div>
                 <div className="flex items-center gap-3" style={{ color: "var(--text-muted)" }}>
                   <span>{s.games} games</span>
-                  <span>&middot;</span>
-                  <span>{s.online_games} online</span>
                 </div>
               </div>
             </div>
@@ -395,12 +392,6 @@ export default function LiveStandingsTable({
                   >
                     {parseFloat(s.ow_pct.toFixed(2))}%
                   </td>
-                  <td
-                    className="px-4 py-3 text-right tabular-nums"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {s.online_games}
-                  </td>
                   <td className="px-4 py-3 text-right">
                     <span
                       className="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold"
@@ -418,12 +409,10 @@ export default function LiveStandingsTable({
                           : s.dropped
                             ? "Dropped"
                             : s.games < 10
-                              ? `Need ${10 - s.games} more total games`
-                              : s.online_games < 10
-                                ? `Need ${10 - s.online_games} more online games`
-                                : !s.meets_recency
-                                  ? "Need an online game after day 20"
-                                  : "Not eligible"
+                              ? `Need ${10 - s.games} more games`
+                              : !s.meets_recency
+                                ? "Need a game after day 20"
+                                : "Not eligible"
                       }
                     >
                       {s.eligible ? "\u2713" : "\u2717"}
