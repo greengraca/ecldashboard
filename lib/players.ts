@@ -9,12 +9,10 @@ import { fetchPublicPData } from "./topdeck-cache";
 import { fetchLiveStandings } from "./topdeck-live";
 import { fetchGuildMembers } from "./discord";
 import {
-  TOP16_MIN_ONLINE_GAMES,
-  TOP16_MIN_TOTAL_GAMES,
-  TOP16_NO_RECENCY_GAMES,
   TOP16_RECENCY_AFTER_DAY,
 } from "./constants";
 import { getBracketIdForMonth } from "./bracket-ids";
+import { isTop16Eligible, usesTotalGamesRule } from "./top16-eligibility";
 import type {
   Player,
   PlayerDetail,
@@ -501,10 +499,12 @@ export async function getStandings(month?: string): Promise<{ standings: Standin
 async function getOnlineGameCountsForMonth(
   bracketId: string, year: number, month: number,
   voidedMatchIds: { season: number; table: number }[] = [],
+  onlineOnly: boolean = true,
 ): Promise<Map<string, number>> {
   const db = await getDb();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const matchFilter: Record<string, any> = { bracket_id: bracketId, year, month, online: true };
+  const matchFilter: Record<string, any> = { bracket_id: bracketId, year, month };
+  if (onlineOnly) matchFilter.online = true;
   if (voidedMatchIds.length > 0) {
     matchFilter.$nor = voidedMatchIds.map((v) => ({ season: v.season, tid: v.table }));
   }
@@ -525,13 +525,15 @@ async function getOnlineGameCountsForMonth(
 async function getRecentGameUidsForMonth(
   bracketId: string, year: number, month: number,
   voidedMatchIds: { season: number; table: number }[] = [],
+  onlineOnly: boolean = true,
 ): Promise<Set<string>> {
   const db = await getDb();
   const cutoffTs = new Date(Date.UTC(year, month - 1, TOP16_RECENCY_AFTER_DAY)).getTime() / 1000;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const matchFilter: Record<string, any> = {
-    bracket_id: bracketId, year, month, online: true, start_ts: { $gte: cutoffTs },
+    bracket_id: bracketId, year, month, start_ts: { $gte: cutoffTs },
   };
+  if (onlineOnly) matchFilter.online = true;
   if (voidedMatchIds.length > 0) {
     matchFilter.$nor = voidedMatchIds.map((v) => ({ season: v.season, tid: v.table }));
   }
@@ -549,24 +551,6 @@ async function getRecentGameUidsForMonth(
   return uids;
 }
 
-function isEligible(
-  uid: string | null,
-  totalGames: number,
-  onlineGames: number,
-  dropped: boolean,
-  recencyApplies: boolean,
-  recentUids: Set<string>,
-): boolean {
-  const meetsRecency = !recencyApplies ||
-    onlineGames >= TOP16_NO_RECENCY_GAMES ||
-    onlineGames < TOP16_MIN_ONLINE_GAMES ||
-    (uid ? recentUids.has(uid) : false);
-  return !dropped &&
-    totalGames >= TOP16_MIN_TOTAL_GAMES &&
-    onlineGames >= TOP16_MIN_ONLINE_GAMES &&
-    meetsRecency;
-}
-
 /**
  * Get the top 16 eligible players for a month, applying the same
  * eligibility rules as live standings (min games, online games, recency).
@@ -579,41 +563,51 @@ export async function getEligibleTop16(month?: string): Promise<{ uid: string; n
   const monthNum = parseInt(monthStr);
   const recencyApplies = year > 2026 || (year === 2026 && monthNum >= 3);
   const currentMonth = getCurrentMonth();
-
-  // Resolve bracket ID dynamically (online_games → dumps → env var)
   const bracketId = await getBracketIdForMonth(targetMonth);
+  const totalRule = usesTotalGamesRule(targetMonth);
 
   if (targetMonth === currentMonth) {
     // Current month: use live standings (has dropped status + voided match IDs)
     const liveResult = await fetchLiveStandings(bracketId);
-    const [onlineCounts, recentUids] = await Promise.all([
-      getOnlineGameCountsForMonth(bracketId, year, monthNum, liveResult.voidedMatchIds),
-      getRecentGameUidsForMonth(bracketId, year, monthNum, liveResult.voidedMatchIds),
-    ]);
-    const eligible = liveResult.rows
-      .filter((r) => isEligible(r.uid, r.games, onlineCounts.get(r.uid || "") ?? 0, r.dropped, recencyApplies, recentUids))
+    const recentUids = await getRecentGameUidsForMonth(
+      bracketId, year, monthNum, liveResult.voidedMatchIds, /* onlineOnly */ !totalRule,
+    );
+    const onlineCounts = totalRule
+      ? null
+      : await getOnlineGameCountsForMonth(bracketId, year, monthNum, liveResult.voidedMatchIds);
+    return liveResult.rows
+      .filter((r) => isTop16Eligible({
+        month: targetMonth,
+        dropped: r.dropped,
+        totalGames: r.games,
+        onlineGames: onlineCounts?.get(r.uid || "") ?? 0,
+        recencyApplies,
+        hasRecent: r.uid ? recentUids.has(r.uid) : false,
+      }))
       .slice(0, 16)
       .map((r) => ({ uid: r.uid || r.entrant_id.toString(), name: r.name }));
-    return eligible;
   }
 
-  // Historical month: use dump-based standings (no voided match filtering needed — dumps are finalized)
-  const [onlineCounts, recentUids] = await Promise.all([
-    getOnlineGameCountsForMonth(bracketId, year, monthNum),
-    getRecentGameUidsForMonth(bracketId, year, monthNum),
-  ]);
-
+  // Historical month — no voided match filtering needed (dumps are finalized)
   const { players } = await getPlayers(targetMonth);
+  const recentUids = await getRecentGameUidsForMonth(bracketId, year, monthNum, [], !totalRule);
+  // online:true counts — used by the frozen old rule AND as the "do we have collection data" signal
+  const onlineCounts = await getOnlineGameCountsForMonth(bracketId, year, monthNum, []);
 
-  // If no online game data exists for this month, skip eligibility filter
-  const hasOnlineData = onlineCounts.size > 0;
-  if (!hasOnlineData) {
+  // No online_games data for this month at all → can't filter, return raw top 16
+  if (onlineCounts.size === 0) {
     return players.slice(0, 16).map((p) => ({ uid: p.uid, name: p.name }));
   }
 
-  const eligible = players
-    .filter((p) => isEligible(p.uid, p.games, onlineCounts.get(p.uid) ?? 0, false, recencyApplies, recentUids))
+  return players
+    .filter((p) => isTop16Eligible({
+      month: targetMonth,
+      dropped: false,
+      totalGames: p.games,
+      onlineGames: onlineCounts.get(p.uid) ?? 0,
+      recencyApplies,
+      hasRecent: recentUids.has(p.uid),
+    }))
     .slice(0, 16)
     .map((p) => ({ uid: p.uid, name: p.name }));
-  return eligible;
 }
