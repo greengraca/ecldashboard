@@ -1,5 +1,5 @@
 import { getDb } from "./mongodb";
-import { getPlayers } from "./players";
+import { getPlayers, getDroppedUidsForMonth } from "./players";
 import { fetchLiveStandings } from "./topdeck-live";
 import { getBracketIdForMonth } from "./bracket-ids";
 import { getCurrentMonth } from "./utils";
@@ -23,8 +23,14 @@ export async function getRaffleCandidates(
       .filter((r) => r.uid && !r.dropped)
       .map((r) => ({ uid: r.uid!, name: r.name, games: r.games }));
   } else {
-    const { players } = await getPlayers(month);
-    allPlayers = players.map((p) => ({ uid: p.uid, name: p.name, games: p.games }));
+    // Dumps don't store drop state — recover it from the bracket's Firestore doc
+    const [{ players }, droppedUids] = await Promise.all([
+      getPlayers(month),
+      getDroppedUidsForMonth(month),
+    ]);
+    allPlayers = players
+      .filter((p) => !droppedUids.has(p.uid))
+      .map((p) => ({ uid: p.uid, name: p.name, games: p.games }));
   }
   if (allPlayers.length === 0) return [];
 

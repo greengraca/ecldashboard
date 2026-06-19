@@ -552,6 +552,34 @@ async function getRecentGameUidsForMonth(
 }
 
 /**
+ * Recover the set of dropped player UIDs for a month from each of its bracket
+ * Firestore docs. Monthly dumps don't store drop state, so dump-based standings
+ * would otherwise treat dropped players as active. A closed bracket keeps its
+ * Firestore doc frozen, so this reflects the month's final drops. Degrades to an
+ * empty set (no drop info — i.e. prior behaviour) if Firestore is unavailable.
+ */
+export async function getDroppedUidsForMonth(month: string): Promise<Set<string>> {
+  const months = await getHistoricalMonths();
+  const monthBrackets = months.filter((m) => m.month === month).map((m) => m.bracket_id);
+  const bracketIds = monthBrackets.length > 0 ? monthBrackets : [await getBracketIdForMonth(month)];
+
+  const dropped = new Set<string>();
+  await Promise.all(
+    bracketIds.map(async (bid) => {
+      try {
+        const live = await fetchLiveStandings(bid);
+        for (const r of live.rows) {
+          if (r.dropped && r.uid) dropped.add(r.uid);
+        }
+      } catch {
+        // Firestore unavailable for this bracket — leave drops unknown for it
+      }
+    })
+  );
+  return dropped;
+}
+
+/**
  * Get the top 16 eligible players for a month, applying the same
  * eligibility rules as live standings (min games, online games, recency).
  * Uses live standings for the current month, dump-based for historical.
@@ -593,16 +621,22 @@ export async function getEligibleTop16(month?: string): Promise<{ uid: string; n
   const recentUids = await getRecentGameUidsForMonth(bracketId, year, monthNum, [], !totalRule);
   // online:true counts — used by the frozen old rule AND as the "do we have collection data" signal
   const onlineCounts = await getOnlineGameCountsForMonth(bracketId, year, monthNum, []);
+  // Dumps don't store drop state — recover it from the bracket's Firestore doc
+  const droppedUids = await getDroppedUidsForMonth(targetMonth);
 
-  // No online_games data for this month at all → can't filter, return raw top 16
+  // No online_games data for this month at all → can't apply game-count rules,
+  // but still exclude dropped players before taking the top 16.
   if (onlineCounts.size === 0) {
-    return players.slice(0, 16).map((p) => ({ uid: p.uid, name: p.name }));
+    return players
+      .filter((p) => !droppedUids.has(p.uid))
+      .slice(0, 16)
+      .map((p) => ({ uid: p.uid, name: p.name }));
   }
 
   return players
     .filter((p) => isTop16Eligible({
       month: targetMonth,
-      dropped: false,
+      dropped: droppedUids.has(p.uid),
       totalGames: p.games,
       onlineGames: onlineCounts.get(p.uid) ?? 0,
       recencyApplies,
