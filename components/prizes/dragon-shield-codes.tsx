@@ -233,7 +233,7 @@ export default function DragonShieldCodes({ data, month, onRefresh }: DragonShie
                 </button>
                 <button
                   onClick={() => {
-                    const msg = `Congrats once again!\n\nThe code can be used on DragonShield Sleeve Crafter and it will give you a 100% discount on checkout!\nAny issues you have let us know!\n\nHere's your code: **${code.code}**\n\nhttps://www.dragonshield.com/p/sleeve-crafter`;
+                    const msg = `Congratulations once again!\n\nYour code can be used on the Dragonshield Sleeve Crafter, giving you a 100% discount at checkout.\nPlease make sure you sign in with your email before applying the code.\n\nWe recommend using the code within 30 days of receiving this message, as we cannot guarantee its validity after that period.\n\nYour code: **${code.code}**\n\nhttps://www.dragonshield.com/p/sleeve-crafter\nDragon Shield`;
                     const ta = document.createElement("textarea");
                     ta.value = msg;
                     ta.style.position = "fixed";
