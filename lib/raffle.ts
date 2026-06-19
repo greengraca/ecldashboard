@@ -42,8 +42,9 @@ export async function getRaffleCandidates(
   let finalistUids = new Set<string>();
   if (excludeFinalists) {
     const bracketResults = await db.collection("dashboard_bracket_results").findOne({ month });
-    const top4Order: Array<{ uid: string }> = bracketResults?.top4_order || [];
-    finalistUids = new Set(top4Order.map((p) => p.uid));
+    // top4_order is stored as string[] of UIDs (older data may be {uid}[]) — normalize both.
+    const top4Order: Array<string | { uid: string }> = bracketResults?.top4_order || [];
+    finalistUids = new Set(top4Order.map((p) => (typeof p === "string" ? p : p.uid)));
   }
 
   return top5.map((player) => ({

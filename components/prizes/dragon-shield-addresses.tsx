@@ -92,7 +92,7 @@ export default function DragonShieldAddresses({ data, month, onRefresh }: Dragon
       }
     });
     setForms((prev) => ({ ...initial, ...prev }));
-  }, [allAddresses, top4.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [allAddresses, top4.map((p) => p.uid).join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function showMsg(type: "success" | "error", text: string) {
     setMessage({ type, text });
@@ -193,7 +193,8 @@ export default function DragonShieldAddresses({ data, month, onRefresh }: Dragon
                     <button
                       onClick={() => {
                         const f = getForm(uid);
-                        const text = [f.full_name, f.street, `${f.postal_code} ${f.city}`, f.country].filter(Boolean).join("\n");
+                        const cityLine = [f.postal_code, f.city].filter(Boolean).join(" ");
+                        const text = [f.full_name, f.street, cityLine, f.country].filter(Boolean).join("\n");
                         const ta = document.createElement("textarea");
                         ta.value = text;
                         ta.style.position = "fixed";

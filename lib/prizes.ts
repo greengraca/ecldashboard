@@ -2,6 +2,7 @@ import { ObjectId } from "mongodb";
 import { getDb } from "./mongodb";
 import { logActivity } from "./activity";
 import { createTransaction, updateTransaction, deleteTransaction } from "./finance";
+import { getPlayers } from "./players";
 import type {
   Prize,
   PrizeBudget,
@@ -341,13 +342,29 @@ export async function autoPopulatePrizes(
   let created = 0;
   const now = new Date().toISOString();
 
-  // Create placement stubs from Top 4 order
-  const top4Order: Array<{ uid: string; name: string }> = bracketResults?.top4_order || [];
-  for (let i = 0; i < top4Order.length && i < 4; i++) {
+  // Create placement stubs from Top 4 order.
+  // top4_order is stored as string[] of UIDs (older data may be {uid,name}[]) — normalize both.
+  const top4Order: Array<string | { uid: string; name?: string }> = bracketResults?.top4_order || [];
+  const top4Entries = top4Order.map((p) =>
+    typeof p === "string" ? { uid: p, name: undefined as string | undefined } : { uid: p.uid, name: p.name }
+  );
+
+  // Resolve display names for finalists (best-effort; falls back to uid)
+  let nameByUid = new Map<string, string>();
+  if (top4Entries.length > 0) {
+    try {
+      const { players } = await getPlayers(month);
+      nameByUid = new Map(players.map((p) => [p.uid, p.name]));
+    } catch {
+      // name resolution unavailable — uid fallback below
+    }
+  }
+
+  for (let i = 0; i < top4Entries.length && i < 4; i++) {
     const key = `placement:${i + 1}`;
     if (existingKeys.has(key)) continue;
 
-    const player = top4Order[i];
+    const { uid, name } = top4Entries[i];
     const doc: Omit<Prize, "_id"> = {
       month,
       category: "other",
@@ -361,8 +378,8 @@ export async function autoPopulatePrizes(
       set_name: null,
       recipient_type: "placement",
       placement: i + 1,
-      recipient_uid: player.uid,
-      recipient_name: player.name,
+      recipient_uid: uid,
+      recipient_name: name || nameByUid.get(uid) || uid,
       recipient_discord_id: null,
       shipping_status: "pending",
       tracking_number: null,
