@@ -260,44 +260,14 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
   // Get registered players for this month (null = no filtering)
   const registeredUsernames = await getRegisteredDiscordUsernames(month);
 
-  // Build set of Discord IDs with Ko-fi presence for this month.
-  // Three sources: snapshots (daily role sync), one-time pass events, CSV backfill.
-  const kofiActiveIds = new Set<string>();
-  const [kofiSnapshots, kofiEvents, kofiBackfill] = await Promise.all([
-    db.collection("dashboard_kofi_snapshots")
-      .find({ month, cancelled_at: null }, { projection: { discord_id: 1 } })
-      .toArray(),
-    db.collection("subs_kofi_events")
-      .find({ purchase_month: month }, { projection: { user_id: 1 } })
-      .toArray(),
-    db.collection("dashboard_kofi_backfill")
-      .find({ month }, { projection: { discord_username: 1 } })
-      .toArray(),
-  ]);
-  for (const s of kofiSnapshots) {
-    kofiActiveIds.add(s.discord_id?.toString() ?? "");
-  }
-  for (const evt of kofiEvents) {
-    kofiActiveIds.add(evt.user_id?.toString() ?? "");
-  }
-  // Backfill uses discord_username — resolve to IDs via guild members
-  if (kofiBackfill.length > 0) {
-    const backfillUsernames = new Set(
-      kofiBackfill.map((b) => (b.discord_username as string).toLowerCase().trim())
-    );
-    for (const m of members) {
-      if (backfillUsernames.has(m.username.toLowerCase().trim())) {
-        kofiActiveIds.add(m.id);
-      }
-    }
-  }
-
   // Build discord_id → patreon tier lookup (always — used for tier display + Gold/Diamond filtering)
   const patreonTierById = new Map<string, string>();
   const memberByUsername = new Map(members.map((m) => [m.username.toLowerCase(), m]));
+  // Exclude cancelled patrons — otherwise a lapsed patron who lost their Patreon
+  // role is still promoted to source="patreon" below via the tier override.
   const patreonSnapshots = await db
     .collection("dashboard_patreon_snapshots")
-    .find({ month }, { projection: { discord_id: 1, tier: 1 } })
+    .find({ month, cancelled_at: null }, { projection: { discord_id: 1, tier: 1 } })
     .toArray();
   for (const s of patreonSnapshots) {
     const raw = s.discord_id ? s.discord_id.toString().trim() : "";
@@ -689,7 +659,7 @@ export async function getSubscriberSummary(
 
   const subscriberSnapshots = await db
     .collection("dashboard_patreon_snapshots")
-    .find({ month, tier: { $nin: [...NON_SUBSCRIBER_TIERS] } }, { projection: { discord_id: 1, tier: 1 } })
+    .find({ month, cancelled_at: null, tier: { $nin: [...NON_SUBSCRIBER_TIERS] } }, { projection: { discord_id: 1, tier: 1 } })
     .toArray();
 
   // Resolve snapshot discord_ids to numeric IDs (CSV backfill stores usernames)

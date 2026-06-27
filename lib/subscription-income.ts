@@ -78,9 +78,11 @@ export async function getSubscriptionIncome(
   const totalKofi = kofiIds.size;
 
   // 2. Patreon: fetch all snapshots, filter Gold/Diamond by registration
+  // Exclude cancelled patrons (soft-deleted with cancelled_at on mid-month
+  // cancellation/refund) — mirrors the Ko-fi reads above.
   const allSnapshots = await db
     .collection("dashboard_patreon_snapshots")
-    .find({ month })
+    .find({ month, cancelled_at: null })
     .toArray();
 
   let patreonCount = 0;
@@ -184,7 +186,7 @@ export async function getSubscriptionIncomeBreakdown(
   // ─── 1. Patreon: individual snapshots with tier + net rate ───
   const patreonSnapshots = await db
     .collection("dashboard_patreon_snapshots")
-    .find({ month })
+    .find({ month, cancelled_at: null })
     .toArray();
 
   const patreonEntries = patreonSnapshots

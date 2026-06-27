@@ -196,6 +196,21 @@ export interface PatreonSnapshot {
   pledge_start: string | null;
   last_charge_date: string | null;
   synced_at: string;
+  // Set (non-null ISO timestamp) when a later sync of the same month no longer
+  // finds this patron — a mid-month cancellation/refund. Cancelled snapshots are
+  // retained for history but MUST be excluded from subscriber/income counts.
+  cancelled_at?: string | null;
+}
+
+export interface KofiSnapshot {
+  _id?: ObjectId | string;
+  month: string;
+  discord_id: string;
+  username: string;
+  display_name: string;
+  synced_at: string;
+  // See PatreonSnapshot.cancelled_at — identical soft-delete semantics.
+  cancelled_at?: string | null;
 }
 
 export interface ManualPayment {
