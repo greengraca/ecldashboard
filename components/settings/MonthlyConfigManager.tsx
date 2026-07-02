@@ -4,8 +4,14 @@ import { useState, useEffect } from "react";
 import useSWR from "swr";
 import { Trophy, CheckCircle, AlertCircle, Clock, ExternalLink, Loader2 } from "lucide-react";
 import { fetcher } from "@/lib/fetcher";
-import { getCurrentMonth, getNextMonth } from "@/lib/utils";
+import { getCurrentMonth, monthRange } from "@/lib/utils";
 import type { EclMonthlyConfig } from "@/lib/types";
+
+// How many months beyond the current one you can pre-set.
+const UPCOMING_COUNT = 6;
+
+type RowConfig = Partial<EclMonthlyConfig> & { month: string };
+type Validation = "valid" | "invalid" | null;
 
 function monthLabel(month: string): string {
   const [y, m] = month.split("-").map(Number);
@@ -47,136 +53,211 @@ function FlipStatusBadge({ status }: { status: string | undefined }) {
   );
 }
 
+/** One bracket-ID input row: label · mono input (validation-colored) · Validate. */
+function BracketMonthRow({
+  label,
+  value,
+  onChange,
+  validation,
+  onValidate,
+  validating,
+  rightSlot,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  validation: Validation;
+  onValidate: () => void;
+  validating: boolean;
+  rightSlot?: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+          {label}
+        </label>
+        {rightSlot}
+      </div>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="flex-1 rounded-lg border px-3 py-2 text-sm outline-none transition-colors font-mono"
+          style={{
+            background: "var(--bg-page)",
+            borderColor:
+              validation === "valid"
+                ? "var(--success)"
+                : validation === "invalid"
+                ? "var(--error)"
+                : "var(--border)",
+            color: "var(--text-primary)",
+          }}
+          placeholder="e.g. 4stOkmGciCsdxU9p2yVS"
+        />
+        <button
+          onClick={onValidate}
+          disabled={!value.trim() || validating}
+          className="rounded-lg px-3 py-2 text-xs font-medium transition-colors shrink-0"
+          style={{
+            background: "rgba(255, 255, 255, 0.04)",
+            color: "var(--text-secondary)",
+            border: "1px solid var(--border)",
+            opacity: !value.trim() || validating ? 0.5 : 1,
+          }}
+        >
+          {validating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Validate"}
+        </button>
+      </div>
+      {validation === "valid" && (
+        <p className="text-xs mt-1 flex items-center gap-1" style={{ color: "var(--success)" }}>
+          <CheckCircle className="w-3 h-3" /> Bracket found on TopDeck
+        </p>
+      )}
+      {validation === "invalid" && (
+        <p className="text-xs mt-1 flex items-center gap-1" style={{ color: "var(--error)" }}>
+          <AlertCircle className="w-3 h-3" /> Bracket not found
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function MonthlyConfigManager() {
   const currentMonth = getCurrentMonth();
-  const nextMonth = getNextMonth();
-  const [saving, setSaving] = useState(false);
+  const months = monthRange(currentMonth, 1 + UPCOMING_COUNT); // current + next 6
+  const upcomingMonths = months.slice(1);
 
+  const { data, mutate } = useSWR<{ data: RowConfig[] }>(
+    `/api/league/config?count=${1 + UPCOMING_COUNT}`,
+    fetcher
+  );
+  const configs = data?.data ?? [];
+  const byMonth = new Map(configs.map((c) => [c.month, c]));
+  const currentConfig = byMonth.get(currentMonth) ?? null;
+
+  // Current month (own save, like before)
   const [currentBracketId, setCurrentBracketId] = useState("");
-  const [currentValidating, setCurrentValidating] = useState(false);
-  const [currentValidationResult, setCurrentValidationResult] = useState<"valid" | "invalid" | null>(null);
   const [currentBracketDirty, setCurrentBracketDirty] = useState(false);
   const [currentSaving, setCurrentSaving] = useState(false);
 
-  const [nextBracketId, setNextBracketId] = useState("");
-  const [validating, setValidating] = useState(false);
-  const [validationResult, setValidationResult] = useState<"valid" | "invalid" | null>(null);
-  const [bracketDirty, setBracketDirty] = useState(false);
+  // Upcoming months
+  const [upcomingValues, setUpcomingValues] = useState<Record<string, string>>({});
+  const [upcomingDirty, setUpcomingDirty] = useState<Record<string, boolean>>({});
+  const [savingAll, setSavingAll] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Shared validation state, keyed by month
+  const [validation, setValidation] = useState<Record<string, Validation>>({});
+  const [validating, setValidating] = useState<Record<string, boolean>>({});
+
+  // Join channel (own save)
   const [joinChannelId, setJoinChannelId] = useState("");
   const [channelDirty, setChannelDirty] = useState(false);
+  const [channelSaving, setChannelSaving] = useState(false);
 
-  const { data: currentData, mutate: mutateCurrent } = useSWR<{ data: EclMonthlyConfig | null }>(
-    `/api/league/config?month=${currentMonth}`,
-    fetcher
-  );
-  const { data: nextData, mutate: mutateNext } = useSWR<{ data: EclMonthlyConfig | null }>(
-    `/api/league/config?month=${nextMonth}`,
-    fetcher
-  );
-
-  const currentConfig = currentData?.data ?? null;
-  const nextConfig = nextData?.data ?? null;
-
+  // Seed local inputs from fetched configs, without clobbering in-progress edits.
   useEffect(() => {
-    setCurrentBracketId(currentConfig?.bracket_id || "");
-    setCurrentBracketDirty(false);
-    setCurrentValidationResult(null);
-  }, [currentConfig]);
+    if (!data) return;
+    const map = new Map((data.data ?? []).map((c) => [c.month, c]));
+    if (!currentBracketDirty) setCurrentBracketId(map.get(currentMonth)?.bracket_id || "");
+    setUpcomingValues((prev) => {
+      const next = { ...prev };
+      for (const m of upcomingMonths) {
+        if (!upcomingDirty[m]) next[m] = map.get(m)?.bracket_id || "";
+      }
+      return next;
+    });
+    if (!channelDirty) setJoinChannelId(map.get(currentMonth)?.join_channel_id || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
-  useEffect(() => {
-    setNextBracketId(nextConfig?.bracket_id || "");
-    setBracketDirty(false);
-    setValidationResult(null);
-  }, [nextConfig]);
-
-  useEffect(() => {
-    const channelId = nextConfig?.join_channel_id || currentConfig?.join_channel_id || "";
-    setJoinChannelId(channelId);
-    setChannelDirty(false);
-  }, [nextConfig, currentConfig]);
-
-  const validateCurrentBracket = async () => {
-    if (!currentBracketId.trim()) return;
-    setCurrentValidating(true);
+  const validateBracket = async (month: string, value: string) => {
+    if (!value.trim()) return;
+    setValidating((v) => ({ ...v, [month]: true }));
     try {
-      const res = await fetch(`/api/league/validate-bracket?id=${currentBracketId.trim()}`);
+      const res = await fetch(`/api/league/validate-bracket?id=${value.trim()}`);
       const json = await res.json();
-      setCurrentValidationResult(json.data?.valid ? "valid" : "invalid");
+      setValidation((v) => ({ ...v, [month]: json.data?.valid ? "valid" : "invalid" }));
     } catch {
-      setCurrentValidationResult("invalid");
+      setValidation((v) => ({ ...v, [month]: "invalid" }));
     } finally {
-      setCurrentValidating(false);
+      setValidating((v) => ({ ...v, [month]: false }));
     }
   };
 
-  const handleSaveCurrentBracket = async () => {
+  const putConfig = async (month: string, body: Record<string, string>) => {
+    const res = await fetch("/api/league/config", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ month, ...body }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to save ${month}`);
+    }
+  };
+
+  const handleSaveCurrent = async () => {
     if (!currentBracketDirty || !currentBracketId.trim()) return;
     setCurrentSaving(true);
     try {
-      const res = await fetch("/api/league/config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month: currentMonth, bracket_id: currentBracketId.trim() }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.error || "Failed to save");
-        return;
-      }
-      mutateCurrent();
+      await putConfig(currentMonth, { bracket_id: currentBracketId.trim() });
       setCurrentBracketDirty(false);
-    } catch {
-      alert("Failed to save bracket ID");
+      mutate();
+    } catch (e) {
+      alert((e as Error).message);
     } finally {
       setCurrentSaving(false);
     }
   };
 
-  const validateBracket = async () => {
-    if (!nextBracketId.trim()) return;
-    setValidating(true);
-    try {
-      const res = await fetch(`/api/league/validate-bracket?id=${nextBracketId.trim()}`);
-      const json = await res.json();
-      setValidationResult(json.data?.valid ? "valid" : "invalid");
-    } catch {
-      setValidationResult("invalid");
-    } finally {
-      setValidating(false);
-    }
-  };
-
-  const handleSave = async () => {
-    const updates: Record<string, string> = {};
-    if (bracketDirty && nextBracketId.trim()) updates.bracket_id = nextBracketId.trim();
-    if (channelDirty && joinChannelId.trim()) updates.join_channel_id = joinChannelId.trim();
-    if (Object.keys(updates).length === 0) return;
-
-    setSaving(true);
-    try {
-      const res = await fetch("/api/league/config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month: nextMonth, ...updates }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.error || "Failed to save");
-        return;
+  const handleSaveAll = async () => {
+    const toSave = upcomingMonths.filter(
+      (m) => upcomingDirty[m] && (upcomingValues[m] || "").trim()
+    );
+    if (toSave.length === 0) return;
+    setSavingAll(true);
+    setSaveError(null);
+    const failed: string[] = [];
+    for (const m of toSave) {
+      try {
+        await putConfig(m, { bracket_id: upcomingValues[m].trim() });
+        setUpcomingDirty((d) => ({ ...d, [m]: false }));
+      } catch {
+        failed.push(monthLabel(m));
       }
-      mutateNext();
-      setBracketDirty(false);
+    }
+    setSavingAll(false);
+    if (failed.length) setSaveError(`Failed to save: ${failed.join(", ")}`);
+    mutate();
+  };
+
+  const handleSaveChannel = async () => {
+    if (!channelDirty || !joinChannelId.trim()) return;
+    setChannelSaving(true);
+    try {
+      await putConfig(currentMonth, { join_channel_id: joinChannelId.trim() });
       setChannelDirty(false);
-    } catch {
-      alert("Failed to save configuration");
+      mutate();
+    } catch (e) {
+      alert((e as Error).message);
     } finally {
-      setSaving(false);
+      setChannelSaving(false);
     }
   };
 
-  const dirty = bracketDirty || channelDirty;
+  const anyUpcomingDirty = upcomingMonths.some((m) => upcomingDirty[m]);
   const flipSteps = currentConfig?.flip_steps_completed || [];
+
+  const saveBtnStyle = (active: boolean, busy: boolean) => ({
+    background: active ? "rgba(251, 191, 36, 0.15)" : "rgba(255, 255, 255, 0.04)",
+    color: active ? "var(--accent)" : "var(--text-muted)",
+    border: active ? "1px solid rgba(251, 191, 36, 0.35)" : "1px solid var(--border)",
+    opacity: !active || busy ? 0.5 : 1,
+  });
 
   return (
     <div
@@ -225,82 +306,37 @@ export default function MonthlyConfigManager() {
 
         {/* Current month bracket ID — editable */}
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-              Current bracket ID — {monthLabel(currentMonth)}
-            </label>
-            {currentConfig?.bracket_id && (
-              <a
-                href={`https://topdeck.gg/bracket/${currentConfig.bracket_id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-mono inline-flex items-center gap-1 hover:underline"
-                style={{ color: "var(--text-muted)" }}
-              >
-                View on TopDeck <ExternalLink className="w-3 h-3" />
-              </a>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={currentBracketId}
-              onChange={(e) => {
-                setCurrentBracketId(e.target.value);
-                setCurrentBracketDirty(true);
-                setCurrentValidationResult(null);
-              }}
-              className="flex-1 rounded-lg border px-3 py-2 text-sm outline-none transition-colors font-mono"
-              style={{
-                background: "var(--bg-page)",
-                borderColor: currentValidationResult === "valid"
-                  ? "var(--success)"
-                  : currentValidationResult === "invalid"
-                  ? "var(--error)"
-                  : "var(--border)",
-                color: "var(--text-primary)",
-              }}
-              placeholder="e.g. 4stOkmGciCsdxU9p2yVS"
-            />
-            <button
-              onClick={validateCurrentBracket}
-              disabled={!currentBracketId.trim() || currentValidating}
-              className="rounded-lg px-3 py-2 text-xs font-medium transition-colors shrink-0"
-              style={{
-                background: "rgba(255, 255, 255, 0.04)",
-                color: "var(--text-secondary)",
-                border: "1px solid var(--border)",
-                opacity: !currentBracketId.trim() || currentValidating ? 0.5 : 1,
-              }}
-            >
-              {currentValidating ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                "Validate"
-              )}
-            </button>
-          </div>
-          {currentValidationResult === "valid" && (
-            <p className="text-xs mt-1 flex items-center gap-1" style={{ color: "var(--success)" }}>
-              <CheckCircle className="w-3 h-3" /> Bracket found on TopDeck
-            </p>
-          )}
-          {currentValidationResult === "invalid" && (
-            <p className="text-xs mt-1 flex items-center gap-1" style={{ color: "var(--error)" }}>
-              <AlertCircle className="w-3 h-3" /> Bracket not found
-            </p>
-          )}
+          <BracketMonthRow
+            label={`Current bracket ID — ${monthLabel(currentMonth)}`}
+            value={currentBracketId}
+            onChange={(v) => {
+              setCurrentBracketId(v);
+              setCurrentBracketDirty(true);
+              setValidation((s) => ({ ...s, [currentMonth]: null }));
+            }}
+            validation={validation[currentMonth] ?? null}
+            onValidate={() => validateBracket(currentMonth, currentBracketId)}
+            validating={!!validating[currentMonth]}
+            rightSlot={
+              currentConfig?.bracket_id ? (
+                <a
+                  href={`https://topdeck.gg/bracket/${currentConfig.bracket_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-mono inline-flex items-center gap-1 hover:underline"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  View on TopDeck <ExternalLink className="w-3 h-3" />
+                </a>
+              ) : undefined
+            }
+          />
           {currentBracketDirty && (
             <button
-              onClick={handleSaveCurrentBracket}
+              onClick={handleSaveCurrent}
               disabled={currentSaving || !currentBracketId.trim()}
               className="mt-2 rounded-lg px-4 py-1.5 text-xs font-medium transition-colors"
-              style={{
-                background: "rgba(251, 191, 36, 0.15)",
-                color: "var(--accent)",
-                border: "1px solid rgba(251, 191, 36, 0.35)",
-                opacity: currentSaving ? 0.5 : 1,
-              }}
+              style={saveBtnStyle(true, currentSaving)}
             >
               {currentSaving ? "Saving..." : "Save current bracket"}
             </button>
@@ -329,68 +365,61 @@ export default function MonthlyConfigManager() {
         {/* Divider */}
         <div style={{ borderTop: "1px solid var(--border-subtle)" }} />
 
-        {/* Next month bracket ID */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-              Next month bracket ID — {monthLabel(nextMonth)}
-            </label>
-            {nextConfig?.bracket_id_set_by && (
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                set by {nextConfig.bracket_id_set_by.replace("dashboard:", "")}
-              </span>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={nextBracketId}
-              onChange={(e) => {
-                setNextBracketId(e.target.value);
-                setBracketDirty(true);
-                setValidationResult(null);
-              }}
-              className="flex-1 rounded-lg border px-3 py-2 text-sm outline-none transition-colors font-mono"
-              style={{
-                background: "var(--bg-page)",
-                borderColor: validationResult === "valid"
-                  ? "var(--success)"
-                  : validationResult === "invalid"
-                  ? "var(--error)"
-                  : "var(--border)",
-                color: "var(--text-primary)",
-              }}
-              placeholder="e.g. 4stOkmGciCsdxU9p2yVS"
-            />
-            <button
-              onClick={validateBracket}
-              disabled={!nextBracketId.trim() || validating}
-              className="rounded-lg px-3 py-2 text-xs font-medium transition-colors shrink-0"
-              style={{
-                background: "rgba(255, 255, 255, 0.04)",
-                color: "var(--text-secondary)",
-                border: "1px solid var(--border)",
-                opacity: !nextBracketId.trim() || validating ? 0.5 : 1,
-              }}
+        {/* Upcoming brackets — next 6 months */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3
+              className="text-xs font-medium uppercase tracking-wider"
+              style={{ color: "var(--text-muted)" }}
             >
-              {validating ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                "Validate"
-              )}
-            </button>
+              Upcoming brackets
+            </h3>
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              next {UPCOMING_COUNT} months
+            </span>
           </div>
-          {validationResult === "valid" && (
-            <p className="text-xs mt-1 flex items-center gap-1" style={{ color: "var(--success)" }}>
-              <CheckCircle className="w-3 h-3" /> Bracket found on TopDeck
+
+          {upcomingMonths.map((m) => (
+            <BracketMonthRow
+              key={m}
+              label={monthLabel(m)}
+              value={upcomingValues[m] ?? ""}
+              onChange={(v) => {
+                setUpcomingValues((s) => ({ ...s, [m]: v }));
+                setUpcomingDirty((d) => ({ ...d, [m]: true }));
+                setValidation((s) => ({ ...s, [m]: null }));
+              }}
+              validation={validation[m] ?? null}
+              onValidate={() => validateBracket(m, upcomingValues[m] ?? "")}
+              validating={!!validating[m]}
+              rightSlot={
+                byMonth.get(m)?.bracket_id_set_by ? (
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    set by {byMonth.get(m)!.bracket_id_set_by!.replace("dashboard:", "")}
+                  </span>
+                ) : undefined
+              }
+            />
+          ))}
+
+          {saveError && (
+            <p className="text-xs flex items-center gap-1" style={{ color: "var(--error)" }}>
+              <AlertCircle className="w-3 h-3" /> {saveError}
             </p>
           )}
-          {validationResult === "invalid" && (
-            <p className="text-xs mt-1 flex items-center gap-1" style={{ color: "var(--error)" }}>
-              <AlertCircle className="w-3 h-3" /> Bracket not found
-            </p>
-          )}
+
+          <button
+            onClick={handleSaveAll}
+            disabled={!anyUpcomingDirty || savingAll}
+            className="w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+            style={{ ...saveBtnStyle(anyUpcomingDirty, savingAll), backdropFilter: "blur(8px)" }}
+          >
+            {savingAll ? "Saving..." : "Save all changed"}
+          </button>
         </div>
+
+        {/* Divider */}
+        <div style={{ borderTop: "1px solid var(--border-subtle)" }} />
 
         {/* Join Channel ID */}
         <div>
@@ -413,25 +442,19 @@ export default function MonthlyConfigManager() {
             placeholder="Discord channel snowflake (set once)"
           />
           <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-            The bot renames this channel on flip (e.g. #join-april-league). Set once — carries forward.
+            The static #join-the-league channel. Set once — carries forward.
           </p>
+          {channelDirty && (
+            <button
+              onClick={handleSaveChannel}
+              disabled={channelSaving || !joinChannelId.trim()}
+              className="mt-2 rounded-lg px-4 py-1.5 text-xs font-medium transition-colors"
+              style={saveBtnStyle(true, channelSaving)}
+            >
+              {channelSaving ? "Saving..." : "Save channel"}
+            </button>
+          )}
         </div>
-
-        {/* Save */}
-        <button
-          onClick={handleSave}
-          disabled={!dirty || saving}
-          className="w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-          style={{
-            background: dirty ? "rgba(251, 191, 36, 0.15)" : "rgba(255, 255, 255, 0.04)",
-            color: dirty ? "var(--accent)" : "var(--text-muted)",
-            border: dirty ? "1px solid rgba(251, 191, 36, 0.35)" : "1px solid var(--border)",
-            backdropFilter: "blur(8px)",
-            opacity: !dirty || saving ? 0.5 : 1,
-          }}
-        >
-          {saving ? "Saving..." : "Save"}
-        </button>
       </div>
 
       <div
@@ -441,7 +464,7 @@ export default function MonthlyConfigManager() {
           color: "var(--text-muted)",
         }}
       >
-        Set the bracket ID before the last day of the month. Most games image auto-pulls from prizes.
+        Set each month&apos;s bracket ID before that month starts — the bot switches automatically.
         TopDeck <code>/unlink</code> and <code>/link</code> must still be run manually.
       </div>
     </div>

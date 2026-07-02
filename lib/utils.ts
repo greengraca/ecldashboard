@@ -37,3 +37,15 @@ export function getPreviousMonth(month: string): string {
   const prev = new Date(y, m - 2, 1);
   return `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`;
 }
+
+/** Add `n` months to a "YYYY-MM" key (n may be negative). */
+export function addMonths(month: string, n: number): string {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Contiguous list of `count` months starting at `start` (inclusive), in order. */
+export function monthRange(start: string, count: number): string[] {
+  return Array.from({ length: count }, (_, i) => addMonths(start, i));
+}

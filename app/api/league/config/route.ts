@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth, withAuthRead } from "@/lib/api-helpers";
 import { getUserName } from "@/lib/auth";
-import { getMonthlyConfig, upsertMonthlyConfig, autoFillMostGamesImage } from "@/lib/monthly-config";
-import { getCurrentMonth } from "@/lib/utils";
+import { getMonthlyConfig, getMonthlyConfigsRange, upsertMonthlyConfig, autoFillMostGamesImage } from "@/lib/monthly-config";
+import { getCurrentMonth, monthRange } from "@/lib/utils";
 
 export const GET = withAuthRead(async (request) => {
   const { searchParams } = new URL(request.url);
+
+  // Range mode for the settings bracket editor: current month + next N-1 months.
+  const countParam = searchParams.get("count");
+  if (countParam) {
+    const count = Math.min(Math.max(parseInt(countParam, 10) || 0, 1), 24);
+    const start = getCurrentMonth();
+    const months = monthRange(start, count);
+    const configs = await getMonthlyConfigsRange(start, count);
+    const data = configs.map((c, i) => c ?? { month: months[i] });
+    return NextResponse.json({ data });
+  }
+
   const month = searchParams.get("month") || getCurrentMonth();
 
   const config = await getMonthlyConfig(month);

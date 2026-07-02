@@ -2,6 +2,7 @@ import { getDb } from "./mongodb";
 import { logActivity } from "./activity";
 import { getPresignedDownloadUrl } from "./r2";
 import { DISCORD_GUILD_ID } from "./constants";
+import { monthRange } from "./utils";
 import type { EclMonthlyConfig } from "./types";
 
 const COLLECTION = "ecl_monthly_config";
@@ -28,6 +29,27 @@ export async function getMonthlyConfig(month: string): Promise<EclMonthlyConfig 
   return db
     .collection<EclMonthlyConfig>(COLLECTION)
     .findOne({ guild_id: DISCORD_GUILD_ID, month });
+}
+
+/**
+ * Fetch configs for a contiguous range of months starting at `startMonth`
+ * (inclusive), returned in month order — missing months come back as null.
+ * Used by the settings bracket editor to load several months at once. Skips the
+ * per-month mostgames auto-fill (a detail the bracket editor doesn't use).
+ */
+export async function getMonthlyConfigsRange(
+  startMonth: string,
+  count: number
+): Promise<(EclMonthlyConfig | null)[]> {
+  await ensureIndexes();
+  const db = await getDb();
+  const months = monthRange(startMonth, count);
+  const docs = await db
+    .collection<EclMonthlyConfig>(COLLECTION)
+    .find({ guild_id: DISCORD_GUILD_ID, month: { $in: months } })
+    .toArray();
+  const byMonth = new Map(docs.map((d) => [d.month, d]));
+  return months.map((m) => byMonth.get(m) ?? null);
 }
 
 export async function upsertMonthlyConfig(
