@@ -19,13 +19,14 @@ const MonthlyBreakdownChart = dynamic(() => import("@/components/finance/monthly
 import SubscriptionIncomeCard from "@/components/finance/SubscriptionIncomeCard";
 import GroupSummaryCard from "@/components/finance/group-summary-card";
 import DistributionSection from "@/components/finance/distribution-section";
+import { DistributeConfirmModal } from "@/components/finance/distribution-modals";
+import { useDistributions } from "@/components/finance/use-distributions";
 import { Sensitive } from "@/components/dashboard/sensitive";
 import type {
   Transaction,
   FixedCost,
   MonthlySummary,
   GroupSummary,
-  DistributionLedger,
   TransactionType,
   TransactionCategory,
 } from "@/lib/types";
@@ -43,6 +44,9 @@ export default function FinancePage() {
   const [editingTx, setEditingTx] = useState<Transaction | undefined>(undefined);
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
   const [deleteFcId, setDeleteFcId] = useState<string | null>(null);
+  const [distributingMonth, setDistributingMonth] = useState<string | null>(null);
+  const [undoMonth, setUndoMonth] = useState<string | null>(null);
+  const [distNote, setDistNote] = useState("");
 
   const {
     data: txData,
@@ -78,20 +82,23 @@ export default function FinancePage() {
   );
 
   const {
-    data: distData,
+    ledger,
     mutate: mutateDist,
-  } = useSWR<{ data: DistributionLedger }>("/api/finance/distributions", fetcher);
+    busyMonth,
+    distribute,
+    undo,
+  } = useDistributions();
 
   const transactions = txData?.data || [];
   const summary = summaryData?.data || null;
   const fixedCosts = fcData?.data || [];
   const groupSummary = groupData?.data || null;
   const hasSubscriptionIncome = !!(summary?.subscription_income && summary.subscription_income.total > 0);
-  const ledger = distData?.data ?? null;
   const markedMonths = new Set(
     (ledger?.months ?? []).filter((r) => r.status === "distributed").map((r) => r.month)
   );
   const selectedRow = ledger?.months.find((r) => r.month === month) ?? null;
+  const distributingRow = ledger?.months.find((r) => r.month === distributingMonth) ?? null;
 
   const refreshAll = useCallback(() => {
     mutateTx();
@@ -212,6 +219,22 @@ export default function FinancePage() {
     refreshAll();
   }
 
+  async function confirmDistribute() {
+    if (!distributingMonth) return;
+    const m = distributingMonth;
+    const n = distNote.trim() || null;
+    setDistributingMonth(null);
+    setDistNote("");
+    await distribute(m, n);
+  }
+
+  async function confirmUndo() {
+    if (!undoMonth) return;
+    const m = undoMonth;
+    setUndoMonth(null);
+    await undo(m);
+  }
+
   async function handleReimburse(id: string, source: "transaction" | "fixed_cost", currentlyReimbursed: boolean) {
     await fetch("/api/finance/reimburse", {
       method: "POST",
@@ -278,13 +301,25 @@ export default function FinancePage() {
             )}
           </div>
           <div className="shrink-0">
-            <button
-              onClick={() => setActiveTab("team_split")}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium"
-              style={{ background: "var(--accent-light)", color: "var(--accent)" }}
-            >
-              {selectedRow.available > 0.01 ? "Distribute" : "Manage"}
-            </button>
+            {busyMonth === selectedRow.month ? (
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>…</span>
+            ) : selectedRow.available > 0.01 ? (
+              <button
+                onClick={() => setDistributingMonth(selectedRow.month)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                style={{ background: "var(--accent-light)", color: "var(--accent)" }}
+              >
+                {selectedRow.status === "partial" ? "Distribute rest" : "Mark distributed"}
+              </button>
+            ) : selectedRow.net_paid > 0 ? (
+              <button
+                onClick={() => setUndoMonth(selectedRow.month)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                style={{ background: "var(--card-inner-bg)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+              >
+                Undo
+              </button>
+            ) : null}
           </div>
         </div>
       )}
@@ -408,6 +443,24 @@ export default function FinancePage() {
         title="Delete Fixed Cost"
         message="Delete this fixed cost? It will be removed from all months and any associated payment records will be cleaned up."
         confirmLabel="Delete"
+        variant="danger"
+      />
+
+      <DistributeConfirmModal
+        row={distributingRow}
+        note={distNote}
+        setNote={setDistNote}
+        onClose={() => { setDistributingMonth(null); setDistNote(""); }}
+        onConfirm={confirmDistribute}
+      />
+
+      <ConfirmModal
+        open={!!undoMonth}
+        onClose={() => setUndoMonth(null)}
+        onConfirm={confirmUndo}
+        title="Undo distribution"
+        message={undoMonth ? `Undo the distribution record for ${undoMonth}? The month returns to the available balance.` : ""}
+        confirmLabel="Undo"
         variant="danger"
       />
     </div>
