@@ -5,6 +5,8 @@
 // start), bucketed by day-of-month in Europe/Lisbon. TopDeck stores no
 // registration timestamp, so first-game time is the only entry signal available.
 
+import { topdeckTsToMs } from "./utils";
+
 // ─── Types ───
 
 export interface BracketEntryDay {
@@ -38,11 +40,12 @@ const lisbonFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 /**
- * Convert a unix timestamp (SECONDS) to { year, month, day } in Europe/Lisbon.
- * TopDeck start/end values are unix seconds (eclBot calls datetime.fromtimestamp).
+ * Convert a TopDeck timestamp to { year, month, day } in Europe/Lisbon.
+ * The raw value may be unix seconds or milliseconds — topdeckTsToMs normalizes
+ * both to milliseconds (values > 1e10 are already ms) before constructing Date.
  */
-export function lisbonYMD(tsSeconds: number): { year: number; month: number; day: number } {
-  const parts = lisbonFormatter.formatToParts(new Date(tsSeconds * 1000));
+export function lisbonYMD(ts: number): { year: number; month: number; day: number } {
+  const parts = lisbonFormatter.formatToParts(new Date(topdeckTsToMs(ts)));
   let year = 0;
   let month = 0;
   let day = 0;

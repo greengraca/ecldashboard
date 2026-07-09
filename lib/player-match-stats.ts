@@ -8,7 +8,7 @@ import { fetchLiveStandings, START_POINTS } from "./topdeck-live";
 import type { GamePod } from "./topdeck-live";
 import { getBracketIdForMonth } from "./bracket-ids";
 import { WAGER_RATE } from "./constants";
-import { getCurrentMonth } from "./utils";
+import { getCurrentMonth, topdeckTsToMs } from "./utils";
 import type { DailyActivity, DailyProgression, PlayerMatchStats } from "./types";
 
 // ─── Helpers ───
@@ -18,8 +18,9 @@ const lisbonDayFmt = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
 });
 
-function getLisbonDay(timestampSec: number): number {
-  return parseInt(lisbonDayFmt.format(new Date(timestampSec * 1000)), 10);
+function getLisbonDay(ts: number): number {
+  // ts may be unix seconds or milliseconds (TopDeck is inconsistent) — normalize.
+  return parseInt(lisbonDayFmt.format(new Date(topdeckTsToMs(ts))), 10);
 }
 
 function completedPods(pods: GamePod[]): GamePod[] {

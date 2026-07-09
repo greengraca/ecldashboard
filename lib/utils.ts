@@ -26,6 +26,16 @@ export function getCurrentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/**
+ * Normalize a TopDeck match timestamp (Start/End) to milliseconds.
+ * TopDeck stores these as either unix seconds or milliseconds — values above
+ * 1e10 are milliseconds (a seconds value that large would be year ~2286+).
+ * Mirrors eclBot's `normalize_ts` so day-bucketing matches the bot.
+ */
+export function topdeckTsToMs(raw: number): number {
+  return raw > 1e10 ? raw : raw * 1000;
+}
+
 export function getNextMonth(): string {
   const now = new Date();
   const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
