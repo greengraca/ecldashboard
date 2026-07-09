@@ -27,9 +27,12 @@ function StatusPill({ row }: { row: DistributionLedgerRow }) {
     partial: { label: "Partial", bg: "var(--warning-light, rgba(245,158,11,0.15))", fg: "var(--warning, #f59e0b)" },
     over: { label: "Over-distributed", bg: "var(--error-light)", fg: "var(--error)" },
     retained: { label: "Retained", bg: "var(--card-inner-bg)", fg: "var(--text-muted)" },
+    settled: { label: "Settled", bg: "var(--card-inner-bg)", fg: "var(--text-secondary)" },
   } as const;
   const s = map[row.status];
-  const text = row.status === "distributed" && row.distributed_at ? `✓ ${row.distributed_at.slice(0, 10)}` : s.label;
+  let text: string = s.label;
+  if (row.status === "distributed" && row.distributed_at) text = `✓ ${row.distributed_at.slice(0, 10)}`;
+  else if (row.status === "settled") text = "✓ Settled";
   return (
     <span className="text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap" style={{ background: s.bg, color: s.fg }}>
       {text}
@@ -120,8 +123,8 @@ export default function DistributionPanel({
             </select>
           </div>
           <button
-            onClick={() => bulk && bulk.count > 0 && onBulkDistribute(cutoff)}
-            disabled={bulkBusy || !bulk || bulk.count === 0}
+            onClick={() => bulk && bulk.total > 0.01 && onBulkDistribute(cutoff)}
+            disabled={bulkBusy || !bulk || bulk.total <= 0.01}
             className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
             style={{ background: "var(--accent)", color: "#fff" }}
           >
@@ -129,7 +132,7 @@ export default function DistributionPanel({
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <>
-                <Sensitive placeholder="Distribute €•••">{`Distribute €${(bulk?.total ?? 0).toFixed(2)}`}</Sensitive>
+                <Sensitive placeholder="Distribute €•••">{`Distribute €${Math.max(0, bulk?.total ?? 0).toFixed(2)}`}</Sensitive>
                 {bulk && bulk.count > 1 && <span className="opacity-75">· {bulk.count} months</span>}
               </>
             )}
@@ -175,7 +178,7 @@ export default function DistributionPanel({
                   >
                     {row.status === "partial" ? "Distribute rest" : "Distribute"}
                   </button>
-                ) : row.net_paid > 0 ? (
+                ) : (row.status === "distributed" || row.status === "settled" || row.status === "over") ? (
                   <button
                     onClick={() => onUndo(row.month)}
                     className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"

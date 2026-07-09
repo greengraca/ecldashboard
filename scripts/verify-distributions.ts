@@ -21,13 +21,14 @@ function dist(month: string, net_paid: number): MonthDistribution {
   };
 }
 
-// rowStatus
-check("retained when nothing paid", rowStatus(280, 0) === "retained");
-check("distributed when paid == net", rowStatus(280, 280) === "distributed");
-check("distributed within epsilon", rowStatus(280, 279.995) === "distributed");
-check("partial when 0<paid<net", rowStatus(310, 280) === "partial");
-check("over when paid>net", rowStatus(280, 310) === "over");
-check("retained for loss month", rowStatus(-50, 0) === "retained");
+// rowStatus (net, netPaid, hasRecord)
+check("retained when no record", rowStatus(280, 0, false) === "retained");
+check("distributed when paid == net", rowStatus(280, 280, true) === "distributed");
+check("distributed within epsilon", rowStatus(280, 279.995, true) === "distributed");
+check("partial when 0<paid<net", rowStatus(310, 280, true) === "partial");
+check("over when paid>net", rowStatus(280, 310, true) === "over");
+check("retained for loss with no record", rowStatus(-50, 0, false) === "retained");
+check("settled for loss paid at its net", rowStatus(-50, -50, true) === "settled");
 
 // computeLedger
 const entries: MonthNetEntry[] = [
@@ -38,7 +39,7 @@ const entries: MonthNetEntry[] = [
 ];
 const ledger = computeLedger(entries);
 check("available_total nets loss & partial (=260)", approx(ledger.available_total, 260));
-check("undistributed_count = 2 (Apr + Jun)", ledger.undistributed_count === 2);
+check("undistributed_count = 3 (Apr, Jun, Mar loss)", ledger.undistributed_count === 3);
 check("rows sorted desc by month", ledger.months[0].month === "2026-06" && ledger.months[3].month === "2026-03");
 const apr = ledger.months.find((r) => r.month === "2026-04")!;
 check("retained row available == net", approx(apr.available, 280) && apr.status === "retained");
@@ -72,6 +73,24 @@ const upToJun = monthsToDistribute(bulkLedger, "2026-06");
 check("monthsToDistribute up to Jun picks Apr+Jun", JSON.stringify(upToJun.months) === JSON.stringify(["2026-04", "2026-06"]) && upToJun.count === 2);
 check("monthsToDistribute up to Jun total = 310", approx(upToJun.total, 310));
 check("monthsToDistribute up to Jul total = 730", approx(monthsToDistribute(bulkLedger, "2026-07").total, 730));
+
+// losses net against profits — the fix: headline (available_total) == bulk up to latest
+const lossLedger = computeLedger([
+  { month: "2026-04", net: 280, distribution: null },
+  { month: "2026-05", net: -100, distribution: null },
+  { month: "2026-06", net: 200, distribution: null },
+]);
+check("available_total nets losses (=380)", approx(lossLedger.available_total, 380));
+check("bulk up to Jun nets losses (=380)", approx(monthsToDistribute(lossLedger, "2026-06").total, 380));
+check("bulk up to May nets the loss (=180)", approx(monthsToDistribute(lossLedger, "2026-05").total, 180));
+check("headline == bulk up to latest", approx(lossLedger.available_total, monthsToDistribute(lossLedger, "2026-06").total));
+check("bulk includes the loss month (3 months)", monthsToDistribute(lossLedger, "2026-06").count === 3);
+
+// a loss settled at its net shows "settled"
+const settledLoss = computeLedger([{ month: "2026-04", net: -50, distribution: dist("2026-04", -50) }]);
+check("settled loss row status = settled", settledLoss.months[0].status === "settled");
+check("settled loss available floored to 0", approx(settledLoss.months[0].available, 0));
+check("settled loss not counted as undistributed", settledLoss.undistributed_count === 0);
 
 // monthsInclusive
 check(

@@ -129,7 +129,7 @@ export async function distributeThrough(
   await ensureIndexes();
   const ledger = await getDistributionLedger();
   const { months, total } = monthsToDistribute(ledger, upToMonth);
-  if (months.length === 0) {
+  if (months.length === 0 || total <= DISTRIBUTION_EPSILON) {
     throw new Error("Nothing to distribute in that range");
   }
 

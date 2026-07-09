@@ -95,7 +95,7 @@ export default function FinancePage() {
   const groupSummary = groupData?.data || null;
   const hasSubscriptionIncome = !!(summary?.subscription_income && summary.subscription_income.total > 0);
   const markedMonths = new Set(
-    (ledger?.months ?? []).filter((r) => r.status === "distributed").map((r) => r.month)
+    (ledger?.months ?? []).filter((r) => r.status === "distributed" || r.status === "settled").map((r) => r.month)
   );
   const selectedRow = ledger?.months.find((r) => r.month === month) ?? null;
   const distributingRow = ledger?.months.find((r) => r.month === distributingMonth) ?? null;

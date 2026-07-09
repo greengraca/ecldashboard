@@ -8,10 +8,16 @@ export type MonthNetEntry = {
   distribution: MonthDistribution | null;
 };
 
-export function rowStatus(net: number, netPaid: number): DistributionLedgerRow["status"] {
-  if (netPaid <= 0) return "retained";
+export function rowStatus(
+  net: number,
+  netPaid: number,
+  hasRecord: boolean
+): DistributionLedgerRow["status"] {
+  if (!hasRecord) return "retained";
   if (netPaid > net + DISTRIBUTION_EPSILON) return "over";
-  if (netPaid >= net - DISTRIBUTION_EPSILON) return "distributed";
+  // Fully accounted: a positive month is "distributed", a loss settled at its
+  // (negative) net is "settled".
+  if (Math.abs(netPaid - net) <= DISTRIBUTION_EPSILON) return net > 0 ? "distributed" : "settled";
   return "partial";
 }
 
@@ -21,7 +27,7 @@ export function buildLedgerRow(entry: MonthNetEntry): DistributionLedgerRow {
     month: entry.month,
     net: entry.net,
     net_paid: netPaid,
-    status: rowStatus(entry.net, netPaid),
+    status: rowStatus(entry.net, netPaid, entry.distribution != null),
     available: Math.max(0, entry.net - netPaid),
     distributed_at: entry.distribution?.distributed_at ?? null,
     distributed_by: entry.distribution?.distributed_by ?? null,
@@ -39,7 +45,10 @@ export function computeLedger(entries: MonthNetEntry[]): DistributionLedger {
     (sum, e) => sum + (e.net - (e.distribution?.net_paid ?? 0)),
     0
   );
-  const undistributedCount = rows.filter((r) => r.available > DISTRIBUTION_EPSILON).length;
+  // Not-yet-settled months (any residual net, profit OR loss).
+  const undistributedCount = rows.filter(
+    (r) => Math.abs(r.net - r.net_paid) > DISTRIBUTION_EPSILON
+  ).length;
   // Only genuine over-distributions (status "over") carry a deficit — loss months
   // with no payout are just losses, already reflected in available_total.
   const carriedDeficit = rows
@@ -53,27 +62,29 @@ export function computeLedger(entries: MonthNetEntry[]): DistributionLedger {
   };
 }
 
-/** Undistributed months (available > epsilon), ascending. */
+/** Not-yet-settled months (any residual net, profit OR loss), ascending. */
 export function undistributedMonths(ledger: DistributionLedger): string[] {
   return ledger.months
-    .filter((r) => r.available > DISTRIBUTION_EPSILON)
+    .filter((r) => Math.abs(r.net - r.net_paid) > DISTRIBUTION_EPSILON)
     .map((r) => r.month)
     .sort();
 }
 
 /**
- * Selection for a bulk "distribute up to <upToMonth>" action: every undistributed
- * month at or before the cutoff, plus their combined available total.
+ * Selection for a bulk "distribute up to <upToMonth>" action: every not-yet-settled
+ * month at or before the cutoff — profits AND losses — and their combined **net**
+ * total (losses net against profits). Matches `available_total` for the same range,
+ * so the headline and the bulk button always agree.
  */
 export function monthsToDistribute(
   ledger: DistributionLedger,
   upToMonth: string
 ): { months: string[]; total: number; count: number } {
   const rows = ledger.months.filter(
-    (r) => r.available > DISTRIBUTION_EPSILON && r.month <= upToMonth
+    (r) => Math.abs(r.net - r.net_paid) > DISTRIBUTION_EPSILON && r.month <= upToMonth
   );
   const months = rows.map((r) => r.month).sort();
-  const total = rows.reduce((sum, r) => sum + r.available, 0);
+  const total = rows.reduce((sum, r) => sum + (r.net - r.net_paid), 0);
   return { months, total, count: months.length };
 }
 

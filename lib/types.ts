@@ -867,7 +867,7 @@ export interface DistributionLedgerRow {
   month: string;
   net: number;
   net_paid: number;
-  status: "retained" | "partial" | "distributed" | "over";
+  status: "retained" | "partial" | "distributed" | "over" | "settled";
   available: number;        // max(0, net - net_paid) — display only
   distributed_at: string | null;
   distributed_by: string | null;
