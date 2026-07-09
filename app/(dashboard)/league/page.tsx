@@ -15,6 +15,7 @@ import Banner from "@/components/dashboard/banner";
 import StandingsTable from "@/components/players/standings-table";
 import LiveStandingsTable from "@/components/players/live-standings-table";
 import TurnOrderSection from "@/components/players/turn-order-section";
+import BracketEntriesSection from "@/components/players/bracket-entries-section";
 import GamePodsGrid from "@/components/players/game-pods-grid";
 import type { Player, LiveStanding, Standing } from "@/lib/types";
 import { fetcher } from "@/lib/fetcher";
@@ -608,6 +609,9 @@ export default function PlayersPage() {
 
       {/* Turn order section (aux content) */}
       <TurnOrderSection month={month} />
+
+      {/* Bracket entries by day (new-entrant bars + cumulative line) */}
+      <BracketEntriesSection month={month} />
 
       {/* Main content card: Standings/Games tabs */}
       <ContentCard padding="none">
