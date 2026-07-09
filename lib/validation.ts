@@ -62,6 +62,11 @@ export const transactionUpdateSchema = z.object({
   reimbursed_at: z.string().nullable().optional(),
 });
 
+export const distributeSchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/, "Invalid month"),
+  note: z.string().max(500).nullable().optional(),
+});
+
 export const prizeCreateSchema = z.object({
   month: z.string().min(1),
   category: z.enum(["mtg_single", "sponsor", "treasure_pod", "ticket", "ring", "other"]),
@@ -238,7 +243,7 @@ const ACTIVITY_ENTITY_TYPES = [
   "treasure_pod", "treasure_pod_config", "reimbursement",
   "calendar_event", "calendar_template", "meeting",
   "meeting_note", "meeting_item", "user_mapping", "taskpad_task",
-  "card_order", "inventory_card",
+  "card_order", "inventory_card", "distribution",
 ] as const;
 
 const ERROR_LOG_LEVELS = ["error", "warn", "info"] as const;

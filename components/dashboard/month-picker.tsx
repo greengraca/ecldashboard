@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 
 interface MonthPickerProps {
   value: string; // "YYYY-MM"
@@ -9,6 +9,7 @@ interface MonthPickerProps {
   minMonth?: string;
   maxMonth?: string;
   highlight?: boolean;
+  markedMonths?: Set<string>;
 }
 
 function parseMonth(m: string): [number, number] {
@@ -32,6 +33,7 @@ export default function MonthPicker({
   minMonth,
   maxMonth,
   highlight,
+  markedMonths,
 }: MonthPickerProps) {
   const [y, m] = parseMonth(value);
   const outlined = highlight;
@@ -90,13 +92,16 @@ export default function MonthPicker({
         <ChevronLeft className="w-4 h-4" />
       </button>
       <span
-        className="text-sm font-medium min-w-[140px] text-center px-3 py-1"
+        className="text-sm font-medium min-w-[140px] text-center px-3 py-1 inline-flex items-center justify-center gap-1.5"
         style={{
           color: "var(--text-primary)",
           borderRadius: "16px",
         }}
       >
         {displayMonth(value)}
+        {markedMonths?.has(value) && (
+          <Check className="w-3.5 h-3.5" style={{ color: "var(--success)" }} aria-label="Distributed" />
+        )}
       </span>
       <button
         onClick={next}

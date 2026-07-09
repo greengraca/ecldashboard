@@ -848,3 +848,37 @@ export interface MediaFile {
   createdAt: string;
   updatedAt: string;
 }
+
+// ─── Month Distribution Types ───
+
+export interface MonthDistribution {
+  _id?: ObjectId | string;
+  month: string;            // "YYYY-MM" — unique
+  net_paid: number;         // cumulative € distributed for this month (the snapshot)
+  cedhpt_share: number;     // net_paid / 2, frozen at write time
+  ca_share: number;         // net_paid / 2, frozen at write time
+  note: string | null;
+  distributed_at: string;   // ISO — first distribution
+  updated_at: string;       // ISO — last top-up
+  distributed_by: string;   // userName
+}
+
+export interface DistributionLedgerRow {
+  month: string;
+  net: number;
+  net_paid: number;
+  status: "retained" | "partial" | "distributed" | "over";
+  available: number;        // max(0, net - net_paid) — display only
+  distributed_at: string | null;
+  distributed_by: string | null;
+  note: string | null;
+  cedhpt_share: number;
+  ca_share: number;
+}
+
+export interface DistributionLedger {
+  available_total: number;      // raw Σ (net - net_paid), may be negative
+  undistributed_count: number;  // months with available > epsilon
+  carried_deficit: number;      // Σ over-paid (net_paid - net) across over-distributed months, ≥ 0
+  months: DistributionLedgerRow[]; // newest first
+}

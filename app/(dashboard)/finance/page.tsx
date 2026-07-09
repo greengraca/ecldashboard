@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useTransition } from "react";
 import useSWR, { useSWRConfig } from "swr";
-import { Plus, Receipt, Landmark, Users } from "lucide-react";
+import { Plus, Receipt, Landmark, Users, CheckCircle2, Wallet } from "lucide-react";
 import MonthPicker from "@/components/dashboard/month-picker";
 import PageHeader from "@/components/dashboard/page-header";
 import ContentCard from "@/components/dashboard/content-card";
@@ -18,11 +18,14 @@ import dynamic from "next/dynamic";
 const MonthlyBreakdownChart = dynamic(() => import("@/components/finance/monthly-breakdown-chart"), { ssr: false });
 import SubscriptionIncomeCard from "@/components/finance/SubscriptionIncomeCard";
 import GroupSummaryCard from "@/components/finance/group-summary-card";
+import DistributionPanel from "@/components/finance/distribution-panel";
+import { Sensitive } from "@/components/dashboard/sensitive";
 import type {
   Transaction,
   FixedCost,
   MonthlySummary,
   GroupSummary,
+  DistributionLedger,
   TransactionType,
   TransactionCategory,
 } from "@/lib/types";
@@ -40,6 +43,10 @@ export default function FinancePage() {
   const [editingTx, setEditingTx] = useState<Transaction | undefined>(undefined);
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
   const [deleteFcId, setDeleteFcId] = useState<string | null>(null);
+  const [distributingMonth, setDistributingMonth] = useState<string | null>(null);
+  const [distNote, setDistNote] = useState("");
+  const [undoMonth, setUndoMonth] = useState<string | null>(null);
+  const [busyMonth, setBusyMonth] = useState<string | null>(null);
 
   const {
     data: txData,
@@ -74,24 +81,36 @@ export default function FinancePage() {
     fetcher
   );
 
+  const {
+    data: distData,
+    isLoading: distLoading,
+    mutate: mutateDist,
+  } = useSWR<{ data: DistributionLedger }>("/api/finance/distributions", fetcher);
+
   const transactions = txData?.data || [];
   const summary = summaryData?.data || null;
   const fixedCosts = fcData?.data || [];
   const groupSummary = groupData?.data || null;
   const hasSubscriptionIncome = !!(summary?.subscription_income && summary.subscription_income.total > 0);
+  const ledger = distData?.data ?? null;
+  const markedMonths = new Set(
+    (ledger?.months ?? []).filter((r) => r.status === "distributed").map((r) => r.month)
+  );
+  const selectedRow = ledger?.months.find((r) => r.month === month) ?? null;
 
   const refreshAll = useCallback(() => {
     mutateTx();
     mutateSummary();
     mutateFc();
     mutateGroup();
+    mutateDist();
     // Invalidate multi-month summary used by dashboard home FinanceOverview
     globalMutate(
       (key: string) => typeof key === "string" && key.startsWith("/api/finance/summary?months="),
       undefined,
       { revalidate: true },
     );
-  }, [mutateTx, mutateSummary, mutateFc, mutateGroup, globalMutate]);
+  }, [mutateTx, mutateSummary, mutateFc, mutateGroup, mutateDist, globalMutate]);
 
   function openAdd() {
     setEditingTx(undefined);
@@ -198,6 +217,31 @@ export default function FinancePage() {
     refreshAll();
   }
 
+  async function confirmDistribute() {
+    if (!distributingMonth) return;
+    const m = distributingMonth;
+    setBusyMonth(m);
+    setDistributingMonth(null);
+    await fetch("/api/finance/distributions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ month: m, note: distNote.trim() || null }),
+    });
+    setDistNote("");
+    await mutateDist();
+    setBusyMonth(null);
+  }
+
+  async function confirmUndo() {
+    if (!undoMonth) return;
+    const m = undoMonth;
+    setUndoMonth(null);
+    setBusyMonth(m);
+    await fetch(`/api/finance/distributions/${m}`, { method: "DELETE" });
+    await mutateDist();
+    setBusyMonth(null);
+  }
+
   async function handleReimburse(id: string, source: "transaction" | "fixed_cost", currentlyReimbursed: boolean) {
     await fetch("/api/finance/reimburse", {
       method: "POST",
@@ -222,9 +266,70 @@ export default function FinancePage() {
             onChange={(m) => startTransition(() => setMonth(m))}
             minMonth="2025-11"
             maxMonth={getCurrentMonth()}
+            markedMonths={markedMonths}
           />
         }
       />
+
+      {selectedRow && selectedRow.net > 0 && (
+        <div
+          className="mb-4 rounded-xl px-4 py-3 flex items-center justify-between gap-3"
+          style={{
+            background: "var(--surface-gradient)",
+            backdropFilter: "var(--surface-blur)",
+            border: `1.5px solid ${selectedRow.status === "distributed" ? "var(--success)" : selectedRow.status === "retained" ? "var(--border)" : "var(--warning, #f59e0b)"}`,
+            boxShadow: "var(--surface-shadow)",
+          }}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            {selectedRow.status === "distributed" ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "var(--success)" }} />
+                <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  Distributed {selectedRow.distributed_at?.slice(0, 10)} ·{" "}
+                  <Sensitive placeholder="€•••">{`€${selectedRow.net_paid.toFixed(2)}`}</Sensitive>{" "}
+                  (cedhpt <Sensitive placeholder="€•••">{`€${selectedRow.cedhpt_share.toFixed(2)}`}</Sensitive> / ca{" "}
+                  <Sensitive placeholder="€•••">{`€${selectedRow.ca_share.toFixed(2)}`}</Sensitive>)
+                </span>
+              </>
+            ) : (
+              <>
+                <Wallet className="w-4 h-4 shrink-0" style={{ color: selectedRow.status === "retained" ? "var(--text-muted)" : "var(--warning, #f59e0b)" }} />
+                <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  {selectedRow.status === "over" ? (
+                    <>Over-distributed · paid <Sensitive placeholder="€•••">{`€${selectedRow.net_paid.toFixed(2)}`}</Sensitive>, net now <Sensitive placeholder="€•••">{`€${selectedRow.net.toFixed(2)}`}</Sensitive> — over by <Sensitive placeholder="€•••">{`€${(selectedRow.net_paid - selectedRow.net).toFixed(2)}`}</Sensitive></>
+                  ) : selectedRow.status === "partial" ? (
+                    <>Partially distributed · <Sensitive placeholder="€•••">{`€${selectedRow.available.toFixed(2)}`}</Sensitive> of <Sensitive placeholder="€•••">{`€${selectedRow.net.toFixed(2)}`}</Sensitive> still available</>
+                  ) : (
+                    <>Not distributed · <Sensitive placeholder="€•••">{`€${selectedRow.available.toFixed(2)}`}</Sensitive> available</>
+                  )}
+                </span>
+              </>
+            )}
+          </div>
+          <div className="shrink-0">
+            {busyMonth === selectedRow.month ? (
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>…</span>
+            ) : selectedRow.available > 0.01 ? (
+              <button
+                onClick={() => setDistributingMonth(selectedRow.month)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                style={{ background: "var(--accent-light)", color: "var(--accent)" }}
+              >
+                {selectedRow.status === "partial" ? "Distribute rest" : "Mark distributed"}
+              </button>
+            ) : selectedRow.net_paid > 0 ? (
+              <button
+                onClick={() => setUndoMonth(selectedRow.month)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                style={{ background: "var(--card-inner-bg)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+              >
+                Undo
+              </button>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {/* Status row — 4 KPI cards */}
       <div className="mb-6">
@@ -296,11 +401,20 @@ export default function FinancePage() {
           )}
 
           {activeTab === "team_split" && (
-            <GroupSummaryCard
-              summary={groupSummary}
-              isLoading={groupLoading}
-              onReimburse={handleReimburse}
-            />
+            <>
+              <DistributionPanel
+                ledger={ledger}
+                isLoading={distLoading}
+                busyMonth={busyMonth}
+                onRequestDistribute={(m) => setDistributingMonth(m)}
+                onUndo={(m) => setUndoMonth(m)}
+              />
+              <GroupSummaryCard
+                summary={groupSummary}
+                isLoading={groupLoading}
+                onReimburse={handleReimburse}
+              />
+            </>
           )}
         </div>
       </ContentCard>
@@ -342,6 +456,72 @@ export default function FinancePage() {
         title="Delete Fixed Cost"
         message="Delete this fixed cost? It will be removed from all months and any associated payment records will be cleaned up."
         confirmLabel="Delete"
+        variant="danger"
+      />
+
+      <Modal
+        open={!!distributingMonth}
+        onClose={() => {
+          setDistributingMonth(null);
+          setDistNote("");
+        }}
+        title="Distribute month"
+      >
+        {(() => {
+          const row = ledger?.months.find((r) => r.month === distributingMonth);
+          if (!row) return null;
+          return (
+            <div className="space-y-4">
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                Distribute{" "}
+                <strong style={{ color: "var(--text-primary)" }}>
+                  <Sensitive placeholder="€•••">{`€${row.available.toFixed(2)}`}</Sensitive>
+                </strong>{" "}
+                for {distributingMonth}. This brings total paid to{" "}
+                <Sensitive placeholder="€•••">{`€${row.net.toFixed(2)}`}</Sensitive> — split{" "}
+                <Sensitive placeholder="€•••">{`€${(row.net / 2).toFixed(2)}`}</Sensitive> to each group.
+              </p>
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-muted)" }}>
+                  Note (optional)
+                </label>
+                <textarea
+                  value={distNote}
+                  onChange={(e) => setDistNote(e.target.value)}
+                  rows={2}
+                  className="w-full rounded-lg px-3 py-2 text-sm"
+                  style={{ background: "var(--card-inner-bg)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                  placeholder="e.g. paid via bank transfer"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => { setDistributingMonth(null); setDistNote(""); }}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium"
+                  style={{ background: "var(--card-inner-bg)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDistribute}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium"
+                  style={{ background: "var(--accent)", color: "#fff" }}
+                >
+                  Confirm distribution
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
+      <ConfirmModal
+        open={!!undoMonth}
+        onClose={() => setUndoMonth(null)}
+        onConfirm={confirmUndo}
+        title="Undo distribution"
+        message={undoMonth ? `Undo the distribution record for ${undoMonth}? The month returns to the available balance.` : ""}
+        confirmLabel="Undo"
         variant="danger"
       />
     </div>
