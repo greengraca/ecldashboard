@@ -3,7 +3,7 @@
  * No DB — deterministic assertions over hand-built inputs.
  * Run with: npx tsx scripts/verify-distributions.ts
  */
-import { computeLedger, rowStatus, monthsInclusive, type MonthNetEntry } from "../lib/distributions-math";
+import { computeLedger, rowStatus, monthsInclusive, undistributedMonths, monthsToDistribute, type MonthNetEntry } from "../lib/distributions-math";
 import type { MonthDistribution } from "../lib/types";
 
 let failures = 0;
@@ -56,6 +56,22 @@ const overLedger = computeLedger([
 check("over month status is over", overLedger.months.find((r) => r.month === "2026-02")!.status === "over");
 check("carried_deficit sums only over amount (=30)", approx(overLedger.carried_deficit, 30));
 check("over row available floored to 0", approx(overLedger.months.find((r) => r.month === "2026-02")!.available, 0));
+
+// bulk selection
+const bulkLedger = computeLedger([
+  { month: "2026-04", net: 280, distribution: null },                 // avail 280
+  { month: "2026-05", net: 310, distribution: dist("2026-05", 310) }, // distributed, avail 0
+  { month: "2026-06", net: 310, distribution: dist("2026-06", 280) }, // partial, avail 30
+  { month: "2026-07", net: 420, distribution: null },                 // avail 420
+]);
+check(
+  "undistributedMonths lists only available>0 sorted",
+  JSON.stringify(undistributedMonths(bulkLedger)) === JSON.stringify(["2026-04", "2026-06", "2026-07"])
+);
+const upToJun = monthsToDistribute(bulkLedger, "2026-06");
+check("monthsToDistribute up to Jun picks Apr+Jun", JSON.stringify(upToJun.months) === JSON.stringify(["2026-04", "2026-06"]) && upToJun.count === 2);
+check("monthsToDistribute up to Jun total = 310", approx(upToJun.total, 310));
+check("monthsToDistribute up to Jul total = 730", approx(monthsToDistribute(bulkLedger, "2026-07").total, 730));
 
 // monthsInclusive
 check(

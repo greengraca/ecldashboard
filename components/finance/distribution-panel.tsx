@@ -1,14 +1,18 @@
 "use client";
 
+import { useState, useEffect, useMemo } from "react";
 import { Wallet, AlertTriangle, Loader2 } from "lucide-react";
 import type { DistributionLedger, DistributionLedgerRow } from "@/lib/types";
 import { Sensitive } from "@/components/dashboard/sensitive";
+import { undistributedMonths, monthsToDistribute } from "@/lib/distributions-math";
 
 interface DistributionPanelProps {
   ledger: DistributionLedger | null;
   isLoading: boolean;
   busyMonth: string | null;
+  bulkBusy: boolean;
   onRequestDistribute: (month: string) => void;
+  onBulkDistribute: (upToMonth: string) => void;
   onUndo: (month: string) => void;
 }
 
@@ -37,9 +41,22 @@ export default function DistributionPanel({
   ledger,
   isLoading,
   busyMonth,
+  bulkBusy,
   onRequestDistribute,
+  onBulkDistribute,
   onUndo,
 }: DistributionPanelProps) {
+  const options = useMemo(() => (ledger ? undistributedMonths(ledger) : []), [ledger]);
+  const [cutoff, setCutoff] = useState<string>("");
+
+  // Default (and keep) the cutoff at the latest undistributed month.
+  useEffect(() => {
+    if (options.length === 0) return;
+    if (!options.includes(cutoff)) {
+      setCutoff(options[options.length - 1]);
+    }
+  }, [options, cutoff]);
+
   if (isLoading) {
     return (
       <div
@@ -53,6 +70,7 @@ export default function DistributionPanel({
   if (!ledger) return null;
 
   const total = ledger.available_total;
+  const bulk = cutoff ? monthsToDistribute(ledger, cutoff) : null;
 
   return (
     <div
@@ -84,6 +102,40 @@ export default function DistributionPanel({
           )}
         </div>
       </div>
+
+      {/* Bulk distribute */}
+      {options.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4 pb-4" style={{ borderBottom: "1px solid var(--border)" }}>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <span className="text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>Distribute up to</span>
+            <select
+              value={cutoff}
+              onChange={(e) => setCutoff(e.target.value)}
+              className="text-xs rounded-lg px-2 py-1.5 cursor-pointer"
+              style={{ background: "var(--card-inner-bg)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+            >
+              {options.map((m) => (
+                <option key={m} value={m}>{monthLabel(m)}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={() => bulk && bulk.count > 0 && onBulkDistribute(cutoff)}
+            disabled={bulkBusy || !bulk || bulk.count === 0}
+            className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+            style={{ background: "var(--accent)", color: "#fff" }}
+          >
+            {bulkBusy ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <>
+                <Sensitive placeholder="Distribute €•••">{`Distribute €${(bulk?.total ?? 0).toFixed(2)}`}</Sensitive>
+                {bulk && bulk.count > 1 && <span className="opacity-75">· {bulk.count} months</span>}
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Ledger rows */}
       <div className="space-y-1">

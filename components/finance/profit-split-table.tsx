@@ -6,6 +6,7 @@ import type { MonthlySummary } from "@/lib/types";
 import { Sensitive } from "@/components/dashboard/sensitive";
 import { getCurrentMonth } from "@/lib/utils";
 import { fetcher } from "@/lib/fetcher";
+import DistributionSection from "@/components/finance/distribution-section";
 
 function generateMonthRange(start: string, end: string): string[] {
   const months: string[] = [];
@@ -38,9 +39,9 @@ function euro(value: number, showSign = false): string {
   return `${prefix}\u20AC${Math.abs(value).toFixed(2)}`;
 }
 
-const TABS = ["overview", "breakdown"] as const;
+const TABS = ["overview", "breakdown", "distribution"] as const;
 type Tab = (typeof TABS)[number];
-const TAB_LABELS: Record<Tab, string> = { overview: "Overview", breakdown: "Breakdown" };
+const TAB_LABELS: Record<Tab, string> = { overview: "Overview", breakdown: "Breakdown", distribution: "Distribution" };
 
 /* ─── Overview Tab ─── */
 
@@ -331,8 +332,10 @@ export default function ProfitSplitTable() {
       {/* Tab content */}
       {tab === "overview" ? (
         <OverviewTab totals={totals} />
-      ) : (
+      ) : tab === "breakdown" ? (
         <BreakdownTab summaries={summaries} totals={totals} />
+      ) : (
+        <DistributionSection />
       )}
     </div>
   );

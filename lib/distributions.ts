@@ -5,6 +5,7 @@ import { getCurrentMonth } from "./utils";
 import {
   computeLedger,
   monthsInclusive,
+  monthsToDistribute,
   DISTRIBUTION_EPSILON,
   type MonthNetEntry,
 } from "./distributions-math";
@@ -112,4 +113,58 @@ export async function undoDistribution(
   const existing = await db.collection<MonthDistribution>(COLLECTION).findOne({ month });
   await db.collection(COLLECTION).deleteOne({ month });
   logActivity("delete", "distribution", month, { action: "undo", net_paid: existing?.net_paid ?? 0 }, userId, userName);
+}
+
+/**
+ * Bulk-distribute every undistributed month at or before `upToMonth` in one action.
+ * Snapshots each month's current net into net_paid (creating or topping up), and
+ * logs a single "distribute-bulk" activity entry rather than one per month.
+ */
+export async function distributeThrough(
+  upToMonth: string,
+  note: string | null,
+  userId: string,
+  userName: string
+): Promise<DistributionLedger> {
+  await ensureIndexes();
+  const ledger = await getDistributionLedger();
+  const { months, total } = monthsToDistribute(ledger, upToMonth);
+  if (months.length === 0) {
+    throw new Error("Nothing to distribute in that range");
+  }
+
+  const db = await getDb();
+  const now = new Date().toISOString();
+  for (const month of months) {
+    const row = ledger.months.find((r) => r.month === month)!;
+    const net = row.net;
+    const share = net / 2;
+    await db.collection(COLLECTION).updateOne(
+      { month },
+      {
+        $set: {
+          month,
+          net_paid: net,
+          cedhpt_share: share,
+          ca_share: share,
+          note: note ?? row.note ?? null,
+          distributed_at: row.distributed_at ?? now,
+          updated_at: now,
+          distributed_by: userName,
+        },
+      },
+      { upsert: true }
+    );
+  }
+
+  logActivity(
+    "create",
+    "distribution",
+    upToMonth,
+    { action: "distribute-bulk", months, count: months.length, total },
+    userId,
+    userName
+  );
+
+  return getDistributionLedger();
 }

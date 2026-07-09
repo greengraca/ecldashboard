@@ -53,6 +53,30 @@ export function computeLedger(entries: MonthNetEntry[]): DistributionLedger {
   };
 }
 
+/** Undistributed months (available > epsilon), ascending. */
+export function undistributedMonths(ledger: DistributionLedger): string[] {
+  return ledger.months
+    .filter((r) => r.available > DISTRIBUTION_EPSILON)
+    .map((r) => r.month)
+    .sort();
+}
+
+/**
+ * Selection for a bulk "distribute up to <upToMonth>" action: every undistributed
+ * month at or before the cutoff, plus their combined available total.
+ */
+export function monthsToDistribute(
+  ledger: DistributionLedger,
+  upToMonth: string
+): { months: string[]; total: number; count: number } {
+  const rows = ledger.months.filter(
+    (r) => r.available > DISTRIBUTION_EPSILON && r.month <= upToMonth
+  );
+  const months = rows.map((r) => r.month).sort();
+  const total = rows.reduce((sum, r) => sum + r.available, 0);
+  return { months, total, count: months.length };
+}
+
 /** Inclusive list of "YYYY-MM" from start to end. */
 export function monthsInclusive(start: string, end: string): string[] {
   const idx = (m: string) => {

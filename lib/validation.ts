@@ -67,6 +67,11 @@ export const distributeSchema = z.object({
   note: z.string().max(500).nullable().optional(),
 });
 
+export const bulkDistributeSchema = z.object({
+  upToMonth: z.string().regex(/^\d{4}-\d{2}$/, "Invalid month"),
+  note: z.string().max(500).nullable().optional(),
+});
+
 export const prizeCreateSchema = z.object({
   month: z.string().min(1),
   category: z.enum(["mtg_single", "sponsor", "treasure_pod", "ticket", "ring", "other"]),

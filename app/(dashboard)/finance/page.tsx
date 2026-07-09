@@ -18,7 +18,7 @@ import dynamic from "next/dynamic";
 const MonthlyBreakdownChart = dynamic(() => import("@/components/finance/monthly-breakdown-chart"), { ssr: false });
 import SubscriptionIncomeCard from "@/components/finance/SubscriptionIncomeCard";
 import GroupSummaryCard from "@/components/finance/group-summary-card";
-import DistributionPanel from "@/components/finance/distribution-panel";
+import DistributionSection from "@/components/finance/distribution-section";
 import { Sensitive } from "@/components/dashboard/sensitive";
 import type {
   Transaction,
@@ -43,10 +43,6 @@ export default function FinancePage() {
   const [editingTx, setEditingTx] = useState<Transaction | undefined>(undefined);
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
   const [deleteFcId, setDeleteFcId] = useState<string | null>(null);
-  const [distributingMonth, setDistributingMonth] = useState<string | null>(null);
-  const [distNote, setDistNote] = useState("");
-  const [undoMonth, setUndoMonth] = useState<string | null>(null);
-  const [busyMonth, setBusyMonth] = useState<string | null>(null);
 
   const {
     data: txData,
@@ -83,7 +79,6 @@ export default function FinancePage() {
 
   const {
     data: distData,
-    isLoading: distLoading,
     mutate: mutateDist,
   } = useSWR<{ data: DistributionLedger }>("/api/finance/distributions", fetcher);
 
@@ -217,31 +212,6 @@ export default function FinancePage() {
     refreshAll();
   }
 
-  async function confirmDistribute() {
-    if (!distributingMonth) return;
-    const m = distributingMonth;
-    setBusyMonth(m);
-    setDistributingMonth(null);
-    await fetch("/api/finance/distributions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ month: m, note: distNote.trim() || null }),
-    });
-    setDistNote("");
-    await mutateDist();
-    setBusyMonth(null);
-  }
-
-  async function confirmUndo() {
-    if (!undoMonth) return;
-    const m = undoMonth;
-    setUndoMonth(null);
-    setBusyMonth(m);
-    await fetch(`/api/finance/distributions/${m}`, { method: "DELETE" });
-    await mutateDist();
-    setBusyMonth(null);
-  }
-
   async function handleReimburse(id: string, source: "transaction" | "fixed_cost", currentlyReimbursed: boolean) {
     await fetch("/api/finance/reimburse", {
       method: "POST",
@@ -308,25 +278,13 @@ export default function FinancePage() {
             )}
           </div>
           <div className="shrink-0">
-            {busyMonth === selectedRow.month ? (
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>…</span>
-            ) : selectedRow.available > 0.01 ? (
-              <button
-                onClick={() => setDistributingMonth(selectedRow.month)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium"
-                style={{ background: "var(--accent-light)", color: "var(--accent)" }}
-              >
-                {selectedRow.status === "partial" ? "Distribute rest" : "Mark distributed"}
-              </button>
-            ) : selectedRow.net_paid > 0 ? (
-              <button
-                onClick={() => setUndoMonth(selectedRow.month)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium"
-                style={{ background: "var(--card-inner-bg)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
-              >
-                Undo
-              </button>
-            ) : null}
+            <button
+              onClick={() => setActiveTab("team_split")}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium"
+              style={{ background: "var(--accent-light)", color: "var(--accent)" }}
+            >
+              {selectedRow.available > 0.01 ? "Distribute" : "Manage"}
+            </button>
           </div>
         </div>
       )}
@@ -402,13 +360,7 @@ export default function FinancePage() {
 
           {activeTab === "team_split" && (
             <>
-              <DistributionPanel
-                ledger={ledger}
-                isLoading={distLoading}
-                busyMonth={busyMonth}
-                onRequestDistribute={(m) => setDistributingMonth(m)}
-                onUndo={(m) => setUndoMonth(m)}
-              />
+              <DistributionSection />
               <GroupSummaryCard
                 summary={groupSummary}
                 isLoading={groupLoading}
@@ -456,72 +408,6 @@ export default function FinancePage() {
         title="Delete Fixed Cost"
         message="Delete this fixed cost? It will be removed from all months and any associated payment records will be cleaned up."
         confirmLabel="Delete"
-        variant="danger"
-      />
-
-      <Modal
-        open={!!distributingMonth}
-        onClose={() => {
-          setDistributingMonth(null);
-          setDistNote("");
-        }}
-        title="Distribute month"
-      >
-        {(() => {
-          const row = ledger?.months.find((r) => r.month === distributingMonth);
-          if (!row) return null;
-          return (
-            <div className="space-y-4">
-              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                Distribute{" "}
-                <strong style={{ color: "var(--text-primary)" }}>
-                  <Sensitive placeholder="€•••">{`€${row.available.toFixed(2)}`}</Sensitive>
-                </strong>{" "}
-                for {distributingMonth}. This brings total paid to{" "}
-                <Sensitive placeholder="€•••">{`€${row.net.toFixed(2)}`}</Sensitive> — split{" "}
-                <Sensitive placeholder="€•••">{`€${(row.net / 2).toFixed(2)}`}</Sensitive> to each group.
-              </p>
-              <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-muted)" }}>
-                  Note (optional)
-                </label>
-                <textarea
-                  value={distNote}
-                  onChange={(e) => setDistNote(e.target.value)}
-                  rows={2}
-                  className="w-full rounded-lg px-3 py-2 text-sm"
-                  style={{ background: "var(--card-inner-bg)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
-                  placeholder="e.g. paid via bank transfer"
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => { setDistributingMonth(null); setDistNote(""); }}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium"
-                  style={{ background: "var(--card-inner-bg)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmDistribute}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium"
-                  style={{ background: "var(--accent)", color: "#fff" }}
-                >
-                  Confirm distribution
-                </button>
-              </div>
-            </div>
-          );
-        })()}
-      </Modal>
-
-      <ConfirmModal
-        open={!!undoMonth}
-        onClose={() => setUndoMonth(null)}
-        onConfirm={confirmUndo}
-        title="Undo distribution"
-        message={undoMonth ? `Undo the distribution record for ${undoMonth}? The month returns to the available balance.` : ""}
-        confirmLabel="Undo"
         variant="danger"
       />
     </div>
