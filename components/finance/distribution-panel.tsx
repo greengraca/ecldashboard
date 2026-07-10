@@ -144,8 +144,21 @@ export default function DistributionPanel({
         </div>
       )}
 
-      {/* Completed-month ledger */}
+      {/* Ledger: current in-progress month on top, then completed months newest-first */}
       <div className="space-y-1">
+        {ledger.current_month && (
+          <div className="flex items-center justify-between py-2 px-3 rounded-lg mb-1" style={{ border: "1px dashed var(--border)" }}>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>{monthLabel(ledger.current_month.month)}</span>
+              <span className="text-xs" style={{ color: ledger.current_month.net >= 0 ? "var(--text-muted)" : "var(--error)" }}>
+                <Sensitive placeholder="€•••">{euro(ledger.current_month.net, true)}</Sensitive>
+              </span>
+            </div>
+            <Badge fg="var(--text-muted)" bg="var(--card-inner-bg)">
+              <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" /> In progress</span>
+            </Badge>
+          </div>
+        )}
         {ledger.months.map((row) => {
           const settled = row.status === "distributed" || row.status === "settled" || row.status === "over";
           const busy = busyMonth === row.month;
@@ -180,21 +193,6 @@ export default function DistributionPanel({
             </div>
           );
         })}
-
-        {/* Current in-progress month — surfaced but NOT distributable */}
-        {ledger.current_month && (
-          <div className="flex items-center justify-between py-2 px-3 rounded-lg mt-1" style={{ border: "1px dashed var(--border)" }}>
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>{monthLabel(ledger.current_month.month)}</span>
-              <span className="text-xs" style={{ color: ledger.current_month.net >= 0 ? "var(--text-muted)" : "var(--error)" }}>
-                <Sensitive placeholder="€•••">{euro(ledger.current_month.net, true)}</Sensitive>
-              </span>
-            </div>
-            <Badge fg="var(--text-muted)" bg="var(--card-inner-bg)">
-              <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" /> In progress</span>
-            </Badge>
-          </div>
-        )}
       </div>
     </Surface>
   );
