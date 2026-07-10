@@ -887,6 +887,7 @@ export interface DistributionEvent {
 export interface DistributionLedger {
   available_total: number;      // undistributed balance = Σ (net - net_paid) over COMPLETED months
   undistributed_count: number;  // pending completed months (any residual net)
+  total_distributed: number;    // Σ net_paid over all settled months (net paid out to date)
   carried_deficit: number;      // Σ over-paid (net_paid - net) across over-distributed months, ≥ 0
   distributed_through: string | null;  // watermark: all completed months ≤ this are settled
   current_month: { month: string; net: number } | null;  // in-progress month, NOT distributable

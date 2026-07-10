@@ -121,12 +121,19 @@ export default function FinanceOverview() {
     [distData]
   );
 
-  const { chartData, rollingBalance } = useMemo(() => {
-    if (!summaries.length) return { chartData: [], rollingBalance: 0 };
+  const { chartData, remainingBalance, totalDistributed } = useMemo(() => {
+    if (!summaries.length) return { chartData: [], remainingBalance: 0, totalDistributed: 0 };
 
-    let cumulative = 0;
+    // Apply each payout at its "through" month so the line tracks the UNDISTRIBUTED
+    // balance (rises with profit, drops when a payout settles months).
+    const distByThrough = new Map<string, number>();
+    for (const ev of payoutEvents) distByThrough.set(ev.through, (distByThrough.get(ev.through) ?? 0) + ev.total);
+
+    let cumNet = 0;
+    let cumDist = 0;
     const points: ChartDataPoint[] = summaries.map((s) => {
-      cumulative += s.net;
+      cumNet += s.net;
+      cumDist += distByThrough.get(s.month) ?? 0;
       return {
         month: s.month,
         label: formatMonth(s.month),
@@ -135,12 +142,14 @@ export default function FinanceOverview() {
         fixed_costs: s.fixed_costs,
         total_expenses: s.expenses + s.fixed_costs,
         net: s.net,
-        balance: parseFloat(cumulative.toFixed(2)),
+        balance: parseFloat((cumNet - cumDist).toFixed(2)),
       };
     });
 
-    return { chartData: points, rollingBalance: cumulative };
-  }, [summaries]);
+    const totalDist = payoutEvents.reduce((sum, e) => sum + e.total, 0);
+    const remaining = points.length ? points[points.length - 1].balance : 0;
+    return { chartData: points, remainingBalance: remaining, totalDistributed: totalDist };
+  }, [summaries, payoutEvents]);
 
   const axisStyle = {
     fontSize: 11,
@@ -165,7 +174,7 @@ export default function FinanceOverview() {
             className="p-3 rounded-xl"
             style={{
               background:
-                rollingBalance >= 0
+                remainingBalance >= 0
                   ? "var(--success-light)"
                   : "var(--error-light)",
             }}
@@ -174,7 +183,7 @@ export default function FinanceOverview() {
               className="w-6 h-6"
               style={{
                 color:
-                  rollingBalance >= 0 ? "var(--success)" : "var(--error)",
+                  remainingBalance >= 0 ? "var(--success)" : "var(--error)",
               }}
             />
           </div>
@@ -190,15 +199,20 @@ export default function FinanceOverview() {
               style={{
                 color: isLoading
                   ? "var(--text-muted)"
-                  : rollingBalance >= 0
+                  : remainingBalance >= 0
                     ? "var(--success)"
                     : "var(--error)",
               }}
             >
               {isLoading
                 ? "--"
-                : <Sensitive placeholder="€•••••">{`${rollingBalance >= 0 ? "+" : "-"}\u20AC${Math.abs(rollingBalance).toFixed(2)}`}</Sensitive>}
+                : <Sensitive placeholder="€•••••">{`${remainingBalance >= 0 ? "+" : "-"}\u20AC${Math.abs(remainingBalance).toFixed(2)}`}</Sensitive>}
             </p>
+            {!isLoading && totalDistributed > 0.01 && (
+              <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+                <Sensitive placeholder="€••• distributed">{`€${totalDistributed.toFixed(2)} distributed to date`}</Sensitive>
+              </p>
+            )}
           </div>
         </div>
 

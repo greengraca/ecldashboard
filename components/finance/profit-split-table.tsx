@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import useSWR from "swr";
-import type { MonthlySummary } from "@/lib/types";
+import type { MonthlySummary, DistributionLedger } from "@/lib/types";
 import { Sensitive } from "@/components/dashboard/sensitive";
 import { getCurrentMonth } from "@/lib/utils";
 import { fetcher } from "@/lib/fetcher";
@@ -45,8 +45,9 @@ const TAB_LABELS: Record<Tab, string> = { overview: "Overview", breakdown: "Brea
 
 /* ─── Overview Tab ─── */
 
-function OverviewTab({ totals }: { totals: { net: number; split: number; income: number; expenses: number; months: number } }) {
-  const isPositive = totals.split >= 0;
+function OverviewTab({ totals, distributed }: { totals: { net: number; split: number; income: number; expenses: number; months: number }; distributed: number }) {
+  const isPositive = totals.net >= 0;
+  const remaining = totals.net - distributed;
 
   return (
     <div>
@@ -69,20 +70,19 @@ function OverviewTab({ totals }: { totals: { net: number; split: number; income:
         >
           <Sensitive placeholder="€•••••">{euro(totals.net, true)}</Sensitive>
         </p>
+        {distributed > 0.01 && (
+          <div className="flex items-center justify-center gap-3 mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
+            <span><Sensitive placeholder="€•••">{euro(distributed)}</Sensitive> distributed</span>
+            <span style={{ opacity: 0.4 }}>&middot;</span>
+            <span><Sensitive placeholder="€•••">{euro(remaining)}</Sensitive> undistributed</span>
+          </div>
+        )}
       </div>
 
       {/* Group cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <GroupBalanceCard
-          label="cedhpt"
-          color="#D4A017"
-          split={totals.split}
-        />
-        <GroupBalanceCard
-          label="CommanderArena"
-          color="#34d399"
-          split={totals.split}
-        />
+        <GroupBalanceCard label="cedhpt" color="#D4A017" total={totals.split} distributed={distributed / 2} remaining={remaining / 2} />
+        <GroupBalanceCard label="CommanderArena" color="#34d399" total={totals.split} distributed={distributed / 2} remaining={remaining / 2} />
       </div>
     </div>
   );
@@ -91,13 +91,18 @@ function OverviewTab({ totals }: { totals: { net: number; split: number; income:
 function GroupBalanceCard({
   label,
   color,
-  split,
+  total,
+  distributed,
+  remaining,
 }: {
   label: string;
   color: string;
-  split: number;
+  total: number;
+  distributed: number;
+  remaining: number;
 }) {
-  const isPositive = split >= 0;
+  const isPositive = total >= 0;
+  const pct = total > 0 ? Math.min(100, Math.max(0, (distributed / total) * 100)) : 0;
 
   return (
     <div
@@ -134,15 +139,25 @@ function GroupBalanceCard({
           className="text-2xl font-bold tracking-tight"
           style={{ color: isPositive ? color : "var(--error)" }}
         >
-          <Sensitive placeholder="€•••••">{euro(split, true)}</Sensitive>
+          <Sensitive placeholder="€•••••">{euro(total, true)}</Sensitive>
         </p>
 
-        {/* Progress-style bar */}
-        <div className="mt-3 h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.04)" }}>
+        {distributed > 0.01 ? (
+          <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
+            <span style={{ color: "var(--success)" }}><Sensitive placeholder="€•••">{euro(distributed)}</Sensitive> paid</span>
+            {" · "}
+            <Sensitive placeholder="€•••">{euro(remaining)}</Sensitive> pending
+          </p>
+        ) : (
+          <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>Undistributed</p>
+        )}
+
+        {/* Distributed-of-total progress bar */}
+        <div className="mt-3 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.04)" }}>
           <div
             className="h-full rounded-full transition-all duration-700"
             style={{
-              width: isPositive ? "100%" : "0%",
+              width: `${pct}%`,
               background: `linear-gradient(90deg, ${color}88, ${color})`,
             }}
           />
@@ -259,6 +274,12 @@ export default function ProfitSplitTable() {
 
   const summaries = multiData?.data || [];
 
+  const { data: distData } = useSWR<{ data: DistributionLedger }>(
+    "/api/finance/distributions",
+    fetcher
+  );
+  const distributed = distData?.data?.total_distributed ?? 0;
+
   const totals = useMemo(() => {
     let income = 0,
       expenses = 0,
@@ -331,7 +352,7 @@ export default function ProfitSplitTable() {
 
       {/* Tab content */}
       {tab === "overview" ? (
-        <OverviewTab totals={totals} />
+        <OverviewTab totals={totals} distributed={distributed} />
       ) : tab === "breakdown" ? (
         <BreakdownTab summaries={summaries} totals={totals} />
       ) : (

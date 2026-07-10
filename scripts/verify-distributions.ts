@@ -127,6 +127,13 @@ check("one shared timestamp = one event", distributionEvents(computeLedger([
   { month: "2026-05", net: 310, distribution: distAt("2026-05", 310, "same") },
 ]).months).length === 1);
 
+// total_distributed = Σ net_paid over settled months (net, losses included)
+check("total_distributed nets a settled loss (=250)", approx(computeLedger([
+  { month: "2026-04", net: 280, distribution: dist("2026-04", 280) },
+  { month: "2026-05", net: -30, distribution: dist("2026-05", -30) },
+  { month: "2026-06", net: 200, distribution: null },
+]).total_distributed, 250));
+
 // monthsInclusive
 check(
   "monthsInclusive spans year boundary",

@@ -70,9 +70,13 @@ export function computeLedger(entries: MonthNetEntry[]): DistributionLedger {
   const carriedDeficit = rows
     .filter((r) => r.status === "over")
     .reduce((sum, r) => sum + (r.net_paid - r.net), 0);
+  const totalDistributed = rows
+    .filter((r) => r.status === "distributed" || r.status === "settled" || r.status === "over")
+    .reduce((sum, r) => sum + r.net_paid, 0);
   return {
     available_total: availableTotal,
     undistributed_count: undistributedCount,
+    total_distributed: totalDistributed,
     carried_deficit: carriedDeficit,
     distributed_through: distributedThrough(rows),
     current_month: null,
