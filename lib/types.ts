@@ -876,9 +876,19 @@ export interface DistributionLedgerRow {
   ca_share: number;
 }
 
+export interface DistributionEvent {
+  paid_at: string;   // ISO — the payout timestamp (records sharing it are one event)
+  through: string;   // "YYYY-MM" — the latest month this payout covered
+  from: string;      // "YYYY-MM" — the earliest month in the payout
+  total: number;     // net € paid out in this event (Σ net_paid, losses netted)
+  months: string[];  // months settled by this payout
+}
+
 export interface DistributionLedger {
-  available_total: number;      // raw Σ (net - net_paid), may be negative
-  undistributed_count: number;  // months with available > epsilon
+  available_total: number;      // undistributed balance = Σ (net - net_paid) over COMPLETED months
+  undistributed_count: number;  // pending completed months (any residual net)
   carried_deficit: number;      // Σ over-paid (net_paid - net) across over-distributed months, ≥ 0
-  months: DistributionLedgerRow[]; // newest first
+  distributed_through: string | null;  // watermark: all completed months ≤ this are settled
+  current_month: { month: string; net: number } | null;  // in-progress month, NOT distributable
+  months: DistributionLedgerRow[]; // COMPLETED months only, newest first
 }

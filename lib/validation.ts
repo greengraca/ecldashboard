@@ -62,11 +62,6 @@ export const transactionUpdateSchema = z.object({
   reimbursed_at: z.string().nullable().optional(),
 });
 
-export const distributeSchema = z.object({
-  month: z.string().regex(/^\d{4}-\d{2}$/, "Invalid month"),
-  note: z.string().max(500).nullable().optional(),
-});
-
 export const bulkDistributeSchema = z.object({
   upToMonth: z.string().regex(/^\d{4}-\d{2}$/, "Invalid month"),
   note: z.string().max(500).nullable().optional(),

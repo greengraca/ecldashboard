@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useTransition } from "react";
 import useSWR, { useSWRConfig } from "swr";
-import { Plus, Receipt, Landmark, Users, CheckCircle2, Wallet } from "lucide-react";
+import { Plus, Receipt, Landmark, Users, CheckCircle2, Wallet, Clock } from "lucide-react";
 import MonthPicker from "@/components/dashboard/month-picker";
 import PageHeader from "@/components/dashboard/page-header";
 import ContentCard from "@/components/dashboard/content-card";
@@ -19,8 +19,9 @@ const MonthlyBreakdownChart = dynamic(() => import("@/components/finance/monthly
 import SubscriptionIncomeCard from "@/components/finance/SubscriptionIncomeCard";
 import GroupSummaryCard from "@/components/finance/group-summary-card";
 import DistributionSection from "@/components/finance/distribution-section";
-import { DistributeConfirmModal } from "@/components/finance/distribution-modals";
+import { DistributeThroughModal } from "@/components/finance/distribution-modals";
 import { useDistributions } from "@/components/finance/use-distributions";
+import { monthsToDistribute } from "@/lib/distributions-math";
 import { Sensitive } from "@/components/dashboard/sensitive";
 import type {
   Transaction,
@@ -44,7 +45,7 @@ export default function FinancePage() {
   const [editingTx, setEditingTx] = useState<Transaction | undefined>(undefined);
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
   const [deleteFcId, setDeleteFcId] = useState<string | null>(null);
-  const [distributingMonth, setDistributingMonth] = useState<string | null>(null);
+  const [throughMonth, setThroughMonth] = useState<string | null>(null);
   const [undoMonth, setUndoMonth] = useState<string | null>(null);
   const [distNote, setDistNote] = useState("");
 
@@ -85,8 +86,8 @@ export default function FinancePage() {
     ledger,
     mutate: mutateDist,
     busyMonth,
-    distribute,
-    undo,
+    distributeThrough,
+    undoFrom,
   } = useDistributions();
 
   const transactions = txData?.data || [];
@@ -98,7 +99,11 @@ export default function FinancePage() {
     (ledger?.months ?? []).filter((r) => r.status === "distributed" || r.status === "settled").map((r) => r.month)
   );
   const selectedRow = ledger?.months.find((r) => r.month === month) ?? null;
-  const distributingRow = ledger?.months.find((r) => r.month === distributingMonth) ?? null;
+  const cur = ledger?.current_month ?? null;
+  const isCurrentMonth = cur?.month === month;
+  const throughSel = ledger && selectedRow ? monthsToDistribute(ledger, month) : null;
+  const modalSel = ledger && throughMonth ? monthsToDistribute(ledger, throughMonth) : null;
+  const selBusy = busyMonth === month;
 
   const refreshAll = useCallback(() => {
     mutateTx();
@@ -219,20 +224,20 @@ export default function FinancePage() {
     refreshAll();
   }
 
-  async function confirmDistribute() {
-    if (!distributingMonth) return;
-    const m = distributingMonth;
+  async function confirmThrough() {
+    if (!throughMonth) return;
+    const m = throughMonth;
     const n = distNote.trim() || null;
-    setDistributingMonth(null);
+    setThroughMonth(null);
     setDistNote("");
-    await distribute(m, n);
+    await distributeThrough(m, n);
   }
 
   async function confirmUndo() {
     if (!undoMonth) return;
     const m = undoMonth;
     setUndoMonth(null);
-    await undo(m);
+    await undoFrom(m);
   }
 
   async function handleReimburse(id: string, source: "transaction" | "fixed_cost", currentlyReimbursed: boolean) {
@@ -264,65 +269,73 @@ export default function FinancePage() {
         }
       />
 
-      {selectedRow && selectedRow.net > 0 && (
-        <div
-          className="mb-4 rounded-xl px-4 py-3 flex items-center justify-between gap-3"
-          style={{
-            background: "var(--surface-gradient)",
-            backdropFilter: "var(--surface-blur)",
-            border: `1.5px solid ${selectedRow.status === "distributed" ? "var(--success)" : selectedRow.status === "retained" ? "var(--border)" : "var(--warning, #f59e0b)"}`,
-            boxShadow: "var(--surface-shadow)",
-          }}
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            {selectedRow.status === "distributed" ? (
-              <>
-                <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "var(--success)" }} />
-                <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                  Distributed {selectedRow.distributed_at?.slice(0, 10)} ·{" "}
-                  <Sensitive placeholder="€•••">{`€${selectedRow.net_paid.toFixed(2)}`}</Sensitive>{" "}
-                  (cedhpt <Sensitive placeholder="€•••">{`€${selectedRow.cedhpt_share.toFixed(2)}`}</Sensitive> / ca{" "}
-                  <Sensitive placeholder="€•••">{`€${selectedRow.ca_share.toFixed(2)}`}</Sensitive>)
-                </span>
-              </>
-            ) : (
-              <>
-                <Wallet className="w-4 h-4 shrink-0" style={{ color: selectedRow.status === "retained" ? "var(--text-muted)" : "var(--warning, #f59e0b)" }} />
-                <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                  {selectedRow.status === "over" ? (
-                    <>Over-distributed · paid <Sensitive placeholder="€•••">{`€${selectedRow.net_paid.toFixed(2)}`}</Sensitive>, net now <Sensitive placeholder="€•••">{`€${selectedRow.net.toFixed(2)}`}</Sensitive> — over by <Sensitive placeholder="€•••">{`€${(selectedRow.net_paid - selectedRow.net).toFixed(2)}`}</Sensitive></>
-                  ) : selectedRow.status === "partial" ? (
-                    <>Partially distributed · <Sensitive placeholder="€•••">{`€${selectedRow.available.toFixed(2)}`}</Sensitive> of <Sensitive placeholder="€•••">{`€${selectedRow.net.toFixed(2)}`}</Sensitive> still available</>
-                  ) : (
-                    <>Not distributed · <Sensitive placeholder="€•••">{`€${selectedRow.available.toFixed(2)}`}</Sensitive> available</>
-                  )}
-                </span>
-              </>
-            )}
+      {(isCurrentMonth || selectedRow) && (() => {
+        const isSettled = !!selectedRow && (selectedRow.status === "distributed" || selectedRow.status === "settled" || selectedRow.status === "over");
+        const canDistribute = !!throughSel && throughSel.total > 0.01 && !!selectedRow && (selectedRow.status === "retained" || selectedRow.status === "partial");
+        const borderColor = isSettled ? "var(--success)" : canDistribute ? "var(--accent)" : "var(--border)";
+        return (
+          <div
+            className="mb-4 rounded-xl px-4 py-3 flex items-center justify-between gap-3"
+            style={{ background: "var(--surface-gradient)", backdropFilter: "var(--surface-blur)", border: `1.5px solid ${borderColor}`, boxShadow: "var(--surface-shadow)" }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              {isCurrentMonth ? (
+                <>
+                  <Clock className="w-4 h-4 shrink-0" style={{ color: "var(--text-muted)" }} />
+                  <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                    In progress · <Sensitive placeholder="€•••">{`${(cur?.net ?? 0) >= 0 ? "+" : "−"}€${Math.abs(cur?.net ?? 0).toFixed(2)}`}</Sensitive> — not yet distributable
+                  </span>
+                </>
+              ) : isSettled ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "var(--success)" }} />
+                  <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                    {selectedRow!.status === "settled" ? (
+                      <>Settled · loss <Sensitive placeholder="€•••">{`€${Math.abs(selectedRow!.net).toFixed(2)}`}</Sensitive> absorbed</>
+                    ) : selectedRow!.status === "over" ? (
+                      <>Over-distributed · paid <Sensitive placeholder="€•••">{`€${selectedRow!.net_paid.toFixed(2)}`}</Sensitive>, net <Sensitive placeholder="€•••">{`€${selectedRow!.net.toFixed(2)}`}</Sensitive></>
+                    ) : (
+                      <>Distributed{selectedRow!.distributed_at ? ` ${selectedRow!.distributed_at.slice(0, 10)}` : ""} · <Sensitive placeholder="€•••">{`€${selectedRow!.net_paid.toFixed(2)}`}</Sensitive> (<Sensitive placeholder="€•••">{`€${selectedRow!.cedhpt_share.toFixed(2)}`}</Sensitive> each)</>
+                    )}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Wallet className="w-4 h-4 shrink-0" style={{ color: canDistribute ? "var(--accent)" : "var(--text-muted)" }} />
+                  <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                    {canDistribute ? (
+                      <>Pending · net through here <Sensitive placeholder="€•••">{`€${throughSel!.total.toFixed(2)}`}</Sensitive></>
+                    ) : (
+                      <>Pending · <Sensitive placeholder="€•••">{`${(selectedRow?.net ?? 0) >= 0 ? "+" : "−"}€${Math.abs(selectedRow?.net ?? 0).toFixed(2)}`}</Sensitive> — absorbed when you distribute a later month</>
+                    )}
+                  </span>
+                </>
+              )}
+            </div>
+            <div className="shrink-0">
+              {selBusy ? (
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>…</span>
+              ) : isSettled ? (
+                <button
+                  onClick={() => setUndoMonth(selectedRow!.month)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                  style={{ background: "var(--card-inner-bg)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+                >
+                  Undo
+                </button>
+              ) : canDistribute ? (
+                <button
+                  onClick={() => setThroughMonth(selectedRow!.month)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                  style={{ background: "var(--accent-light)", color: "var(--accent)" }}
+                >
+                  Distribute through here
+                </button>
+              ) : null}
+            </div>
           </div>
-          <div className="shrink-0">
-            {busyMonth === selectedRow.month ? (
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>…</span>
-            ) : selectedRow.available > 0.01 ? (
-              <button
-                onClick={() => setDistributingMonth(selectedRow.month)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium"
-                style={{ background: "var(--accent-light)", color: "var(--accent)" }}
-              >
-                {selectedRow.status === "partial" ? "Distribute rest" : "Mark distributed"}
-              </button>
-            ) : selectedRow.net_paid > 0 ? (
-              <button
-                onClick={() => setUndoMonth(selectedRow.month)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium"
-                style={{ background: "var(--card-inner-bg)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
-              >
-                Undo
-              </button>
-            ) : null}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Status row — 4 KPI cards */}
       <div className="mb-6">
@@ -446,21 +459,22 @@ export default function FinancePage() {
         variant="danger"
       />
 
-      <DistributeConfirmModal
-        row={distributingRow}
+      <DistributeThroughModal
+        upToMonth={throughMonth}
+        sel={modalSel}
         note={distNote}
         setNote={setDistNote}
-        onClose={() => { setDistributingMonth(null); setDistNote(""); }}
-        onConfirm={confirmDistribute}
+        onClose={() => { setThroughMonth(null); setDistNote(""); }}
+        onConfirm={confirmThrough}
       />
 
       <ConfirmModal
         open={!!undoMonth}
         onClose={() => setUndoMonth(null)}
         onConfirm={confirmUndo}
-        title="Undo distribution"
-        message={undoMonth ? `Undo the distribution record for ${undoMonth}? The month returns to the available balance.` : ""}
-        confirmLabel="Undo"
+        title="Roll back distribution"
+        message={undoMonth ? `Roll distributions back to before ${undoMonth}? This un-settles ${undoMonth} and any later month.` : ""}
+        confirmLabel="Roll back"
         variant="danger"
       />
     </div>

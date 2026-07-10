@@ -1,4 +1,4 @@
-import type { MonthDistribution, DistributionLedger, DistributionLedgerRow } from "./types";
+import type { MonthDistribution, DistributionLedger, DistributionLedgerRow, DistributionEvent } from "./types";
 
 export const DISTRIBUTION_EPSILON = 0.01;
 
@@ -37,6 +37,22 @@ export function buildLedgerRow(entry: MonthNetEntry): DistributionLedgerRow {
   };
 }
 
+/**
+ * The distribution watermark: the latest month such that every completed month up
+ * to and including it is settled (distributed or a settled loss). Stops at the first
+ * gap, so it's robust even if records aren't a clean prefix.
+ */
+export function distributedThrough(rows: DistributionLedgerRow[]): string | null {
+  const asc = [...rows].sort((a, b) => a.month.localeCompare(b.month));
+  let through: string | null = null;
+  for (const r of asc) {
+    if (r.status === "distributed" || r.status === "settled") through = r.month;
+    else break;
+  }
+  return through;
+}
+
+/** Build the ledger from COMPLETED months only. current_month is filled in by the caller. */
 export function computeLedger(entries: MonthNetEntry[]): DistributionLedger {
   const rows = entries
     .map(buildLedgerRow)
@@ -45,7 +61,7 @@ export function computeLedger(entries: MonthNetEntry[]): DistributionLedger {
     (sum, e) => sum + (e.net - (e.distribution?.net_paid ?? 0)),
     0
   );
-  // Not-yet-settled months (any residual net, profit OR loss).
+  // Pending (not-yet-settled) months — any residual net, profit OR loss.
   const undistributedCount = rows.filter(
     (r) => Math.abs(r.net - r.net_paid) > DISTRIBUTION_EPSILON
   ).length;
@@ -58,6 +74,8 @@ export function computeLedger(entries: MonthNetEntry[]): DistributionLedger {
     available_total: availableTotal,
     undistributed_count: undistributedCount,
     carried_deficit: carriedDeficit,
+    distributed_through: distributedThrough(rows),
+    current_month: null,
     months: rows,
   };
 }
@@ -86,6 +104,29 @@ export function monthsToDistribute(
   const months = rows.map((r) => r.month).sort();
   const total = rows.reduce((sum, r) => sum + (r.net - r.net_paid), 0);
   return { months, total, count: months.length };
+}
+
+/**
+ * Group settled months into payout EVENTS by their shared `distributed_at`, so a single
+ * "distribute up to [month]" action shows as ONE payout (its net total), not one per month.
+ * Each event reports the total paid and the latest month it covered.
+ */
+export function distributionEvents(rows: DistributionLedgerRow[]): DistributionEvent[] {
+  const byTime = new Map<string, { months: string[]; total: number }>();
+  for (const r of rows) {
+    const settled = r.status === "distributed" || r.status === "settled" || r.status === "over";
+    if (!settled || !r.distributed_at) continue;
+    const g = byTime.get(r.distributed_at) ?? { months: [], total: 0 };
+    g.months.push(r.month);
+    g.total += r.net_paid;
+    byTime.set(r.distributed_at, g);
+  }
+  const events: DistributionEvent[] = [];
+  for (const [paid_at, g] of byTime) {
+    const sorted = [...g.months].sort();
+    events.push({ paid_at, through: sorted[sorted.length - 1], from: sorted[0], total: g.total, months: sorted });
+  }
+  return events.sort((a, b) => a.through.localeCompare(b.through));
 }
 
 /** Inclusive list of "YYYY-MM" from start to end. */

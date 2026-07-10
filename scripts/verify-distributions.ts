@@ -3,7 +3,7 @@
  * No DB — deterministic assertions over hand-built inputs.
  * Run with: npx tsx scripts/verify-distributions.ts
  */
-import { computeLedger, rowStatus, monthsInclusive, undistributedMonths, monthsToDistribute, type MonthNetEntry } from "../lib/distributions-math";
+import { computeLedger, rowStatus, monthsInclusive, undistributedMonths, monthsToDistribute, distributedThrough, distributionEvents, type MonthNetEntry } from "../lib/distributions-math";
 import type { MonthDistribution } from "../lib/types";
 
 let failures = 0;
@@ -19,6 +19,9 @@ function dist(month: string, net_paid: number): MonthDistribution {
     note: null, distributed_at: "2026-07-01T00:00:00.000Z",
     updated_at: "2026-07-01T00:00:00.000Z", distributed_by: "test",
   };
+}
+function distAt(month: string, net_paid: number, at: string): MonthDistribution {
+  return { ...dist(month, net_paid), distributed_at: at };
 }
 
 // rowStatus (net, netPaid, hasRecord)
@@ -91,6 +94,38 @@ const settledLoss = computeLedger([{ month: "2026-04", net: -50, distribution: d
 check("settled loss row status = settled", settledLoss.months[0].status === "settled");
 check("settled loss available floored to 0", approx(settledLoss.months[0].available, 0));
 check("settled loss not counted as undistributed", settledLoss.undistributed_count === 0);
+
+// watermark (distributed_through) — the contiguous settled prefix
+check("watermark = its month for a settled loss", settledLoss.distributed_through === "2026-04");
+check("watermark null when nothing settled", lossLedger.distributed_through === null);
+const prefixLedger = computeLedger([
+  { month: "2026-01", net: 100, distribution: dist("2026-01", 100) },  // distributed
+  { month: "2026-02", net: -30, distribution: dist("2026-02", -30) },  // settled loss
+  { month: "2026-03", net: 200, distribution: null },                  // pending
+]);
+check("watermark = contiguous prefix (2026-02)", prefixLedger.distributed_through === "2026-02");
+check("watermark stops at first gap", computeLedger([
+  { month: "2026-01", net: 100, distribution: null },                  // pending (gap at start)
+  { month: "2026-02", net: 50, distribution: dist("2026-02", 50) },    // distributed
+]).distributed_through === null);
+check("distributedThrough([]) is null", distributedThrough([]) === null);
+
+// payout events — grouped by distributed_at, ONE event per payout action
+const eventLedger = computeLedger([
+  { month: "2026-04", net: 280, distribution: distAt("2026-04", 280, "t1") },
+  { month: "2026-05", net: -30, distribution: distAt("2026-05", -30, "t1") },
+  { month: "2026-06", net: 200, distribution: distAt("2026-06", 200, "t2") },
+]);
+const evs = distributionEvents(eventLedger.months);
+check("two payout events grouped by paid_at", evs.length === 2);
+const e1 = evs.find((e) => e.paid_at === "t1")!;
+check("event t1 nets 250 through May (loss netted)", approx(e1.total, 250) && e1.through === "2026-05" && e1.from === "2026-04");
+const e2 = evs.find((e) => e.paid_at === "t2")!;
+check("event t2 = 200 through Jun", approx(e2.total, 200) && e2.through === "2026-06");
+check("one shared timestamp = one event", distributionEvents(computeLedger([
+  { month: "2026-04", net: 280, distribution: distAt("2026-04", 280, "same") },
+  { month: "2026-05", net: 310, distribution: distAt("2026-05", 310, "same") },
+]).months).length === 1);
 
 // monthsInclusive
 check(

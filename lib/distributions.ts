@@ -1,7 +1,7 @@
 import { getDb } from "./mongodb";
-import { getMonthlySummary, getMultiMonthSummary } from "./finance";
+import { getMultiMonthSummary } from "./finance";
 import { logActivity } from "./activity";
-import { getCurrentMonth } from "./utils";
+import { getCurrentMonth, getPreviousMonth } from "./utils";
 import {
   computeLedger,
   monthsInclusive,
@@ -9,11 +9,7 @@ import {
   DISTRIBUTION_EPSILON,
   type MonthNetEntry,
 } from "./distributions-math";
-import type {
-  MonthDistribution,
-  DistributionLedger,
-  DistributionLedgerRow,
-} from "./types";
+import type { MonthDistribution, DistributionLedger } from "./types";
 
 const DISTRIBUTION_START_MONTH = "2025-11";
 const COLLECTION = "dashboard_month_distributions";
@@ -30,95 +26,42 @@ async function ensureIndexes() {
   }
 }
 
+/**
+ * The distributable pool is COMPLETED months only (Nov 2025 .. last month). The
+ * current in-progress month is surfaced separately as `current_month` and is NOT part
+ * of the balance, count, or any distribute action.
+ */
 export async function getDistributionLedger(): Promise<DistributionLedger> {
   await ensureIndexes();
   const db = await getDb();
-  const months = monthsInclusive(DISTRIBUTION_START_MONTH, getCurrentMonth());
+  const current = getCurrentMonth();
+  const lastCompleted = getPreviousMonth(current);
+  const completedMonths = monthsInclusive(DISTRIBUTION_START_MONTH, lastCompleted);
+  const allMonths = [...completedMonths, current];
+
   const [summaries, distributions] = await Promise.all([
-    getMultiMonthSummary(months),
+    getMultiMonthSummary(allMonths),
     db.collection<MonthDistribution>(COLLECTION).find({}).toArray(),
   ]);
+  const netByMonth = new Map(summaries.map((s) => [s.month, s.net]));
   const distByMonth = new Map(distributions.map((d) => [d.month, d]));
-  const entries: MonthNetEntry[] = summaries.map((s) => ({
-    month: s.month,
-    net: s.net,
-    distribution: distByMonth.get(s.month) ?? null,
+
+  const entries: MonthNetEntry[] = completedMonths.map((m) => ({
+    month: m,
+    net: netByMonth.get(m) ?? 0,
+    distribution: distByMonth.get(m) ?? null,
   }));
-  return computeLedger(entries);
-}
 
-export async function distributeMonth(
-  month: string,
-  note: string | null,
-  userId: string,
-  userName: string
-): Promise<DistributionLedgerRow> {
-  await ensureIndexes();
-  const db = await getDb();
-
-  const summary = await getMonthlySummary(month);
-  const net = summary.net;
-
-  const existing = await db.collection<MonthDistribution>(COLLECTION).findOne({ month });
-  const priorPaid = existing?.net_paid ?? 0;
-  if (net - priorPaid <= DISTRIBUTION_EPSILON) {
-    throw new Error("Nothing to distribute for this month");
-  }
-
-  const now = new Date().toISOString();
-  const share = net / 2;
-  const doc: Omit<MonthDistribution, "_id"> = {
-    month,
-    net_paid: net,
-    cedhpt_share: share,
-    ca_share: share,
-    note: note ?? existing?.note ?? null,
-    distributed_at: existing?.distributed_at ?? now,
-    updated_at: now,
-    distributed_by: userName,
-  };
-
-  await db.collection(COLLECTION).updateOne({ month }, { $set: doc }, { upsert: true });
-
-  logActivity(
-    existing ? "update" : "create",
-    "distribution",
-    month,
-    { action: existing ? "top-up" : "distribute", net_paid: net, added: net - priorPaid },
-    userId,
-    userName
-  );
-
-  return {
-    month,
-    net,
-    net_paid: net,
-    status: "distributed",
-    available: 0,
-    distributed_at: doc.distributed_at,
-    distributed_by: userName,
-    note: doc.note,
-    cedhpt_share: share,
-    ca_share: share,
-  };
-}
-
-export async function undoDistribution(
-  month: string,
-  userId: string,
-  userName: string
-): Promise<void> {
-  await ensureIndexes();
-  const db = await getDb();
-  const existing = await db.collection<MonthDistribution>(COLLECTION).findOne({ month });
-  await db.collection(COLLECTION).deleteOne({ month });
-  logActivity("delete", "distribution", month, { action: "undo", net_paid: existing?.net_paid ?? 0 }, userId, userName);
+  const ledger = computeLedger(entries);
+  ledger.current_month = { month: current, net: netByMonth.get(current) ?? 0 };
+  return ledger;
 }
 
 /**
- * Bulk-distribute every undistributed month at or before `upToMonth` in one action.
- * Snapshots each month's current net into net_paid (creating or topping up), and
- * logs a single "distribute-bulk" activity entry rather than one per month.
+ * Distribute the true NET of every not-yet-settled COMPLETED month up to `upToMonth`,
+ * in one cumulative action — profits and losses net together. Settles each month
+ * (net_paid = net) so the settled range stays a contiguous prefix and losses can never
+ * strand.
  */
 export async function distributeThrough(
   upToMonth: string,
@@ -127,6 +70,10 @@ export async function distributeThrough(
   userName: string
 ): Promise<DistributionLedger> {
   await ensureIndexes();
+  if (upToMonth >= getCurrentMonth()) {
+    throw new Error("The current month is still in progress — distribute completed months only");
+  }
+
   const ledger = await getDistributionLedger();
   const { months, total } = monthsToDistribute(ledger, upToMonth);
   if (months.length === 0 || total <= DISTRIBUTION_EPSILON) {
@@ -161,10 +108,37 @@ export async function distributeThrough(
     "create",
     "distribution",
     upToMonth,
-    { action: "distribute-bulk", months, count: months.length, total },
+    { action: "distribute-through", months, count: months.length, total },
     userId,
     userName
   );
 
+  return getDistributionLedger();
+}
+
+/**
+ * Roll the distribution watermark back to before `month`: un-settle `month` and every
+ * later month, keeping the settled range a contiguous prefix.
+ */
+export async function undoFrom(
+  month: string,
+  userId: string,
+  userName: string
+): Promise<DistributionLedger> {
+  await ensureIndexes();
+  const db = await getDb();
+  const removed = await db
+    .collection<MonthDistribution>(COLLECTION)
+    .find({ month: { $gte: month } })
+    .toArray();
+  await db.collection(COLLECTION).deleteMany({ month: { $gte: month } });
+  logActivity(
+    "delete",
+    "distribution",
+    month,
+    { action: "undo-from", months: removed.map((r) => r.month), count: removed.length },
+    userId,
+    userName
+  );
   return getDistributionLedger();
 }

@@ -4,48 +4,41 @@ import { useState } from "react";
 import ConfirmModal from "@/components/dashboard/confirm-modal";
 import { monthsToDistribute } from "@/lib/distributions-math";
 import DistributionPanel from "./distribution-panel";
-import { DistributeConfirmModal, BulkDistributeConfirmModal } from "./distribution-modals";
+import { DistributeThroughModal } from "./distribution-modals";
 import { useDistributions } from "./use-distributions";
 
+function monthLabel(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(y, m - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+}
+
 /**
- * Self-contained distribution controls: the ledger panel plus single-month,
- * bulk ("distribute up to"), and undo flows with their confirm dialogs.
- * Drop it anywhere (home card, Finance tab); it owns its own SWR.
+ * Self-contained distribution controls: the balance panel plus the cumulative
+ * distribute-through and roll-back flows. Drop it anywhere (home card, Finance tab).
  */
 export default function DistributionSection() {
-  const { ledger, isLoading, busyMonth, bulkBusy, distribute, bulkDistribute, undo } = useDistributions();
+  const { ledger, isLoading, busyMonth, distributeThrough, undoFrom } = useDistributions();
 
-  const [distributingMonth, setDistributingMonth] = useState<string | null>(null);
-  const [bulkUpTo, setBulkUpTo] = useState<string | null>(null);
+  const [throughMonth, setThroughMonth] = useState<string | null>(null);
   const [undoMonth, setUndoMonth] = useState<string | null>(null);
   const [note, setNote] = useState("");
 
-  const singleRow = ledger?.months.find((r) => r.month === distributingMonth) ?? null;
-  const bulkSel = ledger && bulkUpTo ? monthsToDistribute(ledger, bulkUpTo) : null;
+  const sel = ledger && throughMonth ? monthsToDistribute(ledger, throughMonth) : null;
 
-  async function confirmSingle() {
-    if (!distributingMonth) return;
-    const m = distributingMonth;
+  async function confirmThrough() {
+    if (!throughMonth) return;
+    const m = throughMonth;
     const n = note.trim() || null;
-    setDistributingMonth(null);
+    setThroughMonth(null);
     setNote("");
-    await distribute(m, n);
-  }
-
-  async function confirmBulk() {
-    if (!bulkUpTo) return;
-    const upTo = bulkUpTo;
-    const n = note.trim() || null;
-    setBulkUpTo(null);
-    setNote("");
-    await bulkDistribute(upTo, n);
+    await distributeThrough(m, n);
   }
 
   async function confirmUndo() {
     if (!undoMonth) return;
     const m = undoMonth;
     setUndoMonth(null);
-    await undo(m);
+    await undoFrom(m);
   }
 
   return (
@@ -54,36 +47,26 @@ export default function DistributionSection() {
         ledger={ledger}
         isLoading={isLoading}
         busyMonth={busyMonth}
-        bulkBusy={bulkBusy}
-        onRequestDistribute={(m) => setDistributingMonth(m)}
-        onBulkDistribute={(upTo) => setBulkUpTo(upTo)}
-        onUndo={(m) => setUndoMonth(m)}
+        onDistributeThrough={(m) => setThroughMonth(m)}
+        onUndoFrom={(m) => setUndoMonth(m)}
       />
 
-      <DistributeConfirmModal
-        row={singleRow}
+      <DistributeThroughModal
+        upToMonth={throughMonth}
+        sel={sel}
         note={note}
         setNote={setNote}
-        onClose={() => { setDistributingMonth(null); setNote(""); }}
-        onConfirm={confirmSingle}
-      />
-
-      <BulkDistributeConfirmModal
-        upToMonth={bulkUpTo}
-        sel={bulkSel}
-        note={note}
-        setNote={setNote}
-        onClose={() => { setBulkUpTo(null); setNote(""); }}
-        onConfirm={confirmBulk}
+        onClose={() => { setThroughMonth(null); setNote(""); }}
+        onConfirm={confirmThrough}
       />
 
       <ConfirmModal
         open={!!undoMonth}
         onClose={() => setUndoMonth(null)}
         onConfirm={confirmUndo}
-        title="Undo distribution"
-        message={undoMonth ? `Undo the distribution record for ${undoMonth}? The month returns to the available balance.` : ""}
-        confirmLabel="Undo"
+        title="Roll back distribution"
+        message={undoMonth ? `Roll distributions back to before ${monthLabel(undoMonth)}? This un-settles ${monthLabel(undoMonth)} and any later month.` : ""}
+        confirmLabel="Roll back"
         variant="danger"
       />
     </>

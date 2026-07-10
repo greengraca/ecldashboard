@@ -15,8 +15,10 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  ReferenceLine,
 } from "recharts";
-import type { MonthlySummary } from "@/lib/types";
+import type { MonthlySummary, DistributionLedger } from "@/lib/types";
+import { distributionEvents } from "@/lib/distributions-math";
 import { Sensitive, SensitiveBlock } from "@/components/dashboard/sensitive";
 import { useSensitiveData } from "@/contexts/SensitiveDataContext";
 import { fetcher } from "@/lib/fetcher";
@@ -108,6 +110,16 @@ export default function FinanceOverview() {
   );
 
   const summaries = multiData?.data || [];
+
+  const { data: distData } = useSWR<{ data: DistributionLedger }>(
+    "/api/finance/distributions",
+    fetcher
+  );
+  // One marker per payout ACTION (records sharing a timestamp), not per month.
+  const payoutEvents = useMemo(
+    () => distributionEvents(distData?.data?.months ?? []),
+    [distData]
+  );
 
   const { chartData, rollingBalance } = useMemo(() => {
     if (!summaries.length) return { chartData: [], rollingBalance: 0 };
@@ -291,6 +303,16 @@ export default function FinanceOverview() {
                     strokeWidth: 2,
                   }}
                 />
+                {payoutEvents.map((ev) => (
+                  <ReferenceLine
+                    key={ev.paid_at}
+                    x={formatMonth(ev.through)}
+                    stroke="var(--accent)"
+                    strokeDasharray="4 3"
+                    strokeOpacity={0.85}
+                    label={{ value: `€${ev.total.toFixed(2)} ▸ ${formatMonth(ev.through)}`, position: "top", fill: "var(--accent)", fontSize: 10, fontWeight: 600 }}
+                  />
+                ))}
               </AreaChart>
             ) : (
               <BarChart data={chartData} barGap={2} margin={{ left: -15, right: 5, top: 5, bottom: 0 }}>
@@ -337,6 +359,16 @@ export default function FinanceOverview() {
                     strokeWidth: 2,
                   }}
                 />
+                {payoutEvents.map((ev) => (
+                  <ReferenceLine
+                    key={ev.paid_at}
+                    x={formatMonth(ev.through)}
+                    stroke="var(--accent)"
+                    strokeDasharray="4 3"
+                    strokeOpacity={0.85}
+                    label={{ value: `€${ev.total.toFixed(2)} ▸ ${formatMonth(ev.through)}`, position: "top", fill: "var(--accent)", fontSize: 10, fontWeight: 600 }}
+                  />
+                ))}
               </BarChart>
             )}
           </ResponsiveContainer>
