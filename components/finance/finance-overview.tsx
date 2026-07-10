@@ -124,16 +124,19 @@ export default function FinanceOverview() {
   const { chartData, remainingBalance, totalDistributed } = useMemo(() => {
     if (!summaries.length) return { chartData: [], remainingBalance: 0, totalDistributed: 0 };
 
-    // Apply each payout at its "through" month so the line tracks the UNDISTRIBUTED
-    // balance (rises with profit, drops when a payout settles months).
-    const distByThrough = new Map<string, number>();
-    for (const ev of payoutEvents) distByThrough.set(ev.through, (distByThrough.get(ev.through) ?? 0) + ev.total);
+    // Apply each payout in the month it was actually PAID (not the month it covered),
+    // so the balance line keeps climbing until the money genuinely leaves the account.
+    const distByPaidMonth = new Map<string, number>();
+    for (const ev of payoutEvents) {
+      const paidMonth = ev.paid_at.slice(0, 7);
+      distByPaidMonth.set(paidMonth, (distByPaidMonth.get(paidMonth) ?? 0) + ev.total);
+    }
 
     let cumNet = 0;
     let cumDist = 0;
     const points: ChartDataPoint[] = summaries.map((s) => {
       cumNet += s.net;
-      cumDist += distByThrough.get(s.month) ?? 0;
+      cumDist += distByPaidMonth.get(s.month) ?? 0;
       return {
         month: s.month,
         label: formatMonth(s.month),
@@ -320,7 +323,7 @@ export default function FinanceOverview() {
                 {payoutEvents.map((ev) => (
                   <ReferenceLine
                     key={ev.paid_at}
-                    x={formatMonth(ev.through)}
+                    x={formatMonth(ev.paid_at.slice(0, 7))}
                     stroke="var(--accent)"
                     strokeDasharray="4 3"
                     strokeOpacity={0.85}
@@ -376,7 +379,7 @@ export default function FinanceOverview() {
                 {payoutEvents.map((ev) => (
                   <ReferenceLine
                     key={ev.paid_at}
-                    x={formatMonth(ev.through)}
+                    x={formatMonth(ev.paid_at.slice(0, 7))}
                     stroke="var(--accent)"
                     strokeDasharray="4 3"
                     strokeOpacity={0.85}
