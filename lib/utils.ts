@@ -27,13 +27,18 @@ export function getCurrentMonth(): string {
 }
 
 /**
+ * TopDeck timestamps above this are milliseconds — a seconds value this large
+ * would be year ~2286+. Mirrors eclBot's `MS_THRESHOLD`.
+ */
+export const TOPDECK_MS_THRESHOLD = 1e10;
+
+/**
  * Normalize a TopDeck match timestamp (Start/End) to milliseconds.
- * TopDeck stores these as either unix seconds or milliseconds — values above
- * 1e10 are milliseconds (a seconds value that large would be year ~2286+).
+ * TopDeck stores these as either unix seconds or milliseconds.
  * Mirrors eclBot's `normalize_ts` so day-bucketing matches the bot.
  */
 export function topdeckTsToMs(raw: number): number {
-  return raw > 1e10 ? raw : raw * 1000;
+  return raw > TOPDECK_MS_THRESHOLD ? raw : raw * 1000;
 }
 
 export function getNextMonth(): string {

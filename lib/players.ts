@@ -20,7 +20,7 @@ import type {
   Standing,
   SubscriptionSource,
 } from "./types";
-import { getCurrentMonth } from "./utils";
+import { getCurrentMonth, TOPDECK_MS_THRESHOLD } from "./utils";
 
 // ─── Helpers ───
 
@@ -530,15 +530,23 @@ async function getRecentGameUidsForMonth(
   const db = await getDb();
   const cutoffTs = new Date(Date.UTC(year, month - 1, TOP16_RECENCY_AFTER_DAY)).getTime() / 1000;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const matchFilter: Record<string, any> = {
-    bracket_id: bracketId, year, month, start_ts: { $gte: cutoffTs },
-  };
+  const matchFilter: Record<string, any> = { bracket_id: bracketId, year, month };
   if (onlineOnly) matchFilter.online = true;
   if (voidedMatchIds.length > 0) {
     matchFilter.$nor = voidedMatchIds.map((v) => ({ season: v.season, tid: v.table }));
   }
+  // start_ts is normalized in-pipeline, not matched directly: rows written by the
+  // bot's timer path before the unit fix may still hold raw milliseconds, and a
+  // ms value (~1.78e12) is greater than any seconds cutoff (~1.78e9) — which would
+  // pass every player in that pod through the "game after day N" recency check.
   const pipeline = [
     { $match: matchFilter },
+    { $addFields: { _tsNorm: { $cond: [
+      { $gt: ["$start_ts", TOPDECK_MS_THRESHOLD] },
+      { $divide: ["$start_ts", 1000] },
+      "$start_ts",
+    ] } } },
+    { $match: { _tsNorm: { $gte: cutoffTs } } },
     { $unwind: "$topdeck_uids" },
     { $group: { _id: "$topdeck_uids" } },
   ];
