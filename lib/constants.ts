@@ -1,11 +1,28 @@
-function parseStringSet(csv: string | undefined): Set<string> {
+/**
+ * Parse a comma-separated list of numeric Discord snowflakes.
+ *
+ * Anything non-numeric is dropped. That used to happen in total silence, which
+ * is dangerous for an allowlist: one stray quote or an `@` prefix shrinks the
+ * set, and a wholly malformed value yields an empty one. Callers that gate
+ * access on the result must treat "empty" as a misconfiguration, not as
+ * "no restrictions" — see the signIn callback in lib/auth.ts.
+ */
+function parseStringSet(csv: string | undefined, name?: string): Set<string> {
   if (!csv) return new Set();
   const out = new Set<string>();
+  const dropped: string[] = [];
   for (const part of csv.split(",")) {
     const trimmed = part.trim();
-    if (trimmed && /^\d+$/.test(trimmed)) {
-      out.add(trimmed);
-    }
+    if (!trimmed) continue;
+    if (/^\d+$/.test(trimmed)) out.add(trimmed);
+    else dropped.push(trimmed);
+  }
+  if (dropped.length > 0) {
+    console.warn(
+      `[constants] ${name ?? "id list"}: ignored ${dropped.length} non-numeric ` +
+      `entr${dropped.length === 1 ? "y" : "ies"} (${dropped.slice(0, 3).join(", ")}` +
+      `${dropped.length > 3 ? ", ..." : ""}). Expected comma-separated Discord IDs.`
+    );
   }
   return out;
 }
@@ -13,18 +30,43 @@ function parseStringSet(csv: string | undefined): Set<string> {
 export const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID || "";
 export const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || "";
 
-export const PATREON_ROLE_IDS = parseStringSet(process.env.PATREON_ROLE_IDS);
-export const KOFI_ROLE_IDS = parseStringSet(process.env.KOFI_ROLE_IDS);
-export const FREE_ENTRY_ROLE_IDS = parseStringSet(process.env.FREE_ENTRY_ROLE_IDS);
-export const JUDGE_ROLE_IDS = parseStringSet(process.env.JUDGE_ROLE_IDS);
-export const ECL_MOD_ROLE_IDS = parseStringSet(process.env.ECL_MOD_ROLE_IDS);
-export const ARENA_VANGUARD_ROLE_IDS = parseStringSet(process.env.ARENA_VANGUARD_ROLE_IDS);
+export const PATREON_ROLE_IDS = parseStringSet(process.env.PATREON_ROLE_IDS, "PATREON_ROLE_IDS");
+export const KOFI_ROLE_IDS = parseStringSet(process.env.KOFI_ROLE_IDS, "KOFI_ROLE_IDS");
+export const FREE_ENTRY_ROLE_IDS = parseStringSet(process.env.FREE_ENTRY_ROLE_IDS, "FREE_ENTRY_ROLE_IDS");
+export const JUDGE_ROLE_IDS = parseStringSet(process.env.JUDGE_ROLE_IDS, "JUDGE_ROLE_IDS");
+export const ECL_MOD_ROLE_IDS = parseStringSet(process.env.ECL_MOD_ROLE_IDS, "ECL_MOD_ROLE_IDS");
+export const ARENA_VANGUARD_ROLE_IDS = parseStringSet(process.env.ARENA_VANGUARD_ROLE_IDS, "ARENA_VANGUARD_ROLE_IDS");
 
 export const TOPDECK_BRACKET_ID = process.env.TOPDECK_BRACKET_ID || "";
 
 export const ALLOWED_DISCORD_IDS = parseStringSet(
-  process.env.DASHBOARD_ALLOWED_DISCORD_IDS
+  process.env.DASHBOARD_ALLOWED_DISCORD_IDS,
+  "DASHBOARD_ALLOWED_DISCORD_IDS"
 );
+
+/**
+ * Whether a Discord ID may sign in. **Fail-closed by design.**
+ *
+ * An empty allowlist means DASHBOARD_ALLOWED_DISCORD_IDS is missing or holds no
+ * valid IDs (parseStringSet drops non-numeric entries), and this dashboard holds
+ * finances, subscriber PII and player addresses. This used to return `true` on an
+ * empty set, so losing one env var would have opened it to any Discord account.
+ * Do not "restore" that: covered by scripts/verify-auth-allowlist.ts.
+ */
+export function isAllowedDiscordId(
+  id: string | null | undefined,
+  allowlist: Set<string> = ALLOWED_DISCORD_IDS
+): boolean {
+  if (!id) return false;
+  if (allowlist.size === 0) {
+    console.error(
+      "[auth] Sign-in denied: DASHBOARD_ALLOWED_DISCORD_IDS is empty or contains " +
+      "no valid Discord IDs. Set it to a comma-separated list of numeric IDs."
+    );
+    return false;
+  }
+  return allowlist.has(id);
+}
 
 export const ALL_SUB_ROLE_IDS = new Set([
   ...PATREON_ROLE_IDS,

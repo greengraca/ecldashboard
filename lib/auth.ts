@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import type { Session } from "next-auth";
 import Discord from "next-auth/providers/discord";
-import { ALLOWED_DISCORD_IDS } from "./constants";
+import { isAllowedDiscordId } from "./constants";
 
 declare module "next-auth" {
   interface User {
@@ -29,9 +29,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async signIn({ account }) {
-      if (!account?.providerAccountId) return false;
-      if (ALLOWED_DISCORD_IDS.size === 0) return true;
-      return ALLOWED_DISCORD_IDS.has(account.providerAccountId);
+      // Fail-closed allowlist — see isAllowedDiscordId in lib/constants.ts.
+      return isAllowedDiscordId(account?.providerAccountId);
     },
     async jwt({ token, account, profile }) {
       if (account && profile) {

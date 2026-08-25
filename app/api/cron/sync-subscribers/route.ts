@@ -4,8 +4,15 @@ import { detectSubscriberChanges, syncKofiSnapshot } from "@/lib/subscribers";
 import { getCurrentMonth } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Fail closed: an unset CRON_SECRET would otherwise interpolate to the
+  // literal "Bearer undefined" and authenticate anyone who sends it. This
+  // route is on proxy.ts's public list, so it is reachable unauthenticated.
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    console.error("[cron] Refusing to run: CRON_SECRET is not configured.");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
