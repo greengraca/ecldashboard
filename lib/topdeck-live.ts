@@ -6,6 +6,7 @@
 
 import { TOPDECK_BRACKET_ID, FIRESTORE_DOC_URL_TEMPLATE, WAGER_RATE } from "./constants";
 import { fetchPublicPData } from "./topdeck-cache";
+import type { RecencyGame } from "./top16-eligibility";
 
 // ─── Types ───
 
@@ -433,6 +434,16 @@ export async function fetchLiveStandings(bracketId?: string): Promise<LiveStandi
   cachedResults.set(bid, { result, expires: Date.now() + CACHE_TTL_MS });
 
   return result;
+}
+
+/**
+ * The pods that count toward standings, shaped for the Top 16 recency check.
+ * Voided and in-progress pods are dropped — they don't count as having played.
+ */
+export function countedGamesForRecency(pods: GamePod[]): RecencyGame[] {
+  return pods
+    .filter((p) => p.status === "completed" || p.status === "draw")
+    .map((p) => ({ uids: p.players.map((pl) => pl.uid), start: p.startTime }));
 }
 
 /** Clear the in-memory cache for all brackets (e.g. after a manual refresh). */

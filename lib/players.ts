@@ -6,13 +6,14 @@ import {
 } from "./topdeck";
 import type { MonthDumpPayload, EntrantStats } from "./topdeck";
 import { fetchPublicPData } from "./topdeck-cache";
-import { fetchLiveStandings } from "./topdeck-live";
+import { fetchLiveStandings, countedGamesForRecency } from "./topdeck-live";
 import { fetchGuildMembers } from "./discord";
 import {
   TOP16_RECENCY_AFTER_DAY,
 } from "./constants";
 import { getBracketIdForMonth } from "./bracket-ids";
-import { isTop16Eligible, usesTotalGamesRule } from "./top16-eligibility";
+import { isTop16Eligible, recentUidsFromGames, usesTotalGamesRule } from "./top16-eligibility";
+import type { RecencyGame } from "./top16-eligibility";
 import type {
   Player,
   PlayerDetail,
@@ -560,6 +561,41 @@ async function getRecentGameUidsForMonth(
 }
 
 /**
+ * Recency for a historical month, read from that month's TopDeck dumps rather than
+ * the `online_games` mirror. The mirror only holds pods eclBot managed to sync, so
+ * a stalled sync silently strips genuine post-cutoff games from the check.
+ *
+ * Match validity mirrors `computeStandings`: a winner, at least two entrants, not muted.
+ */
+async function getRecentGameUidsFromDumps(
+  targetMonth: string, year: number, monthNum: number,
+): Promise<Set<string>> {
+  const monthInfos = (await getHistoricalMonths()).filter((m) => m.month === targetMonth);
+  if (monthInfos.length === 0) return new Set();
+
+  const dumps = await Promise.all(
+    monthInfos.map((mi) => reassembleMonthDump(mi).catch((err) => {
+      console.error(`Failed to load dump for ${mi.bracket_id}/${mi.month}:`, err);
+      return null;
+    }))
+  );
+
+  const games: RecencyGame[] = [];
+  for (const dump of dumps) {
+    if (!dump) continue;
+    for (const m of dump.matches) {
+      if (m.winner === null || m.es.length < 2) continue;
+      if (m.raw?.Mute === true) continue;
+      games.push({
+        uids: m.es.map((eid) => dump.entrant_to_uid[String(eid)]).filter(Boolean),
+        start: m.start,
+      });
+    }
+  }
+  return recentUidsFromGames(games, year, monthNum);
+}
+
+/**
  * Recover the set of dropped player UIDs for a month from each of its bracket
  * Firestore docs. Monthly dumps don't store drop state, so dump-based standings
  * would otherwise treat dropped players as active. A closed bracket keeps its
@@ -605,9 +641,11 @@ export async function getEligibleTop16(month?: string): Promise<{ uid: string; n
   if (targetMonth === currentMonth) {
     // Current month: use live standings (has dropped status + voided match IDs)
     const liveResult = await fetchLiveStandings(bracketId);
-    const recentUids = await getRecentGameUidsForMonth(
-      bracketId, year, monthNum, liveResult.voidedMatchIds, /* onlineOnly */ !totalRule,
-    );
+    // New rule reads recency from TopDeck directly; the frozen rule keeps its
+    // online-gated `online_games` query so past cuts still reproduce exactly.
+    const recentUids = totalRule
+      ? recentUidsFromGames(countedGamesForRecency(liveResult.gamePods), year, monthNum)
+      : await getRecentGameUidsForMonth(bracketId, year, monthNum, liveResult.voidedMatchIds, true);
     const onlineCounts = totalRule
       ? null
       : await getOnlineGameCountsForMonth(bracketId, year, monthNum, liveResult.voidedMatchIds);
@@ -626,7 +664,9 @@ export async function getEligibleTop16(month?: string): Promise<{ uid: string; n
 
   // Historical month — no voided match filtering needed (dumps are finalized)
   const { players } = await getPlayers(targetMonth);
-  const recentUids = await getRecentGameUidsForMonth(bracketId, year, monthNum, [], !totalRule);
+  const recentUids = totalRule
+    ? await getRecentGameUidsFromDumps(targetMonth, year, monthNum)
+    : await getRecentGameUidsForMonth(bracketId, year, monthNum, [], true);
   // online:true counts — used by the frozen old rule AND as the "do we have collection data" signal
   const onlineCounts = await getOnlineGameCountsForMonth(bracketId, year, monthNum, []);
   // Dumps don't store drop state — recover it from the bracket's Firestore doc

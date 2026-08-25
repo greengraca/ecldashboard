@@ -1,48 +1,12 @@
 import { NextResponse } from "next/server";
 import { withAuthRead } from "@/lib/api-helpers";
-import { fetchLiveStandings } from "@/lib/topdeck-live";
+import { fetchLiveStandings, countedGamesForRecency } from "@/lib/topdeck-live";
 import { fetchGuildMembers } from "@/lib/discord";
-import { getDb } from "@/lib/mongodb";
-import { TOP16_RECENCY_AFTER_DAY } from "@/lib/constants";
-import { isTop16Eligible } from "@/lib/top16-eligibility";
+import { TOP16_NO_RECENCY_GAMES } from "@/lib/constants";
+import { isTop16Eligible, recentUidsFromGames } from "@/lib/top16-eligibility";
 import { getBracketIdForMonth } from "@/lib/bracket-ids";
 import { getCurrentMonth } from "@/lib/utils";
 import type { LiveStanding } from "@/lib/types";
-
-/** UIDs that have at least one game (any source) on or after the recency cutoff day. */
-async function getRecentGameUids(bracketId: string, voidedMatchIds: { season: number; table: number }[]): Promise<Set<string>> {
-  const db = await getDb();
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const cutoffTs = new Date(Date.UTC(year, month - 1, TOP16_RECENCY_AFTER_DAY)).getTime() / 1000;
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const matchFilter: Record<string, any> = {
-    bracket_id: bracketId,
-    year,
-    month,
-    start_ts: { $gte: cutoffTs },
-  };
-
-  if (voidedMatchIds.length > 0) {
-    matchFilter.$nor = voidedMatchIds.map((v) => ({ season: v.season, tid: v.table }));
-  }
-
-  const pipeline = [
-    { $match: matchFilter },
-    { $unwind: "$topdeck_uids" },
-    { $group: { _id: "$topdeck_uids" } },
-  ];
-
-  const results = await db.collection("online_games").aggregate(pipeline).toArray();
-  const uids = new Set<string>();
-  for (const row of results) {
-    const uid = String(row._id).trim();
-    if (uid) uids.add(uid);
-  }
-  return uids;
-}
 
 export const GET = withAuthRead(async () => {
   const bracketId = await getBracketIdForMonth(getCurrentMonth());
@@ -51,8 +15,6 @@ export const GET = withAuthRead(async () => {
     fetchLiveStandings(bracketId),
     fetchGuildMembers(),
   ]);
-
-  const recentUids = await getRecentGameUids(bracketId, liveResult.voidedMatchIds);
 
   // Build discord username → avatar_url lookup
   const avatarByUsername = new Map<string, string>();
@@ -68,6 +30,15 @@ export const GET = withAuthRead(async () => {
   const recencyApplies =
     now.getFullYear() > 2026 || (now.getFullYear() === 2026 && now.getMonth() + 1 >= 3);
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  // Recency comes from TopDeck's own match list, not the `online_games` mirror:
+  // that mirror only holds pods eclBot synced, so a stalled sync used to strip
+  // genuine post-cutoff games and drop players from the cut.
+  const recentUids = recentUidsFromGames(
+    countedGamesForRecency(liveResult.gamePods),
+    now.getFullYear(),
+    now.getMonth() + 1,
+  );
 
   // Build standings with eligibility via the shared predicate (always current month → new rule)
   let rank = 0;
@@ -102,7 +73,7 @@ export const GET = withAuthRead(async () => {
       dropped: r.dropped,
       eligible,
       // "meets_recency" now means "no recency check needed (auto-pass) OR has a recent game"
-      meets_recency: !recencyApplies || r.games >= 20 || hasRecent,
+      meets_recency: !recencyApplies || r.games >= TOP16_NO_RECENCY_GAMES || hasRecent,
     };
   });
 
