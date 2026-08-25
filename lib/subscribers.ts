@@ -13,6 +13,8 @@ import {
 import { fetchPublicPData } from "./topdeck-cache";
 import { getHistoricalMonths, reassembleMonthDump, computeStandings } from "./topdeck";
 import { getBracketIdForMonth } from "./bracket-ids";
+import { fetchLiveStandings } from "./topdeck-live";
+import { getCurrentMonth } from "./utils";
 import { getStandings } from "./players";
 import { getRegisteredDiscordUsernames } from "./bracket-registration";
 import type { Subscriber, SubscriberSummary, SubscriptionSource, DataHealthWarning } from "./types";
@@ -72,6 +74,38 @@ async function getGamesFromDump(month: string): Promise<Map<string, number>> {
   }
 
   return gamesPerDiscord;
+}
+
+/**
+ * Games per Discord handle for a month, read from TopDeck.
+ *
+ * Deliberately NOT from `online_games`: that collection only holds pods eclBot's
+ * /synconline recorded, so while that sync is down it undercounts every player
+ * (it ran ~45% short for all of August 2026) — and the old code only fell back
+ * to dumps when the result was *completely* empty, so partial data passed
+ * through silently. TopDeck is the same source the standings and Top 16 use.
+ */
+async function getGamesPerDiscord(month: string): Promise<Map<string, number>> {
+  // Historical months are already dump-backed and finalized.
+  if (month !== getCurrentMonth()) return getGamesFromDump(month);
+
+  // Current month has no dump yet — live standings carry per-entrant game counts
+  // with the PublicPData discord handle already resolved. Summing by handle also
+  // folds together a player who re-registered under several entrant IDs.
+  try {
+    const bracketId = await getBracketIdForMonth(month);
+    const live = await fetchLiveStandings(bracketId);
+    const out = new Map<string, number>();
+    for (const r of live.rows) {
+      const handle = r.discord?.toLowerCase().trim();
+      if (!handle || r.games <= 0) continue;
+      out.set(handle, (out.get(handle) || 0) + r.games);
+    }
+    if (out.size > 0) return out;
+  } catch (err) {
+    console.error(`[subscribers] live game counts unavailable for ${month}:`, err);
+  }
+  return getGamesFromDump(month);
 }
 
 function roleSetHasAny(memberRoles: string[], roleSet: Set<string>): boolean {
@@ -182,11 +216,8 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
     ? { $in: [guildId, Long.fromString(guildId)] }
     : guildId;
 
-  // Parse "YYYY-MM" into numeric year/month for online_games query
-  const [yearNum, monthNum] = month.split("-").map(Number);
-
   // Fetch Discord members, DB records, and game counts in parallel
-  const [members, accessRecords, freeEntries, gameCountRows, publicPData] = await Promise.all([
+  const [members, accessRecords, freeEntries, gamesPerDiscordUsername] = await Promise.all([
     fetchGuildMembers(),
     db
       .collection("subs_access")
@@ -196,18 +227,7 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
       .collection("subs_free_entries")
       .find({ guild_id: guildIdFilter, month })
       .toArray(),
-    // Count games per topdeck_uid (same approach as live standings)
-    getBracketIdForMonth(month).then((bid) =>
-      db.collection("online_games").aggregate<{ _id: string; count: number }>([
-        { $match: { bracket_id: bid, year: yearNum, month: monthNum } },
-        { $unwind: "$topdeck_uids" },
-        { $group: { _id: "$topdeck_uids", count: { $sum: 1 } } },
-      ]).toArray()
-    ),
-    // Fetch PublicPData to map topdeck_uid → discord username
-    getBracketIdForMonth(month).then((bid) =>
-      bid ? fetchPublicPData(bid).catch(() => ({})) : {}
-    ) as Promise<Record<string, { name?: string; discord?: string }>>,
+    getGamesPerDiscord(month),
   ]);
 
   // Build lookup maps
@@ -219,37 +239,6 @@ export async function getSubscribers(month: string): Promise<Subscriber[]> {
   const freeEntryByUser = new Map<string, Record<string, unknown>>();
   for (const entry of freeEntries) {
     freeEntryByUser.set(String(entry.user_id), entry);
-  }
-
-  // Build topdeck_uid → game count from online_games
-  const gamesByTopdeckUid = new Map<string, number>();
-  for (const row of gameCountRows) {
-    const uid = String(row._id).trim();
-    if (uid) gamesByTopdeckUid.set(uid, row.count);
-  }
-
-  // Build discord_username (lowercased) → game count via PublicPData
-  const gamesPerDiscordUsername = new Map<string, number>();
-  for (const [topdeckUid, info] of Object.entries(publicPData)) {
-    const discordHandle = info?.discord?.toLowerCase().trim();
-    if (!discordHandle) continue;
-    const games = gamesByTopdeckUid.get(topdeckUid) ?? 0;
-    if (games > 0) {
-      // Sum in case multiple topdeck UIDs map to same discord handle
-      gamesPerDiscordUsername.set(
-        discordHandle,
-        (gamesPerDiscordUsername.get(discordHandle) || 0) + games
-      );
-    }
-  }
-
-  // If online_games produced no matches, fall back to dump-based game counts
-  // (fetches PublicPData for each historical bracket_id for accurate discord mapping)
-  if (gamesPerDiscordUsername.size === 0) {
-    const dumpGames = await getGamesFromDump(month);
-    for (const [discord, games] of dumpGames.entries()) {
-      gamesPerDiscordUsername.set(discord, games);
-    }
   }
 
   // Helper to look up games for a Discord member by username
