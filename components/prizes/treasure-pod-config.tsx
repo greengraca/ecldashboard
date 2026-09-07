@@ -12,30 +12,41 @@ interface TreasurePodConfigProps {
 }
 
 const BRING_A_FRIEND_IMAGE = "https://i.ibb.co/sph1YjFr/c4eb2988-cc01-48b1-aa8a-faf899b76fe6.png";
+// Card Prize pods always use the Magic card back as their thumbnail.
+const CARD_BACK_IMAGE = "https://backs.scryfall.io/normal/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg";
 
 const PRESET_DEFAULTS: Record<string, { title: string; description: string; image_url: string | null; count: number }> = {
+  card_prize: {
+    title: "Card Prize Treasure Pod!",
+    description: "**Congratulations!** This game is a **Treasure Pod**!\n\nThe **winner** receives a special card as a prize!\n\nIf you won, please **open a ticket** to claim your prize! 🍀",
+    image_url: CARD_BACK_IMAGE,
+    count: 1,
+  },
+  p9quest_wildcard: {
+    title: "💎 P9Quest Wildcard Treasure Pod!",
+    description: "**Congratulations!** This game is a **P9Quest Wildcard Treasure Pod**!\n\nThe **winner** receives a **P9Quest Wildcard**, giving them a chance to win a ticket to the **P9Quest** tournament!\n\nIf you won, please **open a ticket** to claim your **Wildcard**! 💎",
+    image_url: null,
+    count: 7,
+  },
   bring_a_friend: {
     title: "Bring a Friend Treasure Pod!",
     description: "**Congratulations!** This game is a **Treasure Pod**!\n\nThe **winner** receives **free ECL access** for an unregistered friend!\n\nIf you won, please **open a ticket** to claim your prize! 🍀",
     image_url: BRING_A_FRIEND_IMAGE,
     count: 10,
   },
-  card_prize: {
-    title: "Card Prize Treasure Pod!",
-    description: "**Congratulations!** This game is a **Treasure Pod**!\n\nThe **winner** receives a special card as a prize!\n\nIf you won, please **open a ticket** to claim your prize! 🍀",
-    image_url: null,
-    count: 1,
-  },
 };
 
+// Card Prize is the standing default. Bring a Friend is retired but stays
+// selectable so historical months still render correctly.
 const DEFAULT_POD_TYPE: TreasurePodTypeConfig = {
-  type: "bring_a_friend",
-  ...PRESET_DEFAULTS.bring_a_friend,
+  type: "card_prize",
+  ...PRESET_DEFAULTS.card_prize,
 };
 
 const POD_TYPE_PRESETS: { value: string; label: string }[] = [
-  { value: "bring_a_friend", label: "Bring a Friend" },
   { value: "card_prize", label: "Card Prize" },
+  { value: "p9quest_wildcard", label: "P9Quest Wildcard" },
+  { value: "bring_a_friend", label: "Bring a Friend" },
   { value: "custom", label: "Custom" },
 ];
 
@@ -95,7 +106,7 @@ export default function TreasurePodConfig({ month }: TreasurePodConfigProps) {
   }
 
   function addPodType() {
-    setPodTypes((prev) => [...prev, { ...DEFAULT_POD_TYPE, type: "bring_a_friend" }]);
+    setPodTypes((prev) => [...prev, { ...DEFAULT_POD_TYPE }]);
   }
 
   function removePodType(index: number) {
