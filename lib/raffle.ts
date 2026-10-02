@@ -4,6 +4,7 @@ import { fetchLiveStandings } from "./topdeck-live";
 import { getBracketIdForMonth } from "./bracket-ids";
 import { getCurrentMonth } from "./utils";
 import { logActivity } from "./activity";
+import { selectMostGamesTop5 } from "./most-games";
 import type { RaffleResult, RaffleCandidate } from "./types";
 
 const COLLECTION = "dashboard_raffle_results";
@@ -15,13 +16,13 @@ export async function getRaffleCandidates(
   const db = await getDb();
 
   // Current month uses live data, past months use dumps
-  let allPlayers: { uid: string; name: string; games: number }[];
+  let allPlayers: { uid: string; name: string; games: number; points: number }[];
   if (month === getCurrentMonth()) {
     const bracketId = await getBracketIdForMonth(month);
     const live = await fetchLiveStandings(bracketId);
     allPlayers = live.rows
       .filter((r) => r.uid && !r.dropped)
-      .map((r) => ({ uid: r.uid!, name: r.name, games: r.games }));
+      .map((r) => ({ uid: r.uid!, name: r.name, games: r.games, points: r.points }));
   } else {
     // Dumps don't store drop state — recover it from the bracket's Firestore doc
     const [{ players }, droppedUids] = await Promise.all([
@@ -30,13 +31,12 @@ export async function getRaffleCandidates(
     ]);
     allPlayers = players
       .filter((p) => !droppedUids.has(p.uid))
-      .map((p) => ({ uid: p.uid, name: p.name, games: p.games }));
+      .map((p) => ({ uid: p.uid, name: p.name, games: p.games, points: p.points }));
   }
   if (allPlayers.length === 0) return [];
 
-  // Sort all players by games desc, take top 5
-  const byGames = [...allPlayers].sort((a, b) => b.games - a.games);
-  const top5 = byGames.slice(0, 5);
+  // Top 5 by games among players with the minimum points (from 2026-10)
+  const top5 = selectMostGamesTop5(allPlayers, month);
 
   // Finalists = top 4 from bracket results (top4 cut after top16 cut)
   let finalistUids = new Set<string>();

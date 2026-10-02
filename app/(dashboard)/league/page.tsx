@@ -20,6 +20,7 @@ import GamePodsGrid from "@/components/players/game-pods-grid";
 import type { Player, LiveStanding, Standing } from "@/lib/types";
 import { fetcher } from "@/lib/fetcher";
 import { getCurrentMonth } from "@/lib/utils";
+import { selectMostGamesTop5 } from "@/lib/most-games";
 
 interface PlayersData {
   players: Player[];
@@ -706,7 +707,7 @@ export default function PlayersPage() {
                     filter === "inactive"
                       ? liveStandings.filter((s) => s.games === 0)
                       : filter === "most_games"
-                      ? [...liveStandings].sort((a, b) => b.games - a.games).slice(0, 5)
+                      ? selectMostGamesTop5(liveStandings.filter((s) => !s.dropped), month)
                       : liveStandings
                   }
                   showEligibleOnly={filter === "eligible"}
@@ -752,7 +753,7 @@ export default function PlayersPage() {
                       return eligible.slice(0, 16).map((s, i) => ({ ...s, rank: i + 1 }));
                     }
                     if (filter === "inactive") return allStandings.filter((s) => s.games === 0);
-                    if (filter === "most_games") return [...allStandings].sort((a, b) => b.games - a.games).slice(0, 5);
+                    if (filter === "most_games") return selectMostGamesTop5(allStandings, month);
                     return allStandings;
                   })()}
                   defaultSort={filter === "most_games" ? { key: "games", dir: "desc" } : undefined}
