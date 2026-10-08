@@ -479,8 +479,9 @@ export async function getStandings(month?: string): Promise<{ standings: Standin
   }
 
   const { players } = await getPlayers(resolvedMonth);
+  const top16 = await getHistoricalTop16(resolvedMonth, players);
 
-  const standings = players.slice(0, 16).map((p) => ({
+  const standings = top16.map((p) => ({
     rank: p.rank!,
     uid: p.uid,
     name: p.name,
@@ -662,8 +663,26 @@ export async function getEligibleTop16(month?: string): Promise<{ uid: string; n
       .map((r) => ({ uid: r.uid || r.entrant_id.toString(), name: r.name }));
   }
 
-  // Historical month — no voided match filtering needed (dumps are finalized)
   const { players } = await getPlayers(targetMonth);
+  return (await getHistoricalTop16(targetMonth, players)).map((p) => ({ uid: p.uid, name: p.name }));
+}
+
+/**
+ * The Top 16 cut for a historical (dumped) month, as full player rows in seed order.
+ *
+ * Every past-month Top 16 surface reads this — the League page cut and pods, the
+ * media results templates (via getStandings), prize auto-populate and Dragon Shield
+ * codes (via getEligibleTop16). Taking "top 16 with >= 10 games" instead lets a
+ * dropped player into the cut (Aug 2026: the #1 seed had dropped, shifting every
+ * pod off what TopDeck played).
+ */
+async function getHistoricalTop16(targetMonth: string, players: Player[]): Promise<Player[]> {
+  const [year, monthNum] = targetMonth.split("-").map((s) => parseInt(s));
+  const recencyApplies = year > 2026 || (year === 2026 && monthNum >= 3);
+  const bracketId = await getBracketIdForMonth(targetMonth);
+  const totalRule = usesTotalGamesRule(targetMonth);
+
+  // No voided match filtering needed (dumps are finalized)
   const recentUids = totalRule
     ? await getRecentGameUidsFromDumps(targetMonth, year, monthNum)
     : await getRecentGameUidsForMonth(bracketId, year, monthNum, [], true);
@@ -675,10 +694,7 @@ export async function getEligibleTop16(month?: string): Promise<{ uid: string; n
   // No online_games data for this month at all → can't apply game-count rules,
   // but still exclude dropped players before taking the top 16.
   if (onlineCounts.size === 0) {
-    return players
-      .filter((p) => !droppedUids.has(p.uid))
-      .slice(0, 16)
-      .map((p) => ({ uid: p.uid, name: p.name }));
+    return players.filter((p) => !droppedUids.has(p.uid)).slice(0, 16);
   }
 
   return players
@@ -690,6 +706,5 @@ export async function getEligibleTop16(month?: string): Promise<{ uid: string; n
       recencyApplies,
       hasRecent: recentUids.has(p.uid),
     }))
-    .slice(0, 16)
-    .map((p) => ({ uid: p.uid, name: p.name }));
+    .slice(0, 16);
 }

@@ -450,6 +450,23 @@ export default function PlayersPage() {
     fetcher
   );
 
+  // Top 16 cut for past months — computed server-side with the real eligibility
+  // rule (drops, total games, recency). Filtering `players` client-side by games
+  // alone let dropped players into the cut and shifted every pod off TopDeck's.
+  const needsTop16Cut =
+    !isCurrentMonth && (filter === "top16" || filter === "top16_pods" || filter === "top4_pods");
+  const { data: top16Res, isLoading: top16Loading } = useSWR<{
+    data: { standings: Standing[]; month: string | null };
+  }>(needsTop16Cut ? `/api/players/standings?month=${month}` : null, fetcher);
+  // The route falls back to the latest dumped month — never show another month's cut
+  const top16Cut = useMemo(
+    () =>
+      top16Res?.data?.month === month
+        ? top16Res.data.standings.map((s, i) => ({ ...s, rank: i + 1 }))
+        : [],
+    [top16Res, month]
+  );
+
   const players = playersData?.data?.players || [];
   const liveStandings = liveData?.data?.standings || [];
   const liveTotalMatches: number = liveData?.data?.total_matches ?? 0;
@@ -693,7 +710,7 @@ export default function PlayersPage() {
               )}
 
               {/* Body: loading / live standings / bracket editor / dump standings */}
-              {dataLoading ? (
+              {dataLoading || (needsTop16Cut && top16Loading) ? (
                 <LoadingSurface
                   message={
                     isCurrentMonth
@@ -715,20 +732,7 @@ export default function PlayersPage() {
                 />
               ) : showBracketEditor ? (
                 <BracketEditor
-                  eligible={players
-                    .filter((p) => p.games >= 10)
-                    .slice(0, 16)
-                    .map((p, i) => ({
-                      rank: i + 1,
-                      uid: p.uid,
-                      name: p.name,
-                      points: p.points,
-                      games: p.games,
-                      wins: p.wins,
-                      losses: p.losses,
-                      draws: p.draws,
-                      win_pct: p.win_pct,
-                    }))}
+                  eligible={top16Cut}
                   month={month}
                   mode={filter === "top16_pods" ? "top16" : "top4"}
                 />
@@ -748,10 +752,7 @@ export default function PlayersPage() {
                       draws: p.draws,
                       win_pct: p.win_pct,
                     }));
-                    if (filter === "top16") {
-                      const eligible = allStandings.filter((s) => s.games >= 10);
-                      return eligible.slice(0, 16).map((s, i) => ({ ...s, rank: i + 1 }));
-                    }
+                    if (filter === "top16") return top16Cut;
                     if (filter === "inactive") return allStandings.filter((s) => s.games === 0);
                     if (filter === "most_games") return selectMostGamesTop5(allStandings, month);
                     return allStandings;
