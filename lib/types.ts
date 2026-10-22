@@ -312,7 +312,6 @@ export interface LiveStanding {
   ow_pct: number;
   dropped: boolean;
   eligible: boolean;
-  meets_recency: boolean;
 }
 
 // ─── Prize Types ───

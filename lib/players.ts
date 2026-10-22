@@ -6,13 +6,13 @@ import {
 } from "./topdeck";
 import type { MonthDumpPayload, EntrantStats } from "./topdeck";
 import { fetchPublicPData } from "./topdeck-cache";
-import { fetchLiveStandings, countedGamesForRecency } from "./topdeck-live";
+import { fetchLiveStandings } from "./topdeck-live";
 import { fetchGuildMembers } from "./discord";
 import {
   TOP16_RECENCY_AFTER_DAY,
 } from "./constants";
 import { getBracketIdForMonth } from "./bracket-ids";
-import { isTop16Eligible, recentUidsFromGames, usesTotalGamesRule } from "./top16-eligibility";
+import { isTop16Eligible, recencyRuleApplies, recentUidsFromGames, usesTotalGamesRule } from "./top16-eligibility";
 import type { RecencyGame } from "./top16-eligibility";
 import type {
   Player,
@@ -626,38 +626,23 @@ export async function getDroppedUidsForMonth(month: string): Promise<Set<string>
 
 /**
  * Get the top 16 eligible players for a month, applying the same
- * eligibility rules as live standings (min games, online games, recency).
+ * eligibility rules as live standings (drops, min games; frozen rules for past months).
  * Uses live standings for the current month, dump-based for historical.
  */
 export async function getEligibleTop16(month?: string): Promise<{ uid: string; name: string }[]> {
   const targetMonth = month || getCurrentMonth();
-  const [yearStr, monthStr] = targetMonth.split("-");
-  const year = parseInt(yearStr);
-  const monthNum = parseInt(monthStr);
-  const recencyApplies = year > 2026 || (year === 2026 && monthNum >= 3);
   const currentMonth = getCurrentMonth();
-  const bracketId = await getBracketIdForMonth(targetMonth);
-  const totalRule = usesTotalGamesRule(targetMonth);
 
   if (targetMonth === currentMonth) {
-    // Current month: use live standings (has dropped status + voided match IDs)
-    const liveResult = await fetchLiveStandings(bracketId);
-    // New rule reads recency from TopDeck directly; the frozen rule keeps its
-    // online-gated `online_games` query so past cuts still reproduce exactly.
-    const recentUids = totalRule
-      ? recentUidsFromGames(countedGamesForRecency(liveResult.gamePods), year, monthNum)
-      : await getRecentGameUidsForMonth(bracketId, year, monthNum, liveResult.voidedMatchIds, true);
-    const onlineCounts = totalRule
-      ? null
-      : await getOnlineGameCountsForMonth(bracketId, year, monthNum, liveResult.voidedMatchIds);
+    // Current month: use live standings (has dropped status). Always on the
+    // total-games rule with no recency, so nothing else needs fetching.
+    const liveResult = await fetchLiveStandings(await getBracketIdForMonth(targetMonth));
     return liveResult.rows
       .filter((r) => isTop16Eligible({
         month: targetMonth,
         dropped: r.dropped,
         totalGames: r.games,
-        onlineGames: onlineCounts?.get(r.uid || "") ?? 0,
-        recencyApplies,
-        hasRecent: r.uid ? recentUids.has(r.uid) : false,
+        onlineGames: 0, // ignored by the total-games rule
       }))
       .slice(0, 16)
       .map((r) => ({ uid: r.uid || r.entrant_id.toString(), name: r.name }));
@@ -678,14 +663,16 @@ export async function getEligibleTop16(month?: string): Promise<{ uid: string; n
  */
 async function getHistoricalTop16(targetMonth: string, players: Player[]): Promise<Player[]> {
   const [year, monthNum] = targetMonth.split("-").map((s) => parseInt(s));
-  const recencyApplies = year > 2026 || (year === 2026 && monthNum >= 3);
   const bracketId = await getBracketIdForMonth(targetMonth);
   const totalRule = usesTotalGamesRule(targetMonth);
 
-  // No voided match filtering needed (dumps are finalized)
-  const recentUids = totalRule
-    ? await getRecentGameUidsFromDumps(targetMonth, year, monthNum)
-    : await getRecentGameUidsForMonth(bracketId, year, monthNum, [], true);
+  // Recency only for the frozen 2026-03..2026-09 window. No voided match
+  // filtering needed (dumps are finalized)
+  const recentUids = !recencyRuleApplies(targetMonth)
+    ? new Set<string>()
+    : totalRule
+      ? await getRecentGameUidsFromDumps(targetMonth, year, monthNum)
+      : await getRecentGameUidsForMonth(bracketId, year, monthNum, [], true);
   // online:true counts — used by the frozen old rule AND as the "do we have collection data" signal
   const onlineCounts = await getOnlineGameCountsForMonth(bracketId, year, monthNum, []);
   // Dumps don't store drop state — recover it from the bracket's Firestore doc
@@ -703,7 +690,6 @@ async function getHistoricalTop16(targetMonth: string, players: Player[]): Promi
       dropped: droppedUids.has(p.uid),
       totalGames: p.games,
       onlineGames: onlineCounts.get(p.uid) ?? 0,
-      recencyApplies,
       hasRecent: recentUids.has(p.uid),
     }))
     .slice(0, 16);

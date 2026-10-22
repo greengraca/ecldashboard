@@ -82,8 +82,12 @@ export const WAGER_RATE = parseFloat(process.env.WAGER_RATE || "0.07");
 // ─── Top16 Eligibility Thresholds ───
 export const TOP16_MIN_ONLINE_GAMES = parseInt(process.env.TOP16_MIN_ONLINE_GAMES || "10", 10);
 export const TOP16_MIN_TOTAL_GAMES = parseInt(process.env.TOP16_MIN_TOTAL_GAMES || "10", 10);
+// "Game after day N" recency rule — applied 2026-03 through 2026-09, removed from 2026-10.
+// Kept only so historical Top 16 views reproduce the real cuts; eclBot no longer has it.
 export const TOP16_NO_RECENCY_GAMES = parseInt(process.env.TOP16_NO_RECENCY_GAMES || "20", 10);
 export const TOP16_RECENCY_AFTER_DAY = parseInt(process.env.TOP16_RECENCY_AFTER_DAY || "20", 10);
+export const TOP16_RECENCY_FROM = "2026-03";
+export const TOP16_NO_RECENCY_FROM = "2026-10";
 // Month (YYYY-MM) from which Top 16 eligibility uses TOTAL games (online + in-person).
 // Earlier months stay frozen on the old online-games rule. Must match eclBot's effective month.
 export const TOP16_TOTAL_GAMES_FROM = process.env.TOP16_TOTAL_GAMES_FROM || "2026-05";

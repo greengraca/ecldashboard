@@ -451,7 +451,7 @@ export default function PlayersPage() {
   );
 
   // Top 16 cut for past months — computed server-side with the real eligibility
-  // rule (drops, total games, recency). Filtering `players` client-side by games
+  // rule (drops, total games, frozen recency). Filtering `players` client-side by games
   // alone let dropped players into the cut and shifted every pod off TopDeck's.
   const needsTop16Cut =
     !isCurrentMonth && (filter === "top16" || filter === "top16_pods" || filter === "top4_pods");

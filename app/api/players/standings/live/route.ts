@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { withAuthRead } from "@/lib/api-helpers";
-import { fetchLiveStandings, countedGamesForRecency } from "@/lib/topdeck-live";
+import { fetchLiveStandings } from "@/lib/topdeck-live";
 import { fetchGuildMembers } from "@/lib/discord";
-import { TOP16_NO_RECENCY_GAMES } from "@/lib/constants";
-import { isTop16Eligible, recentUidsFromGames } from "@/lib/top16-eligibility";
+import { isTop16Eligible } from "@/lib/top16-eligibility";
 import { getBracketIdForMonth } from "@/lib/bracket-ids";
 import { getCurrentMonth } from "@/lib/utils";
 import type { LiveStanding } from "@/lib/types";
 
 export const GET = withAuthRead(async () => {
-  const bracketId = await getBracketIdForMonth(getCurrentMonth());
+  const month = getCurrentMonth();
+  const bracketId = await getBracketIdForMonth(month);
 
   const [liveResult, guildMembers] = await Promise.all([
     fetchLiveStandings(bracketId),
@@ -25,33 +25,15 @@ export const GET = withAuthRead(async () => {
     }
   }
 
-  // Recency requirement only applies from 2026-03 onwards
-  const now = new Date();
-  const recencyApplies =
-    now.getFullYear() > 2026 || (now.getFullYear() === 2026 && now.getMonth() + 1 >= 3);
-  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
-  // Recency comes from TopDeck's own match list, not the `online_games` mirror:
-  // that mirror only holds pods eclBot synced, so a stalled sync used to strip
-  // genuine post-cutoff games and drop players from the cut.
-  const recentUids = recentUidsFromGames(
-    countedGamesForRecency(liveResult.gamePods),
-    now.getFullYear(),
-    now.getMonth() + 1,
-  );
-
   // Build standings with eligibility via the shared predicate (always current month → new rule)
   let rank = 0;
   const standings: LiveStanding[] = liveResult.rows.map((r) => {
     rank++;
-    const hasRecent = r.uid ? recentUids.has(r.uid) : false;
     const eligible = isTop16Eligible({
       month,
       dropped: r.dropped,
       totalGames: r.games,
       onlineGames: 0, // ignored by the total-games rule
-      recencyApplies,
-      hasRecent,
     });
 
     const discordLower = r.discord?.toLowerCase().trim() || "";
@@ -72,8 +54,6 @@ export const GET = withAuthRead(async () => {
       ow_pct: r.ow_pct,
       dropped: r.dropped,
       eligible,
-      // "meets_recency" now means "no recency check needed (auto-pass) OR has a recent game"
-      meets_recency: !recencyApplies || r.games >= TOP16_NO_RECENCY_GAMES || hasRecent,
     };
   });
 
