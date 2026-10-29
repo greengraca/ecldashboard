@@ -8,6 +8,8 @@ import { fetchLiveStandings, START_POINTS } from "./topdeck-live";
 import type { GamePod } from "./topdeck-live";
 import { getBracketIdForMonth } from "./bracket-ids";
 import { WAGER_RATE } from "./constants";
+import { DecayClock, decayConfigFromSettings, decayUntil, tableActivityTs } from "./topdeck-decay";
+import type { DecaySettings } from "./topdeck-decay";
 import { getCurrentMonth, topdeckTsToMs } from "./utils";
 import type { DailyActivity, DailyProgression, PlayerMatchStats } from "./types";
 
@@ -65,9 +67,12 @@ function buildDailyActivity(
 
 function buildDailyProgression(
   pods: GamePod[],
-  targetUid: string
+  targetUid: string,
+  decay: DecaySettings | null,
+  decayEndMs: number | null
 ): DailyProgression[] {
   if (pods.length === 0) return [];
+  const clock = new DecayClock<string>(decayConfigFromSettings(decay), START_POINTS);
 
   // Collect all unique player UIDs across all pods
   const allUids = new Set<string>();
@@ -97,6 +102,10 @@ function buildDailyProgression(
         stats.set(uid, { wins: 0, games: 0 });
       }
     }
+
+    // Inactivity decay lands before the table scores
+    const at = tableActivityTs(pod.startTime, pod.endTime);
+    for (const uid of uids) clock.touch(points, uid, at);
 
     // Staking: each participant wagers WAGER_RATE of their points
     let pot = 0;
@@ -128,7 +137,11 @@ function buildDailyProgression(
     const isDayBoundary = nextDay !== day;
 
     if (isDayBoundary && day !== lastDay) {
-      const targetPts = points.get(targetUid) ?? START_POINTS;
+      // Points as TopDeck would show them right after this game — the last
+      // snapshot runs the idle tail to now so it lands on the live standings
+      const snapAt = i === pods.length - 1 ? decayUntil(decayEndMs) : pod.endTime!;
+      const shown = (uid: string) => clock.view(points, uid, snapAt);
+      const targetPts = points.has(targetUid) ? shown(targetUid) : START_POINTS;
       const targetStats = stats.get(targetUid) ?? { wins: 0, games: 0 };
       const winPct =
         targetStats.games > 0
@@ -139,8 +152,8 @@ function buildDailyProgression(
       // for daily chart snapshots — computing incremental OW% would require
       // per-player opponent tracking with minimal visual benefit)
       let rank = 1;
-      for (const [uid, pts] of points) {
-        if (uid !== targetUid && pts > targetPts) rank++;
+      for (const uid of points.keys()) {
+        if (uid !== targetUid && shown(uid) > targetPts) rank++;
       }
 
       progression.push({
@@ -164,7 +177,7 @@ export async function getPlayerMatchStats(
   uid: string
 ): Promise<PlayerMatchStats | null> {
   const bracketId = await getBracketIdForMonth(getCurrentMonth());
-  const { rows, gamePods } = await fetchLiveStandings(bracketId);
+  const { rows, gamePods, decay, decayEndMs } = await fetchLiveStandings(bracketId);
 
   // Check player exists in current bracket
   const playerRow = rows.find((r) => r.uid === uid);
@@ -172,7 +185,7 @@ export async function getPlayerMatchStats(
 
   const sorted = completedPods(gamePods);
   const dailyActivity = buildDailyActivity(sorted, uid);
-  const dailyProgression = buildDailyProgression(sorted, uid);
+  const dailyProgression = buildDailyProgression(sorted, uid, decay, decayEndMs);
 
   return {
     dailyActivity,

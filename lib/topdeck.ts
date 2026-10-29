@@ -1,5 +1,15 @@
 import { getDb } from "./mongodb";
 import { WAGER_RATE, FIRESTORE_DOC_URL_TEMPLATE } from "./constants";
+import { parseTournamentFields } from "./topdeck-live";
+import {
+  DecayClock,
+  decayConfigFromSettings,
+  decayEndFromFields,
+  decaySettingsFromFields,
+  decayUntil,
+  tableActivityTs,
+  type DecaySettings,
+} from "./topdeck-decay";
 
 // ─── Types ───
 
@@ -13,11 +23,22 @@ export interface DumpMatch {
   raw: Record<string, unknown>;
 }
 
+/**
+ * What a dump needs to replay TopDeck's inactivity decay. eclBot writes it into
+ * dumps from 2026-10 on; reassembleMonthDump() fills it in for older dumps.
+ */
+export interface DumpScoring {
+  decay: DecaySettings | null;
+  /** The "now" TopDeck's idle tail ran to when the dump was taken (ms): dump time, capped at league end. */
+  decay_until_ms: number | null;
+}
+
 export interface MonthDumpPayload {
   month: string;
   bracket_id: string;
   matches: DumpMatch[];
   entrant_to_uid: Record<string, string>;
+  scoring: DumpScoring;
 }
 
 export interface MonthInfo {
@@ -38,6 +59,12 @@ export interface EntrantStats {
 
 const START_POINTS = 1000;
 // WAGER_RATE imported from constants (default 0.07)
+
+// TopDeck shipped inactivity decay in 2026-10. Dumps of earlier months carry no
+// `scoring` block and their brackets never had decay on (no C:DecayMode), so
+// only dumps from this month on need the Firestore fallback below.
+const DECAY_FROM_MONTH = "2026-10";
+const NO_DECAY: DumpScoring = { decay: null, decay_until_ms: null };
 
 // ─── In-memory cache with TTL ───
 
@@ -225,6 +252,7 @@ export async function reassembleMonthDump(monthInfo: MonthInfo): Promise<MonthDu
     bracket_id: raw.bracket_id,
     matches: raw.matches,
     entrant_to_uid: entrantToUid,
+    scoring: raw.scoring ?? (await scoringFromFirestore(monthInfo, Number(raw.built_at) * 1000 || Date.now())),
   };
 
   setCache(dumpCache, cacheKey, payload);
@@ -232,15 +260,40 @@ export async function reassembleMonthDump(monthInfo: MonthInfo): Promise<MonthDu
 }
 
 /**
+ * Decay settings for a dump written before eclBot stored them: read the
+ * bracket's Firestore doc and run the idle tail to the dump's build time
+ * (capped at league end) — what TopDeck showed when the dump was taken.
+ * Pre-decay months skip the fetch. Degrades to no decay if Firestore is down.
+ */
+async function scoringFromFirestore(monthInfo: MonthInfo, builtAtMs: number): Promise<DumpScoring> {
+  if (monthInfo.month < DECAY_FROM_MONTH || !FIRESTORE_DOC_URL_TEMPLATE) return NO_DECAY;
+  try {
+    const res = await fetch(FIRESTORE_DOC_URL_TEMPLATE.replace("{bracket_id}", monthInfo.bracket_id));
+    if (!res.ok) throw new Error(`Firestore doc returned ${res.status}`);
+    const fields = parseTournamentFields(await res.json());
+    return {
+      decay: decaySettingsFromFields(fields),
+      decay_until_ms: decayUntil(decayEndFromFields(fields), builtAtMs),
+    };
+  } catch (err) {
+    console.error(`Decay settings unavailable for ${monthInfo.bracket_id}/${monthInfo.month} — standings ignore decay:`, err);
+    return NO_DECAY;
+  }
+}
+
+/**
  * Compute standings from matches using the staking model.
- * START_POINTS=1000, WAGER_RATE from env (default 0.07)
+ * START_POINTS=1000, WAGER_RATE from env (default 0.07), plus TopDeck's
+ * inactivity decay when the dump's bracket had it on.
  */
 export function computeStandings(
   matches: DumpMatch[],
-  allEntrantIds: number[]
+  allEntrantIds: number[],
+  scoring: DumpScoring
 ): Map<number, EntrantStats> {
   // Initialize points for all known entrants
   const points = new Map<number, number>();
+  const clock = new DecayClock<number>(decayConfigFromSettings(scoring.decay), START_POINTS);
   const games = new Map<number, number>();
   const wins = new Map<number, number>();
   const losses = new Map<number, number>();
@@ -272,6 +325,10 @@ export function computeStandings(
         draws.set(eid, 0);
       }
     }
+
+    // Inactivity decay lands before the table scores (raw Start, as TopDeck reads it)
+    const at = tableActivityTs(match.raw?.Start, match.raw?.End);
+    for (const eid of participants) clock.touch(points, eid, at);
 
     // Each player wagers WAGER_RATE of their current points
     const stakes = new Map<number, number>();
@@ -309,6 +366,9 @@ export function computeStandings(
       }
     }
   }
+
+  // Idle tail up to when the dump was taken
+  if (scoring.decay_until_ms !== null) clock.settle(points, scoring.decay_until_ms);
 
   // Build stats map
   const statsMap = new Map<number, EntrantStats>();
@@ -353,7 +413,7 @@ export function getPlayerStatsFromDump(
   const allEntrantIds = Object.keys(dump.entrant_to_uid).map(Number);
 
   // Compute standings for all
-  const standings = computeStandings(dump.matches, allEntrantIds);
+  const standings = computeStandings(dump.matches, allEntrantIds, dump.scoring);
 
   // Aggregate stats for all entrant IDs belonging to this uid
   let totalPoints = 0;

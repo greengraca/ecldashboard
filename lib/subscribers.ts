@@ -48,7 +48,7 @@ async function getGamesFromDump(month: string): Promise<Map<string, number>> {
     const dumps = await Promise.all(monthInfos.map(mi => reassembleMonthDump(mi)));
     for (const dump of dumps) {
       const allEntrantIds = Object.keys(dump.entrant_to_uid).map(Number);
-      const standings = computeStandings(dump.matches, allEntrantIds);
+      const standings = computeStandings(dump.matches, allEntrantIds, dump.scoring);
 
       for (const [eidStr, uid] of Object.entries(dump.entrant_to_uid)) {
         const stats = standings.get(Number(eidStr));

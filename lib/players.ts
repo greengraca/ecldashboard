@@ -104,7 +104,7 @@ function buildRankedPlayers(
   nameLookup: Map<string, string>
 ): Player[] {
   const allEntrantIds = Object.keys(dump.entrant_to_uid).map(Number);
-  const standings = computeStandings(dump.matches, allEntrantIds);
+  const standings = computeStandings(dump.matches, allEntrantIds, dump.scoring);
 
   // Aggregate by uid (a uid may have multiple entrant_ids)
   const uidStats = new Map<string, EntrantStats>();
@@ -283,7 +283,7 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
     for (const dump of monthDumps) {
       if (!dump) continue;
       const allEntrantIds = Object.keys(dump.entrant_to_uid).map(Number);
-      const standings = computeStandings(dump.matches, allEntrantIds);
+      const standings = computeStandings(dump.matches, allEntrantIds, dump.scoring);
 
       for (const [eidStr, uidKey] of Object.entries(dump.entrant_to_uid)) {
         const eid = Number(eidStr);

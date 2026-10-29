@@ -6,6 +6,16 @@
 
 import { TOPDECK_BRACKET_ID, FIRESTORE_DOC_URL_TEMPLATE, WAGER_RATE } from "./constants";
 import { fetchPublicPData } from "./topdeck-cache";
+import {
+  DecayClock,
+  decayConfigFromSettings,
+  decayEndFromFields,
+  decaySettingsFromFields,
+  decayUntil,
+  tableActivityTs,
+  type DecayConfig,
+  type DecaySettings,
+} from "./topdeck-decay";
 
 // ─── Types ───
 
@@ -56,6 +66,9 @@ export interface LiveStandingsResult {
   voided: number;
   voidedMatchIds: { season: number; table: number }[];
   gamePods: GamePod[];
+  /** Bracket's inactivity-decay settings (null = off) and league end — for replays like the points chart. */
+  decay: DecaySettings | null;
+  decayEndMs: number | null;
 }
 
 // ─── Cache ───
@@ -96,7 +109,7 @@ function fsValueToPy(v: any): any {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseTournamentFields(doc: any): Record<string, any> {
+export function parseTournamentFields(doc: any): Record<string, any> {
   const fields = doc?.fields || {};
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const out: Record<string, any> = {};
@@ -214,8 +227,9 @@ function isValidCompletedMatch(m: RawMatch): boolean {
 
 // ─── Standings computation (matches bot's _compute_standings) ───
 
-function computeStandings(matches: RawMatch[], entrantIds: Set<number>) {
+function computeStandings(matches: RawMatch[], entrantIds: Set<number>, decay: DecayConfig | null, decayAt: number) {
   const points = new Map<number, number>();
+  const clock = new DecayClock<number>(decay, START_POINTS);
   const stats = new Map<number, { games: number; wins: number; draws: number; losses: number; opponents: Set<number> }>();
   let totalMatches = 0;
   let inProgress = 0;
@@ -247,6 +261,10 @@ function computeStandings(matches: RawMatch[], entrantIds: Set<number>) {
         stats.set(eid, { games: 0, wins: 0, draws: 0, losses: 0, opponents: new Set() });
       }
     }
+
+    // Inactivity decay lands before the table scores, so the wager reads decayed points
+    const at = tableActivityTs(m.start, m.end);
+    for (const eid of m.es) clock.touch(points, eid, at);
 
     // Track opponents
     for (const eid of m.es) {
@@ -286,6 +304,9 @@ function computeStandings(matches: RawMatch[], entrantIds: Set<number>) {
       }
     }
   }
+
+  // Idle tail: last game → now (or league end)
+  clock.settle(points, decayAt);
 
   // Win%
   const winPct = new Map<number, number>();
@@ -342,6 +363,8 @@ export async function fetchLiveStandings(bracketId?: string): Promise<LiveStandi
   const entrantToUid = extractEntrantToUid(fields);
   const matches = extractMatches(fields);
   const dropState = extractDropState(fields);
+  const decay = decaySettingsFromFields(fields);
+  const decayEndMs = decayEndFromFields(fields);
 
   // Collect all entrant IDs
   const entrantIds = new Set(entrantToUid.keys());
@@ -349,7 +372,12 @@ export async function fetchLiveStandings(bracketId?: string): Promise<LiveStandi
     for (const eid of m.es) entrantIds.add(eid);
   }
 
-  const { points, stats, winPct, owPct, totalMatches, inProgress, voided, voidedMatchIds } = computeStandings(matches, entrantIds);
+  const { points, stats, winPct, owPct, totalMatches, inProgress, voided, voidedMatchIds } = computeStandings(
+    matches,
+    entrantIds,
+    decayConfigFromSettings(decay),
+    decayUntil(decayEndMs),
+  );
 
   // Build rows
   const rows: LivePlayerRow[] = [];
@@ -429,7 +457,7 @@ export async function fetchLiveStandings(bracketId?: string): Promise<LiveStandi
     });
 
   // Cache under this bracket's key
-  const result: LiveStandingsResult = { rows, totalMatches, inProgress, voided, voidedMatchIds, gamePods };
+  const result: LiveStandingsResult = { rows, totalMatches, inProgress, voided, voidedMatchIds, gamePods, decay, decayEndMs };
   cachedResults.set(bid, { result, expires: Date.now() + CACHE_TTL_MS });
 
   return result;
