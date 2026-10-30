@@ -7,6 +7,7 @@ import {
 import type { MonthDumpPayload, EntrantStats } from "./topdeck";
 import { fetchPublicPData } from "./topdeck-cache";
 import { fetchLiveStandings } from "./topdeck-live";
+import { compareRankKeys } from "./topdeck-ranking";
 import { fetchGuildMembers } from "./discord";
 import {
   TOP16_RECENCY_AFTER_DAY,
@@ -98,6 +99,15 @@ async function getUidNameLookup(bracketId?: string): Promise<Map<string, string>
   return lookup;
 }
 
+/**
+ * Ranking key for a uid whose stats were summed across entrants/brackets
+ * (defensive — entrant↔UID is 1:1 and one bracket per month in practice):
+ * TopDeck has no single order for it, so rank on rounded points, then win %.
+ */
+function mergedRankKey(s: EntrantStats): number[] {
+  return [-Math.round(s.points), -(s.games > 0 ? Math.round((s.wins / s.games) * 10000) / 100 : 0)];
+}
+
 function buildRankedPlayers(
   dump: MonthDumpPayload,
   subscriberLookup: Map<string, { source: SubscriptionSource }>,
@@ -125,6 +135,7 @@ function buildRankedPlayers(
         existing.games > 0
           ? Math.round((existing.wins / existing.games) * 10000) / 100
           : 0;
+      existing.rank_key = mergedRankKey(existing);
     } else {
       uidStats.set(uid, { ...stats });
     }
@@ -150,11 +161,8 @@ function buildRankedPlayers(
     });
   }
 
-  // Sort by (-points, -games) and assign ranks
-  players.sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
-    return b.games - a.games;
-  });
+  // TopDeck's order (rounded points, then its tiebreakers) and assign ranks
+  players.sort((a, b) => compareRankKeys(uidStats.get(a.uid)!.rank_key, uidStats.get(b.uid)!.rank_key));
 
   for (let i = 0; i < players.length; i++) {
     players[i].rank = i + 1;
@@ -231,12 +239,15 @@ export async function getPlayers(month?: string): Promise<{ players: Player[]; b
     }
   }
 
-  // Re-sort and re-rank the merged results
+  // One bracket (every month so far): keep buildRankedPlayers' TopDeck order.
+  // Several brackets have no single TopDeck order — fall back to points, games.
   const result = Array.from(allPlayers.values());
-  result.sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
-    return b.games - a.games;
-  });
+  if (dumpResults.filter(Boolean).length > 1) {
+    result.sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      return b.games - a.games;
+    });
+  }
 
   for (let i = 0; i < result.length; i++) {
     result[i].rank = i + 1;
@@ -297,6 +308,7 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
           existing.wins += stats.wins;
           existing.losses += stats.losses;
           existing.draws += stats.draws;
+          existing.rank_key = mergedRankKey(existing);
         } else {
           allUidStats.set(uidKey, { ...stats });
         }
@@ -306,13 +318,10 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
     const playerStats = allUidStats.get(uid);
     if (!playerStats || playerStats.games === 0) continue;
 
-    // Compute rank by sorting all UIDs by (-points, -games)
+    // Rank = position in TopDeck's order
     const sortedUids = Array.from(allUidStats.entries())
-      .map(([u, s]) => ({ uid: u, points: Math.round(s.points * 100) / 100, games: s.games }))
-      .sort((a, b) => {
-        if (b.points !== a.points) return b.points - a.points;
-        return b.games - a.games;
-      });
+      .map(([u, s]) => ({ uid: u, rank_key: s.rank_key }))
+      .sort((a, b) => compareRankKeys(a.rank_key, b.rank_key));
     const rankIdx = sortedUids.findIndex((s) => s.uid === uid);
     const rank = rankIdx >= 0 ? rankIdx + 1 : null;
 
@@ -352,11 +361,7 @@ export async function getPlayerDetail(uid: string): Promise<PlayerDetail | null>
       const currentMonth = getCurrentMonth();
       // Only add if not already covered by dump data
       if (!monthlyHistory.some((h) => h.month === currentMonth)) {
-        // Compute rank from all live rows
-        const sorted = [...liveResult.rows].sort((a, b) => b.points - a.points);
-        const liveRank = sorted.findIndex(
-          (r) => r.uid === uid || r.entrant_id.toString() === uid
-        ) + 1;
+        const liveRank = livePlayer.rank;
 
         monthlyHistory.push({
           month: currentMonth,

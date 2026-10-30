@@ -6,6 +6,7 @@
 
 import { TOPDECK_BRACKET_ID, FIRESTORE_DOC_URL_TEMPLATE, WAGER_RATE } from "./constants";
 import { fetchPublicPData } from "./topdeck-cache";
+import { breakersFromFields, compareRankKeys, topdeckRankKey } from "./topdeck-ranking";
 import {
   DecayClock,
   decayConfigFromSettings,
@@ -42,6 +43,8 @@ export interface LivePlayerRow {
   losses: number;
   draws: number;
   dropped: boolean;
+  /** TopDeck's standings rank — its tiebreakers, dropped players ranked by record too. */
+  rank: number;
 }
 
 // ─── Constants ───
@@ -230,7 +233,7 @@ function isValidCompletedMatch(m: RawMatch): boolean {
 function computeStandings(matches: RawMatch[], entrantIds: Set<number>, decay: DecayConfig | null, decayAt: number) {
   const points = new Map<number, number>();
   const clock = new DecayClock<number>(decay, START_POINTS);
-  const stats = new Map<number, { games: number; wins: number; draws: number; losses: number; opponents: Set<number> }>();
+  const stats = new Map<number, { games: number; wins: number; draws: number; losses: number; opponents: Set<number>; beaten: Set<number> }>();
   let totalMatches = 0;
   let inProgress = 0;
   let voided = 0;
@@ -238,7 +241,7 @@ function computeStandings(matches: RawMatch[], entrantIds: Set<number>, decay: D
 
   for (const eid of entrantIds) {
     points.set(eid, START_POINTS);
-    stats.set(eid, { games: 0, wins: 0, draws: 0, losses: 0, opponents: new Set() });
+    stats.set(eid, { games: 0, wins: 0, draws: 0, losses: 0, opponents: new Set(), beaten: new Set() });
   }
 
   for (const m of matches) {
@@ -258,7 +261,7 @@ function computeStandings(matches: RawMatch[], entrantIds: Set<number>, decay: D
     for (const eid of m.es) {
       if (!points.has(eid)) {
         points.set(eid, START_POINTS);
-        stats.set(eid, { games: 0, wins: 0, draws: 0, losses: 0, opponents: new Set() });
+        stats.set(eid, { games: 0, wins: 0, draws: 0, losses: 0, opponents: new Set(), beaten: new Set() });
       }
     }
 
@@ -300,7 +303,10 @@ function computeStandings(matches: RawMatch[], entrantIds: Set<number>, decay: D
         const s = stats.get(eid)!;
         s.games++;
         if (eid === winnerId) s.wins++;
-        else s.losses++;
+        else {
+          s.losses++;
+          stats.get(winnerId)!.beaten.add(eid);
+        }
       }
     }
   }
@@ -379,6 +385,23 @@ export async function fetchLiveStandings(bracketId?: string): Promise<LiveStandi
     decayUntil(decayEndMs),
   );
 
+  // TopDeck's ranking: rounded points, then the event's tiebreakers
+  const breakers = breakersFromFields(fields);
+  const rankKeys = new Map<number, number[]>();
+  for (const eid of entrantIds) {
+    const s = stats.get(eid);
+    rankKeys.set(eid, topdeckRankKey({
+      points: points.get(eid) ?? START_POINTS,
+      winRate: winPct.get(eid) ?? 0,
+      oppWinRate: owPct.get(eid) ?? 0,
+      oppsBeaten: s?.beaten.size ?? 0,
+      uniqueOpps: s?.opponents.size ?? 0,
+      entrantId: eid,
+    }, breakers));
+  }
+  const byRank = (a: number, b: number) => compareRankKeys(rankKeys.get(a)!, rankKeys.get(b)!);
+  const rankOf = new Map([...entrantIds].sort(byRank).map((eid, i) => [eid, i + 1]));
+
   // Build rows
   const rows: LivePlayerRow[] = [];
   for (const eid of entrantIds) {
@@ -389,7 +412,7 @@ export async function fetchLiveStandings(bracketId?: string): Promise<LiveStandi
       playerData = players[uid] ?? null;
     }
 
-    const s = stats.get(eid) ?? { games: 0, wins: 0, draws: 0, losses: 0, opponents: new Set() };
+    const s = stats.get(eid) ?? { games: 0, wins: 0, draws: 0, losses: 0 };
     const dropped = dropState.isDropped.get(eid) ?? false;
 
     rows.push({
@@ -405,16 +428,14 @@ export async function fetchLiveStandings(bracketId?: string): Promise<LiveStandi
       losses: s.losses,
       draws: s.draws,
       dropped,
+      rank: rankOf.get(eid)!,
     });
   }
 
-  // Sort: active first, then -points, -ow_pct, -win_pct (matches bot)
+  // TopDeck's order, with dropped players grouped last (matches bot)
   rows.sort((a, b) => {
     if (a.dropped !== b.dropped) return a.dropped ? 1 : -1;
-    if (b.points !== a.points) return b.points - a.points;
-    if (b.ow_pct !== a.ow_pct) return b.ow_pct - a.ow_pct;
-    if (b.win_pct !== a.win_pct) return b.win_pct - a.win_pct;
-    return 0;
+    return a.rank - b.rank;
   });
 
   // Build game pods from matches

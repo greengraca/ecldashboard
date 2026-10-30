@@ -10,6 +10,7 @@ import {
   tableActivityTs,
   type DecaySettings,
 } from "./topdeck-decay";
+import { breakersFromFields, topdeckRankKey, type Breaker } from "./topdeck-ranking";
 
 // ─── Types ───
 
@@ -31,6 +32,8 @@ export interface DumpScoring {
   decay: DecaySettings | null;
   /** The "now" TopDeck's idle tail ran to when the dump was taken (ms): dump time, capped at league end. */
   decay_until_ms: number | null;
+  /** Event tiebreaker order (C:Breakers). Absent = TopDeck's league default. */
+  breakers?: Breaker[];
 }
 
 export interface MonthDumpPayload {
@@ -53,6 +56,8 @@ export interface EntrantStats {
   losses: number;
   draws: number;
   win_pct: number;
+  /** TopDeck's ranking key — sort with compareRankKeys(), never by raw points. */
+  rank_key: number[];
 }
 
 // ─── Constants ───
@@ -274,6 +279,7 @@ async function scoringFromFirestore(monthInfo: MonthInfo, builtAtMs: number): Pr
     return {
       decay: decaySettingsFromFields(fields),
       decay_until_ms: decayUntil(decayEndFromFields(fields), builtAtMs),
+      breakers: breakersFromFields(fields),
     };
   } catch (err) {
     console.error(`Decay settings unavailable for ${monthInfo.bracket_id}/${monthInfo.month} — standings ignore decay:`, err);
@@ -298,6 +304,8 @@ export function computeStandings(
   const wins = new Map<number, number>();
   const losses = new Map<number, number>();
   const draws = new Map<number, number>();
+  const opponents = new Map<number, Set<number>>();
+  const beaten = new Map<number, Set<number>>();
 
   for (const eid of allEntrantIds) {
     points.set(eid, START_POINTS);
@@ -305,6 +313,8 @@ export function computeStandings(
     wins.set(eid, 0);
     losses.set(eid, 0);
     draws.set(eid, 0);
+    opponents.set(eid, new Set());
+    beaten.set(eid, new Set());
   }
 
   // Process each valid completed match
@@ -323,7 +333,10 @@ export function computeStandings(
         wins.set(eid, 0);
         losses.set(eid, 0);
         draws.set(eid, 0);
+        opponents.set(eid, new Set());
+        beaten.set(eid, new Set());
       }
+      for (const opp of participants) if (opp !== eid) opponents.get(eid)!.add(opp);
     }
 
     // Inactivity decay lands before the table scores (raw Start, as TopDeck reads it)
@@ -362,6 +375,7 @@ export function computeStandings(
       for (const eid of participants) {
         if (eid !== winnerId) {
           losses.set(eid, losses.get(eid)! + 1);
+          beaten.get(winnerId)!.add(eid);
         }
       }
     }
@@ -372,12 +386,14 @@ export function computeStandings(
 
   // Build stats map
   const statsMap = new Map<number, EntrantStats>();
+  const winRate = (eid: number) => (games.get(eid)! > 0 ? wins.get(eid)! / games.get(eid)! : 0);
 
   for (const eid of points.keys()) {
     const g = games.get(eid)!;
     const w = wins.get(eid)!;
     const l = losses.get(eid)!;
     const d = draws.get(eid)!;
+    const opps = [...opponents.get(eid)!];
 
     statsMap.set(eid, {
       points: Math.round(points.get(eid)! * 100) / 100,
@@ -386,6 +402,14 @@ export function computeStandings(
       losses: l,
       draws: d,
       win_pct: g > 0 ? Math.round((w / g) * 10000) / 100 : 0,
+      rank_key: topdeckRankKey({
+        points: points.get(eid)!,
+        winRate: winRate(eid),
+        oppWinRate: opps.length > 0 ? opps.reduce((sum, o) => sum + winRate(o), 0) / opps.length : 0,
+        oppsBeaten: beaten.get(eid)!.size,
+        uniqueOpps: opps.length,
+        entrantId: eid,
+      }, scoring.breakers),
     });
   }
 
@@ -398,7 +422,7 @@ export function computeStandings(
 export function getPlayerStatsFromDump(
   dump: MonthDumpPayload,
   targetUid: string
-): EntrantStats | null {
+): Omit<EntrantStats, "rank_key"> | null {
   // Find all entrant IDs that map to this uid
   const entrantIds: number[] = [];
   for (const [eidStr, uid] of Object.entries(dump.entrant_to_uid)) {
